@@ -2,7 +2,7 @@
 
 __precompile__()
 module QuadGK
-export gauss, kronrod, quadgk
+# export gauss, kronrod, quadgk
 using Base.Collections
 import Base: isless, Order.Reverse, AnyDict
 
