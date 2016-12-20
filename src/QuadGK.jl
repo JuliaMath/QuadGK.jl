@@ -1,5 +1,6 @@
-# This file is a part of Julia. License is MIT: http://julialang.org/license
+# This file was formerly a part of Julia. License is MIT: http://julialang.org/license
 
+__precompile__()
 module QuadGK
 export gauss, kronrod, quadgk
 using Base.Collections

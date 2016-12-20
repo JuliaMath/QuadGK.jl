@@ -1,0 +1,15 @@
+language: julia
+os:
+  - osx
+  - linux
+julia:
+  - 0.5
+  - nightly
+notifications:
+  email: false
+#script: # the default script is equivalent to the following
+#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+#  - julia -e 'Pkg.clone(pwd()); Pkg.build("QuadGK"); Pkg.test("QuadGK"; coverage=true)';
+after_success:
+  - julia -e 'cd(Pkg.dir("QuadGK")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())';
+#  - julia -e 'cd(Pkg.dir("QuadGK")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())';
