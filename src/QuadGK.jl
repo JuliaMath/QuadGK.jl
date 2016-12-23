@@ -2,7 +2,13 @@
 
 __precompile__()
 module QuadGK
-# export gauss, kronrod, quadgk
+
+if isdefined(Base, :QuadGK)
+    import Base.QuadGK: quadgk, gauss, kronrod
+else
+    export quadgk, gauss, kronrod
+end
+
 using Base.Collections
 import Base: isless, Order.Reverse, AnyDict
 
