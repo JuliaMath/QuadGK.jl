@@ -9,7 +9,7 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/ararslan/QuadGK.jl.git",
+    repo = "github.com/JuliaMath/QuadGK.jl.git",
     target = "build",
     deps = nothing,
     make = nothing,

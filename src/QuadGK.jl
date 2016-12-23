@@ -3,9 +3,7 @@
 __precompile__()
 module QuadGK
 
-if isdefined(Base, :QuadGK)
-    import Base.QuadGK: quadgk, gauss, kronrod
-else
+if !isdefined(Base, :QuadGK)
     export quadgk, gauss, kronrod
 end
 
