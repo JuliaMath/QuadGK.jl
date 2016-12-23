@@ -318,10 +318,14 @@ function eigvec1(b,z::Number,m=length(b)+1)
     return v
 end
 
-# return (x, w) pair of N quadrature points x[i] and weights w[i] to
-# integrate functions on the interval (-1, 1).  i.e. dot(f(x), w)
-# approximates the integral.  Uses the method described in Trefethen &
-# Bau, Numerical Linear Algebra, to find the N-point Gaussian quadrature
+"""
+    gauss([T,] N)
+
+Return a pair `(x, w)` of `N` quadrature points `x[i]` and weights `w[i]` to
+integrate functions on the interval `(-1, 1)`,  i.e. `dot(f(x), w)`
+approximates the integral.  Uses the method described in Trefethen &
+Bau, Numerical Linear Algebra, to find the `N`-point Gaussian quadrature.
+"""
 function gauss{T<:AbstractFloat}(::Type{T}, N::Integer)
     if N < 1
         throw(ArgumentError("Gauss rules require positive order"))
@@ -333,11 +337,17 @@ function gauss{T<:AbstractFloat}(::Type{T}, N::Integer)
     return (x, w)
 end
 
-# Compute 2n+1 Kronrod points x and weights w based on the description in
-# Laurie (1997), appendix A, simplified for a=0, for integrating on [-1,1].
-# Since the rule is symmetric only returns the n+1 points with x <= 0.
-# Also computes the embedded n-point Gauss quadrature weights gw (again
-# for x <= 0), corresponding to the points x[2:2:end].  Returns (x,w,wg).
+gauss(N::Integer) = gauss(Float64, N)
+
+"""
+    kronrod([T,] n)
+
+Compute `2n+1` Kronrod points `x` and weights `w` based on the description in
+Laurie (1997), appendix A, simplified for `a=0`, for integrating on `[-1,1]`.
+Since the rule is symmetric, this only returns the `n+1` points with `x <= 0`.
+The function Also computes the embedded `n`-point Gauss quadrature weights `gw`
+(again for `x <= 0`), corresponding to the points `x[2:2:end]`. Returns `(x,w,wg)`.
+"""
 function kronrod{T<:AbstractFloat}(::Type{T}, n::Integer)
     if n < 1
         throw(ArgumentError("Kronrod rules require positive order"))
@@ -399,6 +409,8 @@ function kronrod{T<:AbstractFloat}(::Type{T}, n::Integer)
 
     return (x, w, gw)
 end
+
+kronrod(N::Integer) = kronrod(Float64, N)
 
 ###########################################################################
 
