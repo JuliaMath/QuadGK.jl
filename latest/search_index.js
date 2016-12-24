@@ -13,7 +13,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "QuadGK.jl",
     "category": "section",
-    "text": "This package provides functionality for numerical integration in Julia."
+    "text": "This package provides support for one-dimensional numerical integration in Julia using adaptive Gauss-Kronrod quadrature. The code was originally part of Base Julia."
 },
 
 {
@@ -25,11 +25,27 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "index.html#QuadGK.gauss",
+    "page": "Home",
+    "title": "QuadGK.gauss",
+    "category": "Function",
+    "text": "gauss([T,] N)\n\nReturn a pair (x, w) of N quadrature points x[i] and weights w[i] to integrate functions on the interval (-1, 1),  i.e. sum(w .* f.(x)) approximates the integral.  Uses the method described in Trefethen & Bau, Numerical Linear Algebra, to find the N-point Gaussian quadrature in O(N²) operations.\n\nT is an optional parameter specifying the floating-point type, defaulting to Float64. Arbitrary precision (BigFloat) is also supported.\n\n\n\n"
+},
+
+{
+    "location": "index.html#QuadGK.kronrod",
+    "page": "Home",
+    "title": "QuadGK.kronrod",
+    "category": "Function",
+    "text": "kronrod([T,] n)\n\nCompute 2n+1 Kronrod points x and weights w based on the description in Laurie (1997), appendix A, simplified for a=0, for integrating on [-1,1]. Since the rule is symmetric, this only returns the n+1 points with x <= 0. The function Also computes the embedded n-point Gauss quadrature weights gw (again for x <= 0), corresponding to the points x[2:2:end]. Returns (x,w,wg) in O(n²) operations.\n\nT is an optional parameter specifying the floating-point type, defaulting to Float64. Arbitrary precision (BigFloat) is also supported.\n\nGiven these points and weights, the estimated integral I and error E can be computed for an integrand f(x) as follows:\n\nx, w, wg = kronrod(n)\nfx⁰ = f(x[end])                # f(0)\nx⁻ = x[1:end-1]                # the x < 0 Kronrod points\nfx = f.(x⁻) .+ f.((-).(x⁻))    # f(x < 0) + f(x > 0)\nI = sum(fx .* w[1:end-1]) + fx⁰ * w[end]\nif isodd(n)\n    E = abs(sum(fx[2:2:end] .* wg[1:end-1]) + fx⁰*wg[end] - I)\nelse\n    E = abs(sum(fx[2:2:end] .* wg[1:end])- I)\nend\n\n\n\n"
+},
+
+{
     "location": "index.html#Functions-1",
     "page": "Home",
     "title": "Functions",
     "category": "section",
-    "text": "QuadGK.quadgk"
+    "text": "QuadGK.quadgk\nQuadGK.gauss\nQuadGK.kronrod"
 },
 
 ]}
