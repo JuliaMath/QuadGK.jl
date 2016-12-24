@@ -17,3 +17,13 @@ over the interval [-1, 1], and `kronrod` computes Kronrod points, weights, and e
 weights for integrating over [-1, 1].
 
 For more information, see the documentation.
+
+## Similar packages
+
+The [FastGaussQuadrature.jl](https://github.com/ajt60gaibb/FastGaussQuadrature.jl) package provides
+non-adaptive Gaussian quadrature with a wider variety of weight functions.
+It should be preferred to this package for higher orders *N*, since the algorithms here are
+*O*(*N*<sup>2</sup>) whereas the FastGaussQuadrature algorithms are *O*(*N*).
+
+For multidimensional integration, see the [Cubature.jl](https://github.com/stevengj/Cubature.jl) and
+[Cuba.jl](https://github.com/giordano/Cuba.jl) packages.
