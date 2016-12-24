@@ -18,8 +18,9 @@ import QuadGK: quadgk, gauss, kronrod
 end
 
 module Test19626
+    using QuadGK
     using Base.Test
-    
+
     # Define a mock physical quantity type
     immutable MockQuantity <: Number
         val::Float64
@@ -39,6 +40,6 @@ module Test19626
     Base.isapprox(a::MockQuantity, b::MockQuantity) = isapprox(a.val, b.val)
 
     # Test physical quantity-valued functions
-    @test quadgk(x->MockQuantity(x), 0.0, 1.0, abstol=MockQuantity(0.0))[1] ≈
+    @test QuadGK.quadgk(x->MockQuantity(x), 0.0, 1.0, abstol=MockQuantity(0.0))[1] ≈
         MockQuantity(0.5)
 end
