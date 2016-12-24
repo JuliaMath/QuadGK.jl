@@ -45,7 +45,7 @@ immutable Segment
     a::Number
     b::Number
     I
-    E::Real
+    E
 end
 isless(i::Segment, j::Segment) = isless(i.E, j.E)
 
