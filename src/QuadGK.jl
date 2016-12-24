@@ -350,7 +350,8 @@ Compute `2n+1` Kronrod points `x` and weights `w` based on the description in
 Laurie (1997), appendix A, simplified for `a=0`, for integrating on `[-1,1]`.
 Since the rule is symmetric, this only returns the `n+1` points with `x <= 0`.
 The function Also computes the embedded `n`-point Gauss quadrature weights `gw`
-(again for `x <= 0`), corresponding to the points `x[2:2:end]`. Returns `(x,w,wg)`.
+(again for `x <= 0`), corresponding to the points `x[2:2:end]`. Returns `(x,w,wg)`
+in O(`n`²) operations.
 
 `T` is an optional parameter specifying the floating-point type, defaulting
 to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
