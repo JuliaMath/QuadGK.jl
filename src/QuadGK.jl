@@ -322,9 +322,13 @@ end
     gauss([T,] N)
 
 Return a pair `(x, w)` of `N` quadrature points `x[i]` and weights `w[i]` to
-integrate functions on the interval `(-1, 1)`,  i.e. `dot(f(x), w)`
+integrate functions on the interval `(-1, 1)`,  i.e. `sum(w .* f.(x))`
 approximates the integral.  Uses the method described in Trefethen &
-Bau, Numerical Linear Algebra, to find the `N`-point Gaussian quadrature.
+Bau, Numerical Linear Algebra, to find the `N`-point Gaussian quadrature
+in O(`N`²) operations.
+
+`T` is an optional parameter specifying the floating-point type, defaulting
+to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
 """
 function gauss{T<:AbstractFloat}(::Type{T}, N::Integer)
     if N < 1
@@ -347,6 +351,9 @@ Laurie (1997), appendix A, simplified for `a=0`, for integrating on `[-1,1]`.
 Since the rule is symmetric, this only returns the `n+1` points with `x <= 0`.
 The function Also computes the embedded `n`-point Gauss quadrature weights `gw`
 (again for `x <= 0`), corresponding to the points `x[2:2:end]`. Returns `(x,w,wg)`.
+
+`T` is an optional parameter specifying the floating-point type, defaulting
+to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
 """
 function kronrod{T<:AbstractFloat}(::Type{T}, n::Integer)
     if n < 1
