@@ -7,7 +7,7 @@ if !isdefined(Base, :QuadGK)
     export quadgk, gauss, kronrod
 end
 
-using Base.Collections
+using DataStructures
 import Base: isless, Order.Reverse, AnyDict
 
 # Adaptive Gauss-Kronrod quadrature routines (arbitrary precision),
