@@ -1,7 +1,12 @@
 # This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
 
 using QuadGK
-using Base.Test
+if isdefined(Base.Test, Symbol("@testset"))
+    using Base.Test
+else
+    using BaseTestNext
+    const Test = BaseTestNext
+end
 
 import QuadGK: quadgk, gauss, kronrod
 
