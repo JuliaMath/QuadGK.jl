@@ -29,5 +29,5 @@ non-adaptive Gaussian quadrature with a wider variety of weight functions.
 It should be preferred to this package for higher orders *N*, since the algorithms here are
 *O*(*N*<sup>2</sup>) whereas the FastGaussQuadrature algorithms are *O*(*N*).
 
-For multidimensional integration, see the [Cubature.jl](https://github.com/stevengj/Cubature.jl) and
+For multidimensional integration, see the [HCubature.jl](https://github.com/stevengj/HCubature.jl), [Cubature.jl](https://github.com/stevengj/Cubature.jl), and
 [Cuba.jl](https://github.com/giordano/Cuba.jl) packages.
