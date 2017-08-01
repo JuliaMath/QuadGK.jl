@@ -3,6 +3,11 @@
 __precompile__()
 module QuadGK
 
+# see PRs #19741 and #22763
+if v"0.6.0-dev.1764" ≤ VERSION < v"0.7.0-DEV.986" && isdefined(Base, :quadgk)
+    import Base: quadgk
+end
+
 if !isdefined(Base, :QuadGK)
     export quadgk, gauss, kronrod
 end
