@@ -12,6 +12,7 @@ if !isdefined(Base, :QuadGK)
     export quadgk, gauss, kronrod
 end
 
+using Compat
 using DataStructures
 import Base: isless, Order.Reverse, AnyDict
 
@@ -46,7 +47,7 @@ const rulecache = AnyDict( (Float64,7) => # precomputed in 100-bit arith.
      4.1795918367346938775510204081658e-01]) )
 
 # integration segment (a,b), estimated integral I, and estimated error E
-immutable Segment
+struct Segment
     a::Number
     b::Number
     I
@@ -97,7 +98,7 @@ rulekey(T,n) = (T,n)
 # integration with the order-n Kronrod rule and weights of type Tw,
 # with absolute tolerance abstol and relative tolerance reltol,
 # with maxevals an approximate maximum number of f evaluations.
-function do_quadgk{Tw}(f, s, n, ::Type{Tw}, abstol, reltol, maxevals, nrm)
+function do_quadgk(f, s, n, ::Type{Tw}, abstol, reltol, maxevals, nrm) where Tw
     if eltype(s) <: Real # check for infinite or semi-infinite intervals
         s1 = s[1]; s2 = s[end]; inf1 = isinf(s1); inf2 = isinf(s2)
         if inf1 || inf2
@@ -161,16 +162,16 @@ end
 
 # Gauss-Kronrod quadrature of f from a to b to c...
 
-function quadgk{T<:AbstractFloat}(f, a::T,b::T,c::T...;
-                                  abstol=zero(T), reltol=sqrt(eps(T)),
-                                  maxevals=10^7, order=7, norm=vecnorm)
+function quadgk(f, a::T,b::T,c::T...;
+                abstol=zero(T), reltol=sqrt(eps(T)),
+                maxevals=10^7, order=7, norm=vecnorm) where T<:AbstractFloat
     do_quadgk(f, [a, b, c...], order, T, abstol, reltol, maxevals, norm)
 end
 
-function quadgk{T<:AbstractFloat}(f, a::Complex{T},
-                                  b::Complex{T},c::Complex{T}...;
-                                  abstol=zero(T), reltol=sqrt(eps(T)),
-                                  maxevals=10^7, order=7, norm=vecnorm)
+function quadgk(f, a::Complex{T},
+                b::Complex{T},c::Complex{T}...;
+                abstol=zero(T), reltol=sqrt(eps(T)),
+                maxevals=10^7, order=7, norm=vecnorm) where T<:AbstractFloat
     do_quadgk(f, [a, b, c...], order, T, abstol, reltol, maxevals, norm)
 end
 
@@ -285,7 +286,7 @@ function eignewt(b,m,n)
     H = SymTridiagonal(zeros(m), Float64[ b[i] for i in 1:m-1 ])
     lambda0 = sort(eigvals(H))
 
-    lambda = Array{eltype(b)}(n)
+    lambda = Array{eltype(b)}(uninitialized, n)
     for i = 1:n
         lambda[i] = lambda0[i]
         for k = 1:1000
@@ -308,7 +309,7 @@ function eigvec1(b,z::Number,m=length(b)+1)
     # "cheat" and use the fact that our eigenvector v must have a
     # nonzero first entries (since it is a quadrature weight), so we
     # can set v[1] = 1 to solve for the rest of the components:.
-    v = Array{eltype(b)}(m)
+    v = Array{eltype(b)}(uninitialized, m)
     v[1] = 1
     if m > 1
         s = v[1]
@@ -335,7 +336,7 @@ in O(`N`²) operations.
 `T` is an optional parameter specifying the floating-point type, defaulting
 to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
 """
-function gauss{T<:AbstractFloat}(::Type{T}, N::Integer)
+function gauss(::Type{T}, N::Integer) where T<:AbstractFloat
     if N < 1
         throw(ArgumentError("Gauss rules require positive order"))
     end
@@ -375,7 +376,7 @@ be computed for an integrand `f(x)` as follows:
         E = abs(sum(fx[2:2:end] .* wg[1:end])- I)
     end
 """
-function kronrod{T<:AbstractFloat}(::Type{T}, n::Integer)
+function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
     if n < 1
         throw(ArgumentError("Kronrod rules require positive order"))
     end

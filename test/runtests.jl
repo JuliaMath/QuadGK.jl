@@ -1,12 +1,8 @@
 # This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
 
 using QuadGK
-if isdefined(Base.Test, Symbol("@testset"))
-    using Base.Test
-else
-    using BaseTestNext
-    const Test = BaseTestNext
-end
+using Compat
+using Compat.Test
 
 import QuadGK: quadgk, gauss, kronrod
 
@@ -25,10 +21,11 @@ end
 
 module Test19626
     using QuadGK
-    using Base.Test
+    using Compat
+    using Compat.Test
 
     # Define a mock physical quantity type
-    immutable MockQuantity <: Number
+    struct MockQuantity <: Number
         val::Float64
     end
 
