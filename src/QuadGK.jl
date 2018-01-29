@@ -13,7 +13,7 @@ if !isdefined(Base, :QuadGK)
 end
 
 using Compat
-using DataStructures
+using DataStructures, Compat.LinearAlgebra
 import Base: isless, Order.Reverse, AnyDict
 
 # Adaptive Gauss-Kronrod quadrature routines (arbitrary precision),
