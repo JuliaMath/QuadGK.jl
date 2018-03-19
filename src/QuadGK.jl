@@ -175,6 +175,8 @@ function quadgk(f, a::Complex{T},
     do_quadgk(f, [a, b, c...], order, T, abstol, reltol, maxevals, norm)
 end
 
+# generic version: determine precision from a combination of
+# all the integration-segment endpoints
 """
     quadgk(f, a,b,c...; reltol=sqrt(eps), abstol=0, maxevals=10^7, order=7, norm=vecnorm)
 
@@ -230,8 +232,6 @@ or `1/sqrt(x)` singularity).
 For real-valued endpoints, the starting and/or ending points may be infinite. (A coordinate
 transformation is performed internally to map the infinite interval to a finite one.)
 """
-# generic version: determine precision from a combination of
-# all the integration-segment endpoints
 function quadgk(f, a, b, c...; kws...)
     T = promote_type(typeof(float(a)), typeof(b))
     for x in c
@@ -286,7 +286,7 @@ function eignewt(b,m,n)
     H = SymTridiagonal(zeros(m), Float64[ b[i] for i in 1:m-1 ])
     lambda0 = sort(eigvals(H))
 
-    lambda = Array{eltype(b)}(uninitialized, n)
+    lambda = Array{eltype(b)}(undef, n)
     for i = 1:n
         lambda[i] = lambda0[i]
         for k = 1:1000
@@ -309,7 +309,7 @@ function eigvec1(b,z::Number,m=length(b)+1)
     # "cheat" and use the fact that our eigenvector v must have a
     # nonzero first entries (since it is a quadrature weight), so we
     # can set v[1] = 1 to solve for the rest of the components:.
-    v = Array{eltype(b)}(uninitialized, m)
+    v = Array{eltype(b)}(undef, m)
     v[1] = 1
     if m > 1
         s = v[1]
