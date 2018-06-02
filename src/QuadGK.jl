@@ -47,11 +47,11 @@ const rulecache = AnyDict( (Float64,7) => # precomputed in 100-bit arith.
      4.1795918367346938775510204081658e-01]) )
 
 # integration segment (a,b), estimated integral I, and estimated error E
-struct Segment
-    a::Number
-    b::Number
-    I
-    E
+struct Segment{TB<:Number,TI,TE}
+    a::TB
+    b::TB
+    I::TI
+    E::TE
 end
 isless(i::Segment, j::Segment) = isless(i.E, j.E)
 
