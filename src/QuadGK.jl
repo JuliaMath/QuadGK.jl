@@ -112,7 +112,7 @@ function do_quadgk_common(f, s::TS, n, ::Type{Tw}, abstol, reltol, maxevals, nrm
     key = rulekey(Tw,n)
     x,w,gw = haskey(rulecache, key) ? rulecache[key] :
        (rulecache[key] = kronrod(Tw, n))
-    segs = heapify([evalrule(f, s[i], s[i+1], x, w, gw, nrm) for i in 1:length(s)-1], order = Reverse)
+    segs = heapify([evalrule(f, s[i], s[i+1], x, w, gw, nrm) for i in 1:length(s)-1], Reverse)
     numevals = (2n+1) * length(segs)
     I = segs[1].I
     E = segs[1].E
