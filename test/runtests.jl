@@ -17,8 +17,7 @@ end
 
 module Test19626
     using QuadGK
-    using Compat
-    using Compat.Test
+    using Test
 
     # Define a mock physical quantity type
     struct MockQuantity <: Number
