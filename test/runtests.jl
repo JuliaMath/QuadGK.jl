@@ -1,10 +1,6 @@
 # This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
 
-using QuadGK
-using Compat
-using Compat.Test
-
-import QuadGK: quadgk, gauss, kronrod
+using QuadGK, Test
 
 @testset "quadgk" begin
     @test quadgk(cos, 0,0.7,1)[1] ≈ sin(1)

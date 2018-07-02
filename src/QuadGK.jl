@@ -3,18 +3,10 @@
 __precompile__()
 module QuadGK
 
-# see PRs #19741 and #22763
-if v"0.6.0-dev.1764" ≤ VERSION < v"0.7.0-DEV.986" && isdefined(Base, :quadgk)
-    import Base: quadgk
-end
+export quadgk, gauss, kronrod
 
-if !isdefined(Base, :QuadGK)
-    export quadgk, gauss, kronrod
-end
-
-using Compat
-using DataStructures, Compat.LinearAlgebra
-import Base: isless, Order.Reverse, AnyDict
+using DataStructures, LinearAlgebra
+import Base.Order.Reverse
 
 # Adaptive Gauss-Kronrod quadrature routines (arbitrary precision),
 # written and contributed to Julia by Steven G. Johnson, 2013.
@@ -24,7 +16,7 @@ import Base: isless, Order.Reverse, AnyDict
 # cache of (T,n) -> (x,w,gw) Kronrod rules, to avoid recomputing them
 # unnecessarily for repeated integration.   We initialize it with the
 # default n=7 rule for double-precision calculations.
-const rulecache = AnyDict( (Float64,7) => # precomputed in 100-bit arith.
+const rulecache = Dict{Any,Any}( (Float64,7) => # precomputed in 100-bit arith.
   ([-9.9145537112081263920685469752598e-01,
     -9.4910791234275852452618968404809e-01,
     -8.6486442335976907278971278864098e-01,
@@ -53,7 +45,7 @@ struct Segment
     I
     E
 end
-isless(i::Segment, j::Segment) = isless(i.E, j.E)
+Base.isless(i::Segment, j::Segment) = isless(i.E, j.E)
 
 
 # Internal routine: approximately integrate f(x) over the interval (a,b)
@@ -164,21 +156,21 @@ end
 
 function quadgk(f, a::T,b::T,c::T...;
                 abstol=zero(T), reltol=sqrt(eps(T)),
-                maxevals=10^7, order=7, norm=vecnorm) where T<:AbstractFloat
+                maxevals=10^7, order=7, norm=norm) where T<:AbstractFloat
     do_quadgk(f, [a, b, c...], order, T, abstol, reltol, maxevals, norm)
 end
 
 function quadgk(f, a::Complex{T},
                 b::Complex{T},c::Complex{T}...;
                 abstol=zero(T), reltol=sqrt(eps(T)),
-                maxevals=10^7, order=7, norm=vecnorm) where T<:AbstractFloat
+                maxevals=10^7, order=7, norm=norm) where T<:AbstractFloat
     do_quadgk(f, [a, b, c...], order, T, abstol, reltol, maxevals, norm)
 end
 
 # generic version: determine precision from a combination of
 # all the integration-segment endpoints
 """
-    quadgk(f, a,b,c...; reltol=sqrt(eps), abstol=0, maxevals=10^7, order=7, norm=vecnorm)
+    quadgk(f, a,b,c...; reltol=sqrt(eps), abstol=0, maxevals=10^7, order=7, norm=norm)
 
 Numerically integrate the function `f(x)` from `a` to `b`, and optionally over additional
 intervals `b` to `c` and so on. Keyword options include a relative error tolerance `reltol`
@@ -205,7 +197,7 @@ endpoints (promoted to floating-point types).
 The integrand `f(x)` can return any numeric scalar, vector, or matrix type, or in fact any
 type supporting `+`, `-`, multiplication by real values, and a `norm` (i.e., any normed
 vector space). Alternatively, a different norm can be specified by passing a `norm`-like
-function as the `norm` keyword argument (which defaults to `vecnorm`).
+function as the `norm` keyword argument (which defaults to `norm`).
 
 !!! note
     Only one-dimensional integrals are provided by this function. For multi-dimensional
@@ -319,7 +311,7 @@ function eigvec1(b,z::Number,m=length(b)+1)
             v[i] = - (b[i-2]*v[i-2] - z*v[i-1]) / b[i-1]
             s += v[i]^2
         end
-        scale!(v, 1 / sqrt(s))
+        rmul!(v, 1 / sqrt(s))
     end
     return v
 end
