@@ -96,9 +96,9 @@ rulekey(T,n) = (T,n)
 # Internal routine: integrate f over the union of the open intervals
 # (s[1],s[2]), (s[2],s[3]), ..., (s[end-1],s[end]), using h-adaptive
 # integration with the order-n Kronrod rule and weights of type Tw,
-# with absolute tolerance abstol and relative tolerance reltol,
+# with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
-function do_quadgk(f, s, n, ::Type{Tw}, abstol, reltol, maxevals, nrm) where Tw
+function do_quadgk(f, s, n, ::Type{Tw}, atol, rtol, maxevals, nrm) where Tw
     if eltype(s) <: Real # check for infinite or semi-infinite intervals
         s1 = s[1]; s2 = s[end]; inf1 = isinf(s1); inf2 = isinf(s2)
         if inf1 || inf2
@@ -106,19 +106,19 @@ function do_quadgk(f, s, n, ::Type{Tw}, abstol, reltol, maxevals, nrm) where Tw
                 return do_quadgk(t -> begin t2 = t*t; den = 1 / (1 - t2);
                                             f(t*den) * (1+t2)*den*den; end,
                                  map(x -> isinf(x) ? copysign(one(x), x) : 2x / (1+hypot(1,2x)), s),
-                                 n, Tw, abstol, reltol, maxevals, nrm)
+                                 n, Tw, atol, rtol, maxevals, nrm)
             end
             s0,si = inf1 ? (s2,s1) : (s1,s2)
             if si < 0 # x = s0 - t/(1-t)
                 return do_quadgk(t -> begin den = 1 / (1 - t);
                                             f(s0 - t*den) * den*den; end,
                                  reverse!(map(x -> 1 / (1 + 1 / (s0 - x)), s)),
-                                 n, Tw, abstol, reltol, maxevals, nrm)
+                                 n, Tw, atol, rtol, maxevals, nrm)
             else # x = s0 + t/(1-t)
                 return do_quadgk(t -> begin den = 1 / (1 - t);
                                             f(s0 + t*den) * den*den; end,
                                  map(x -> 1 / (1 + 1 / (x - s0)), s),
-                                 n, Tw, abstol, reltol, maxevals, nrm)
+                                 n, Tw, atol, rtol, maxevals, nrm)
             end
         end
     end
@@ -139,7 +139,7 @@ function do_quadgk(f, s, n, ::Type{Tw}, abstol, reltol, maxevals, nrm) where Tw
     end
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
-    while E > abstol && E > reltol * nrm(I) && numevals < maxevals
+    while E > atol && E > rtol * nrm(I) && numevals < maxevals
         s = heappop!(segs, Reverse)
         mid = (s.a + s.b) * 0.5
         s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
@@ -160,35 +160,45 @@ function do_quadgk(f, s, n, ::Type{Tw}, abstol, reltol, maxevals, nrm) where Tw
     return (I, E)
 end
 
+# handle keyword deprecation
+function tols(atol,rtol,abstol,reltol)
+    if (abstol!==nothing) || (reltol!==nothing)
+        Base.depwarn("abstol and reltol keywords are now atol and rtol, respectively", :quadgk)
+    end
+    return (abstol===nothing?atol:abstol), (reltol===nothing?rtol:reltol)
+end
+
 # Gauss-Kronrod quadrature of f from a to b to c...
 
 function quadgk(f, a::T,b::T,c::T...;
-                abstol=zero(T), reltol=sqrt(eps(T)),
+                atol=zero(T), rtol=sqrt(eps(T)), abstol=nothing, reltol=nothing,
                 maxevals=10^7, order=7, norm=vecnorm) where T<:AbstractFloat
-    do_quadgk(f, [a, b, c...], order, T, abstol, reltol, maxevals, norm)
+    atol_,rtol_ = tols(atol,rtol,abstol,reltol)
+    do_quadgk(f, [a, b, c...], order, T, atol_, rtol_, maxevals, norm)
 end
 
 function quadgk(f, a::Complex{T},
                 b::Complex{T},c::Complex{T}...;
-                abstol=zero(T), reltol=sqrt(eps(T)),
+                atol=zero(T), rtol=sqrt(eps(T)), abstol=nothing, reltol=nothing,
                 maxevals=10^7, order=7, norm=vecnorm) where T<:AbstractFloat
-    do_quadgk(f, [a, b, c...], order, T, abstol, reltol, maxevals, norm)
+    atol_,rtol_ = tols(atol,rtol,abstol,reltol)
+    do_quadgk(f, [a, b, c...], order, T, atol_, rtol_, maxevals, norm)
 end
 
 # generic version: determine precision from a combination of
 # all the integration-segment endpoints
 """
-    quadgk(f, a,b,c...; reltol=sqrt(eps), abstol=0, maxevals=10^7, order=7, norm=vecnorm)
+    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=vecnorm)
 
 Numerically integrate the function `f(x)` from `a` to `b`, and optionally over additional
-intervals `b` to `c` and so on. Keyword options include a relative error tolerance `reltol`
+intervals `b` to `c` and so on. Keyword options include a relative error tolerance `rtol`
 (defaults to `sqrt(eps)` in the precision of the endpoints), an absolute error tolerance
-`abstol` (defaults to 0), a maximum number of function evaluations `maxevals` (defaults to
+`atol` (defaults to 0), a maximum number of function evaluations `maxevals` (defaults to
 `10^7`), and the `order` of the integration rule (defaults to 7).
 
 Returns a pair `(I,E)` of the estimated integral `I` and an estimated upper bound on the
-absolute error `E`. If `maxevals` is not exceeded then `E <= max(abstol, reltol*norm(I))`
-will hold. (Note that it is useful to specify a positive `abstol` in cases where `norm(I)`
+absolute error `E`. If `maxevals` is not exceeded then `E <= max(atol, rtol*norm(I))`
+will hold. (Note that it is useful to specify a positive `atol` in cases where `norm(I)`
 may be zero.)
 
 The endpoints `a` et cetera can also be complex (in which case the integral is performed over
