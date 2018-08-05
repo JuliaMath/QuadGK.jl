@@ -1,6 +1,7 @@
 # This file was formerly a part of Julia. License is MIT: http://julialang.org/license
 
-__precompile__()
+VERSION < v"0.7.0-beta2.199" && __precompile__()
+
 module QuadGK
 
 export quadgk, gauss, kronrod
