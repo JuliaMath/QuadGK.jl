@@ -78,7 +78,11 @@ function evalrule(f, a,b, x,w,gw, nrm)
     Ig *= s
     E = nrm(Ik - Ig)
     if isnan(E) || isinf(E)
-        throw(DomainError())
+        @static if VERSION < v"0.7.0"
+            throw(DomainError())
+        else
+            throw(DomainError(E))
+        end
     end
     return Segment(a, b, Ik, E)
 end
