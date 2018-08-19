@@ -78,7 +78,7 @@ function evalrule(f, a,b, x,w,gw, nrm)
     Ig *= s
     E = nrm(Ik - Ig)
     if isnan(E) || isinf(E)
-        throw(DomainError())
+        throw(DomainError(a+s, "integrand produced $E in the interval ($a, $b)"))
     end
     return Segment(a, b, Ik, E)
 end
