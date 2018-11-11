@@ -134,7 +134,7 @@ function do_quadgk(f, s, n, ::Type{Tw}, atol, rtol, maxevals, nrm) where Tw
     # until convergence is achieved or maxevals is exceeded.
     while E > atol && E > rtol * nrm(I) && numevals < maxevals
         s = heappop!(segs, Reverse)
-        mid = (s.a + s.b) * 0.5
+        mid = (s.a + s.b) / 2
         s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
         s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
         heappush!(segs, s1, Reverse)
