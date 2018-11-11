@@ -16,7 +16,7 @@ using QuadGK, Test
  
     # Test a function that is only implemented for Float32 values
     cos32(x::Float32) = cos(20x)
-    @test quadgk(cos32, 0f0, 1f0)[1] ≈ sin(20f0)/20
+    @test quadgk(cos32, 0f0, 1f0)[1]::Float32 ≈ sin(20f0)/20
 end
 
 module Test19626
