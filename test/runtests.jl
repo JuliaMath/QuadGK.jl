@@ -13,6 +13,10 @@ using QuadGK, Test
     @test quadgk(x -> exp(-x^2), -Inf,Inf)[1] ≈ sqrt(pi)
     @test quadgk(x -> [exp(-x), exp(-2x)], 0, Inf)[1] ≈ [1,0.5]
     @test quadgk(cos, 0,0.7,1, norm=abs)[1] ≈ sin(1)
+ 
+    # Test a function that is only implemented for Float32 values
+    cos32(x::Float32) = cos(20x)
+    @test quadgk(cos32, 0f0, 1f0)[1]::Float32 ≈ sin(20f0)/20
 end
 
 module Test19626
