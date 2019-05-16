@@ -14,9 +14,14 @@ The code was originally part of Base Julia.
 The package provides three functions: `quadgk`, `gauss`, and `kronrod`.
 `quadgk` performs the integration, `gauss` computes Gaussian quadrature points and weights for integrating
 over the interval [-1, 1], and `kronrod` computes Kronrod points, weights, and embedded Gaussian quadrature
-weights for integrating over [-1, 1].
+weights for integrating over [-1, 1].   Typical usage looks like:
+```jl
+using QuadGK
+integral, err = quadgk(x -> exp(-x^2), 0, 1, rtol=1e-8)
+```
+which computes the integral of exp(–x²) from x=0 to x=1 to a relative tolerance of 10⁻⁸, and returns the approximate `integral = 0.746824132812427` and error estimate `err = 7.887024366937112e-13` (which is actually smaller than the requested tolerance: convergence was very rapid because the integrand is smooth).
 
-For more information, see the documentation.
+For more information, see the [documentation](https://JuliaMath.github.io/QuadGK.jl/stable).
 
 ## Similar packages
 
