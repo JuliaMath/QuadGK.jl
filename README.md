@@ -3,10 +3,6 @@
 [![Build Status](https://travis-ci.org/JuliaMath/QuadGK.jl.svg?branch=master)](https://travis-ci.org/JuliaMath/QuadGK.jl)
 [![Coverage Status](https://coveralls.io/repos/github/JuliaMath/QuadGK.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaMath/QuadGK.jl?branch=master)
 
-Latest release:
-[![QuadGK](http://pkg.julialang.org/badges/QuadGK_0.5.svg)](http://pkg.julialang.org/?pkg=QuadGK)
-[![QuadGK](http://pkg.julialang.org/badges/QuadGK_0.6.svg)](http://pkg.julialang.org/?pkg=QuadGK)
-
 Documentation:
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaMath.github.io/QuadGK.jl/stable)
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://JuliaMath.github.io/QuadGK.jl/latest)
