@@ -25,9 +25,7 @@ For more information, see the documentation.
 ## Similar packages
 
 The [FastGaussQuadrature.jl](https://github.com/ajt60gaibb/FastGaussQuadrature.jl) package provides
-non-adaptive Gaussian quadrature with a wider variety of weight functions.
-It should be preferred to this package for higher orders *N*, since the algorithms here are
-*O*(*N*<sup>2</sup>) whereas the FastGaussQuadrature algorithms are *O*(*N*).
+non-adaptive Gaussian quadrature with a wider variety of weight functions — it is a good choice you need to go to very high orders N, e.g. to integrate rapidly oscillating functions, or use weight functions that incorporate some known singularity in your integrand.  QuadGK, on the other hand, keeps the order N of the quadrature rule fixed and improves accuracy by subdividing the integration domain, which can be better if fine resolution is required only in a part of your domain (e.g if your integrand has a sharp peak or singularity somewhere that is not known in advance).
 
 For multidimensional integration, see the [HCubature.jl](https://github.com/stevengj/HCubature.jl), [Cubature.jl](https://github.com/stevengj/Cubature.jl), and
 [Cuba.jl](https://github.com/giordano/Cuba.jl) packages.
