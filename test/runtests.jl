@@ -13,7 +13,7 @@ using QuadGK, Test
     @test quadgk(x -> exp(-x^2), -Inf,Inf)[1] ≈ sqrt(pi)
     @test quadgk(x -> [exp(-x), exp(-2x)], 0, Inf)[1] ≈ [1,0.5]
     @test quadgk(cos, 0,0.7,1, norm=abs)[1] ≈ sin(1)
- 
+
     # Test a function that is only implemented for Float32 values
     cos32(x::Float32) = cos(20x)
     @test quadgk(cos32, 0f0, 1f0)[1]::Float32 ≈ sin(20f0)/20
@@ -29,11 +29,12 @@ module Test19626
     end
 
     # Following definitions needed for quadgk to work with MockQuantity
-    import Base: +, -, *, abs, isnan, isinf, isless
+    import Base: +, -, *, abs, isnan, isinf, isless, float
     +(a::MockQuantity, b::MockQuantity) = MockQuantity(a.val+b.val)
     -(a::MockQuantity, b::MockQuantity) = MockQuantity(a.val-b.val)
     *(a::MockQuantity, b::Number) = MockQuantity(a.val*b)
     abs(a::MockQuantity) = MockQuantity(abs(a.val))
+    float(a::MockQuantity) = a
     isnan(a::MockQuantity) = isnan(a.val)
     isinf(a::MockQuantity) = isinf(a.val)
     isless(a::MockQuantity, b::MockQuantity) = isless(a.val, b.val)
