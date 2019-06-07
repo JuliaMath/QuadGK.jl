@@ -17,6 +17,10 @@ using QuadGK, Test
     # Test a function that is only implemented for Float32 values
     cos32(x::Float32) = cos(20x)
     @test quadgk(cos32, 0f0, 1f0)[1]::Float32 ≈ sin(20f0)/20
+
+    # test integration of a type-unstable function where the instability is only detected
+    # during refinement of the integration interval:
+    @test quadgk(x -> x > 0.01 ? sin(10(x-0.01)) : 1im, 0,1.01, rtol=1e-4, order=3)[1] ≈ (1 - cos(10))/10+0.01im rtol=1e-4
 end
 
 module Test19626
@@ -45,4 +49,13 @@ module Test19626
     # Test physical quantity-valued functions
     @test QuadGK.quadgk(x->MockQuantity(x), 0.0, 1.0, atol=MockQuantity(0.0))[1] ≈
         MockQuantity(0.5)
+end
+
+@testset "inference" begin
+    @test @inferred(QuadGK.cachedrule(Float16, 3)) == (Float16[-0.96, -0.7744, -0.434, 0.0], Float16[0.1047, 0.269, 0.4014, 0.4504], Float16[0.555, 0.8896])
+    @test @inferred(QuadGK.cachedrule(Complex{BigFloat}, 3)) isa NTuple{3,Vector{BigFloat}}
+    @test @inferred(quadgk(x -> exp(-x^2), 0, Inf, rtol=1e-8)) isa Tuple{Float64,Float64}
+    @test @inferred(quadgk(x -> exp(-x^2), 0, 1, rtol=1e-8)) isa Tuple{Float64,Float64}
+    @test @inferred(quadgk(x -> 1, 0, 1im)) === (1.0im, 0.0)
+    @test @inferred(quadgk(x -> sin(10x), 0,1))[1] ≈ (1 - cos(10))/10
 end
