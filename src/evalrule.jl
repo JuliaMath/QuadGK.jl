@@ -39,5 +39,5 @@ function evalrule(f, a,b, x,w,gw, nrm)
     if isnan(E) || isinf(E)
         throw(DomainError(a+s, "integrand produced $E in the interval ($a, $b)"))
     end
-    return Segment(a, b, Ik_s, E)
+    return Segment(oftype(s, a), oftype(s, b), Ik_s, E)
 end

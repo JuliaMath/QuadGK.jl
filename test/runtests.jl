@@ -53,4 +53,5 @@ end
     @test @inferred(quadgk(x -> exp(-x^2), 0, Inf, rtol=1e-8)) isa Tuple{Float64,Float64}
     @test @inferred(quadgk(x -> exp(-x^2), 0, 1, rtol=1e-8)) isa Tuple{Float64,Float64}
     @test @inferred(quadgk(x -> 1, 0, 1im)) === (1.0im, 0.0)
+    @test @inferred(quadgk(x -> sin(10x), 0,1))[1] ≈ (1 - cos(10))/10
 end
