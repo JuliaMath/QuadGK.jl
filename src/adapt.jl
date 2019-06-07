@@ -67,7 +67,7 @@ function handle_infinities(f, s, n, atol, rtol, maxevals, nrm)
                                 map(x -> isinf(x) ? copysign(one(x), x) : 2x / (1+hypot(1,2x)), s),
                                 n, atol, rtol, maxevals, nrm)
             end
-            let (s0,si) = inf1 ? (s2,s1) : (s1,s2)
+            let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < 0 # x = s0 - t/(1-t)
                     return do_quadgk(t -> begin den = 1 / (1 - t);
                                                 f(s0 - t*den) * den*den; end,
