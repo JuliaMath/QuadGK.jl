@@ -3,17 +3,14 @@
 # integration with the order-n Kronrod rule and weights of type Tw,
 # with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
-function do_quadgk(f, s, n, atol, rtol, maxevals, nrm)
+function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm) where {T,N,F}
     x,w,gw = cachedrule(eltype(s),n)
-    segs = [evalrule(f, s[i],s[i+1], x,w,gw, nrm) for i in 1:length(s) - 1]
-    heapify!(segs, Reverse)
-    numevals = (2n+1) * length(segs)
-    I = segs[1].I
-    E = segs[1].E
-    for i in 2:length(segs)
-        I += segs[i].I
-        E += segs[i].E
-    end
+
+    @assert N ≥ 2
+    segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+    I = sum(s -> s.I, segs)
+    E = sum(s -> s.E, segs)
+    numevals = (2n+1) * (N-1)
 
     # logic here is mainly to handle dimensionful quantities: we
     # don't know the correct type of atol, in particular, until
@@ -22,9 +19,16 @@ function do_quadgk(f, s, n, atol, rtol, maxevals, nrm)
     # defaults to zero.
     atol_ = something(atol, zero(E))
     rtol_ = something(rtol, iszero(atol_) ? sqrt(eps(one(eltype(x)))) : zero(eltype(x)))
-    return adapt(f, segs, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm)
+
+    # optimize common case of no subdivision
+    if E ≤ atol_ || E ≤ rtol_ * nrm(I) || numevals ≥ maxevals
+        return (I, E) # fast return when no subdivisions required
+    end
+
+    return adapt(f, heapify!(collect(segs), Reverse), I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm)
 end
 
+# internal routine to perform the h-adaptive refinement of the integration segments (segs)
 function adapt(f, segs, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
@@ -52,6 +56,7 @@ function adapt(f, segs, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
     return (I, E)
 end
 
+# transform f and the endpoints s to handle infinite intervals, if any.
 function handle_infinities(f, s, n, atol, rtol, maxevals, nrm)
     if eltype(s) <: Real # check for infinite or semi-infinite intervals
         s1 = s[1]; s2 = s[end]; inf1 = isinf(s1); inf2 = isinf(s2)
@@ -81,10 +86,6 @@ function handle_infinities(f, s, n, atol, rtol, maxevals, nrm)
 end
 
 # Gauss-Kronrod quadrature of f from a to b to c...
-
-quadgk(f, a::T,b::T,c::T...;
-       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm) where {T} =
-    handle_infinities(f, (a, b, c...), order, atol, rtol, maxevals, norm)
 
 """
     quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm)
@@ -143,3 +144,7 @@ transformation is performed internally to map the infinite interval to a finite 
 """
 quadgk(f, a, b, c...; kws...) =
     quadgk(f, promote(a, b, c...)...; kws...)
+
+quadgk(f, a::T,b::T,c::T...;
+       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm) where {T} =
+    handle_infinities(f, (a, b, c...), order, atol, rtol, maxevals, norm)
