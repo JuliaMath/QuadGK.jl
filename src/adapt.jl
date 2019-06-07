@@ -3,36 +3,10 @@
 # integration with the order-n Kronrod rule and weights of type Tw,
 # with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
-function do_quadgk(f, s, n, ::Type{Tw}, atol, rtol, maxevals, nrm) where Tw
-    if eltype(s) <: Real # check for infinite or semi-infinite intervals
-        s1 = s[1]; s2 = s[end]; inf1 = isinf(s1); inf2 = isinf(s2)
-        if inf1 || inf2
-            if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
-                return do_quadgk(t -> begin t2 = t*t; den = 1 / (1 - t2);
-                                            f(t*den) * (1+t2)*den*den; end,
-                                 map(x -> isinf(x) ? copysign(one(x), x) : 2x / (1+hypot(1,2x)), s),
-                                 n, Tw, atol, rtol, maxevals, nrm)
-            end
-            s0,si = inf1 ? (s2,s1) : (s1,s2)
-            if si < 0 # x = s0 - t/(1-t)
-                return do_quadgk(t -> begin den = 1 / (1 - t);
-                                            f(s0 - t*den) * den*den; end,
-                                 reverse!(map(x -> 1 / (1 + 1 / (s0 - x)), s)),
-                                 n, Tw, atol, rtol, maxevals, nrm)
-            else # x = s0 + t/(1-t)
-                return do_quadgk(t -> begin den = 1 / (1 - t);
-                                            f(s0 + t*den) * den*den; end,
-                                 map(x -> 1 / (1 + 1 / (x - s0)), s),
-                                 n, Tw, atol, rtol, maxevals, nrm)
-            end
-        end
-    end
-
-    x,w,gw = cachedrule(Tw,n)
-    segs = Segment[]
-    for i in 1:length(s) - 1
-        heappush!(segs, evalrule(f, s[i],s[i+1], x,w,gw, nrm), Reverse)
-    end
+function do_quadgk(f, s, n, atol, rtol, maxevals, nrm)
+    x,w,gw = cachedrule(eltype(s),n)
+    segs = [evalrule(f, s[i],s[i+1], x,w,gw, nrm) for i in 1:length(s) - 1]
+    heapify!(segs, Reverse)
     numevals = (2n+1) * length(segs)
     I = segs[1].I
     E = segs[1].E
@@ -40,6 +14,18 @@ function do_quadgk(f, s, n, ::Type{Tw}, atol, rtol, maxevals, nrm) where Tw
         I += segs[i].I
         E += segs[i].E
     end
+
+    # logic here is mainly to handle dimensionful quantities: we
+    # don't know the correct type of atol, in particular, until
+    # this point where we have the type of E from f.  Also, follow
+    # Base.isapprox in that if atol≠0 is supplied by the user, rtol
+    # defaults to zero.
+    atol_ = something(atol, zero(E))
+    rtol_ = something(rtol, iszero(atol_) ? sqrt(eps(one(eltype(x)))) : zero(eltype(x)))
+    return adapt(f, segs, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm)
+end
+
+function adapt(f, segs, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
     while E > atol && E > rtol * nrm(I) && numevals < maxevals
@@ -47,12 +33,15 @@ function do_quadgk(f, s, n, ::Type{Tw}, atol, rtol, maxevals, nrm) where Tw
         mid = (s.a + s.b) / 2
         s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
         s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
+        # todo: if s1 and s2 can't be converted to eltype(segs), we
+        # need to re-allocate a new segs array with a wider type…
         heappush!(segs, s1, Reverse)
         heappush!(segs, s2, Reverse)
         I = (I - s.I) + s1.I + s2.I
         E = (E - s.E) + s1.E + s2.E
         numevals += 4n+2
     end
+
     # re-sum (paranoia about accumulated roundoff)
     I = segs[1].I
     E = segs[1].E
@@ -63,39 +52,46 @@ function do_quadgk(f, s, n, ::Type{Tw}, atol, rtol, maxevals, nrm) where Tw
     return (I, E)
 end
 
-# handle keyword deprecation
-function tols(atol,rtol,abstol,reltol)
-    if !ismissing(abstol) || !ismissing(reltol)
-        Base.depwarn("abstol and reltol keywords are now atol and rtol, respectively", :quadgk)
+function handle_infinities(f, s, n, atol, rtol, maxevals, nrm)
+    if eltype(s) <: Real # check for infinite or semi-infinite intervals
+        s1 = s[1]; s2 = s[end]; inf1 = isinf(s1); inf2 = isinf(s2)
+        if inf1 || inf2
+            if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
+                return do_quadgk(t -> begin t2 = t*t; den = 1 / (1 - t2);
+                                            f(t*den) * (1+t2)*den*den; end,
+                                map(x -> isinf(x) ? copysign(one(x), x) : 2x / (1+hypot(1,2x)), s),
+                                n, atol, rtol, maxevals, nrm)
+            end
+            let (s0,si) = inf1 ? (s2,s1) : (s1,s2)
+                if si < 0 # x = s0 - t/(1-t)
+                    return do_quadgk(t -> begin den = 1 / (1 - t);
+                                                f(s0 - t*den) * den*den; end,
+                                    reverse(map(x -> 1 / (1 + 1 / (s0 - x)), s)),
+                                    n, atol, rtol, maxevals, nrm)
+                else # x = s0 + t/(1-t)
+                    return do_quadgk(t -> begin den = 1 / (1 - t);
+                                                f(s0 + t*den) * den*den; end,
+                                    map(x -> 1 / (1 + 1 / (x - s0)), s),
+                                    n, atol, rtol, maxevals, nrm)
+                end
+            end
+        end
     end
-    return coalesce(abstol,atol), coalesce(reltol,rtol)
+    return do_quadgk(f, s, n, atol, rtol, maxevals, nrm)
 end
 
 # Gauss-Kronrod quadrature of f from a to b to c...
 
-function quadgk(f, a::T,b::T,c::T...;
-                atol=zero(T), rtol=sqrt(eps(T)), abstol=missing, reltol=missing,
-                maxevals=10^7, order=7, norm=norm) where T<:AbstractFloat
-    atol_,rtol_ = tols(atol,rtol,abstol,reltol)
-    do_quadgk(f, [a, b, c...], order, T, atol_, rtol_, maxevals, norm)
-end
+quadgk(f, a::T,b::T,c::T...;
+       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm) where {T} =
+    handle_infinities(f, (a, b, c...), order, atol, rtol, maxevals, norm)
 
-function quadgk(f, a::Complex{T},
-                b::Complex{T},c::Complex{T}...;
-                atol=zero(T), rtol=sqrt(eps(T)), abstol=missing, reltol=missing,
-                maxevals=10^7, order=7, norm=norm) where T<:AbstractFloat
-    atol_,rtol_ = tols(atol,rtol,abstol,reltol)
-    do_quadgk(f, [a, b, c...], order, T, atol_, rtol_, maxevals, norm)
-end
-
-# generic version: determine precision from a combination of
-# all the integration-segment endpoints
 """
     quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm)
 
 Numerically integrate the function `f(x)` from `a` to `b`, and optionally over additional
 intervals `b` to `c` and so on. Keyword options include a relative error tolerance `rtol`
-(defaults to `sqrt(eps)` in the precision of the endpoints), an absolute error tolerance
+(if `atol==0`, defaults to `sqrt(eps)` in the precision of the endpoints), an absolute error tolerance
 `atol` (defaults to 0), a maximum number of function evaluations `maxevals` (defaults to
 `10^7`), and the `order` of the integration rule (defaults to 7).
 
@@ -145,11 +141,5 @@ or `1/sqrt(x)` singularity).
 For real-valued endpoints, the starting and/or ending points may be infinite. (A coordinate
 transformation is performed internally to map the infinite interval to a finite one.)
 """
-function quadgk(f, a, b, c...; kws...)
-    T = promote_type(typeof(float(a)), typeof(b))
-    for x in c
-        T = promote_type(T, typeof(x))
-    end
-    cT = map(T, c)
-    quadgk(f, convert(T, a), convert(T, b), cT...; kws...)
-end
+quadgk(f, a, b, c...; kws...) =
+    quadgk(f, promote(a, b, c...)...; kws...)
