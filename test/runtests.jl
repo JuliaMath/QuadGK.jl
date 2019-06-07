@@ -17,6 +17,10 @@ using QuadGK, Test
     # Test a function that is only implemented for Float32 values
     cos32(x::Float32) = cos(20x)
     @test quadgk(cos32, 0f0, 1f0)[1]::Float32 ≈ sin(20f0)/20
+
+    # test integration of a type-unstable function where the instability is only detected
+    # during refinement of the integration interval:
+    @test quadgk(x -> x > 0.01 ? sin(10(x-0.01)) : 1im, 0,1.01, rtol=1e-4, order=3)[1] ≈ (1 - cos(10))/10+0.01im rtol=1e-4
 end
 
 module Test19626

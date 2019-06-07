@@ -5,7 +5,7 @@ struct Segment{TX,TI,TE}
     I::TI
     E::TE
 end
-Base.promote_rule(::Type{Segment{TX,TI,TE}}, ::Type{Segment{TX′,TI′,TE′}}) where {TX,TI,TE,TX′,TI′,TE′} =
+Base.@pure Base.promote_rule(::Type{Segment{TX,TI,TE}}, ::Type{Segment{TX′,TI′,TE′}}) where {TX,TI,TE,TX′,TI′,TE′} =
     Segment{promote_type(TX,TX′), promote_type(TI,TI′), promote_type(TE,TE′)}
 Base.convert(::Type{T}, s::Segment) where {T<:Segment} = T(s.a,s.b,s.I,s.E)
 Base.isless(i::Segment, j::Segment) = isless(i.E, j.E)

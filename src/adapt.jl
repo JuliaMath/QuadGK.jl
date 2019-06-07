@@ -29,7 +29,7 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm) where {T,
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
-function adapt(f, segs, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
+function adapt(f, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {T}
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
     while E > atol && E > rtol * nrm(I) && numevals < maxevals
@@ -37,13 +37,19 @@ function adapt(f, segs, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
         mid = (s.a + s.b) / 2
         s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
         s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
-        # todo: if s1 and s2 can't be converted to eltype(segs), we
-        # need to re-allocate a new segs array with a wider type…
-        heappush!(segs, s1, Reverse)
-        heappush!(segs, s2, Reverse)
         I = (I - s.I) + s1.I + s2.I
         E = (E - s.E) + s1.E + s2.E
         numevals += 4n+2
+
+        # handle type-unstable functions by converting to a wider type if needed
+        Tj = promote_type(typeof(s1), promote_type(typeof(s2), T))
+        if Tj !== T
+            return adapt(f, heappush!(heappush!(Vector{Tj}(segs), s1, Reverse), s2, Reverse),
+                         I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
+        end
+
+        heappush!(segs, s1, Reverse)
+        heappush!(segs, s2, Reverse)
     end
 
     # re-sum (paranoia about accumulated roundoff)
