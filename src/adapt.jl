@@ -28,9 +28,7 @@ function do_quadgk(f, s, n, ::Type{Tw}, atol, rtol, maxevals, nrm) where Tw
         end
     end
 
-    key = rulekey(Tw,n)
-    x,w,gw = haskey(rulecache, key) ? rulecache[key] :
-       (rulecache[key] = kronrod(Tw, n))
+    x,w,gw = cachedrule(Tw,n)
     segs = Segment[]
     for i in 1:length(s) - 1
         heappush!(segs, evalrule(f, s[i],s[i+1], x,w,gw, nrm), Reverse)

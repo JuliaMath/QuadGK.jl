@@ -46,3 +46,8 @@ module Test19626
     @test QuadGK.quadgk(x->MockQuantity(x), 0.0, 1.0, atol=MockQuantity(0.0))[1] ≈
         MockQuantity(0.5)
 end
+
+@testset "inference" begin
+    @test @inferred(QuadGK.cachedrule(Float16, 3)) == (Float16[-0.96, -0.7744, -0.434, 0.0], Float16[0.1047, 0.269, 0.4014, 0.4504], Float16[0.555, 0.8896])
+    @test @inferred(QuadGK.cachedrule(Complex{BigFloat}, 3)) isa NTuple{3,Vector{BigFloat}}
+end
