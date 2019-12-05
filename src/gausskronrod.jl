@@ -82,10 +82,10 @@ function eigvec1(b,z::Number,m=length(b)+1)
 end
 
 """
-    gauss([T,] N)
+    gauss([T,] N, a=-1, b=1)
 
 Return a pair `(x, w)` of `N` quadrature points `x[i]` and weights `w[i]` to
-integrate functions on the interval `(-1, 1)`,  i.e. `sum(w .* f.(x))`
+integrate functions on the interval `(a, b)`,  i.e. `sum(w .* f.(x))`
 approximates the integral.  Uses the method described in Trefethen &
 Bau, Numerical Linear Algebra, to find the `N`-point Gaussian quadrature
 in O(`N`²) operations.
@@ -104,7 +104,17 @@ function gauss(::Type{T}, N::Integer) where T<:AbstractFloat
     return (x, w)
 end
 
-gauss(N::Integer) = gauss(Float64, N)
+gauss(N::Integer) = gauss(Float64, N) # integration on the standard interval (-1,1)
+
+# re-scaled to an arbitrary interval:
+gauss(N::Integer, a::Real, b::Real) = gauss(typeof(float(b-a)), N, a, b)
+function gauss(::Type{T}, N::Integer, a::Real, b::Real) where T<:AbstractFloat
+    x, w = gauss(T, N)
+    s = T(b-a)/2
+    x .= a .+ (x .+ 1) .* s
+    w .*= abs(s)
+    return (x, w)
+end
 
 """
     kronrod([T,] n)

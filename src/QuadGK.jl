@@ -31,5 +31,6 @@ import Base.Order.Reverse
 include("gausskronrod.jl")
 include("evalrule.jl")
 include("adapt.jl")
+include("weightedgauss.jl")
 
 end # module QuadGK
