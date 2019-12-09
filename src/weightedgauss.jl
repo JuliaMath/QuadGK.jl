@@ -84,15 +84,14 @@ function _gauss(W, N, tfunc, a, b, rtol, quad)
         chebx!(v, q₁) # v = x * q₁
         α[n] = first(quad(T(-1), T(1), rtol=rtol, atol=atol) do x
             y = a + (x+1)*xscale
-            t = tfunc(y)
-            W(y) * chebeval(t, q₁) * chebeval(t, v)
+            W(y) * chebeval(x, q₁) * chebeval(x, v)
         end)
         n == N && break
         for j = 1:length(q₀); v[j] -= β[n]*q₀[j]; end
         for j = 1:length(q₁); v[j] -= α[n]*q₁[j]; end
         β[n+1] = sqrt(first(quad(T(-1), T(1), rtol=rtol, atol=atol) do x
             y = a + (x+1)*xscale
-            W(y) * chebeval(tfunc(y), v)^2
+            W(y) * chebeval(x, v)^2
         end))
         v .*= inv(β[n+1])
         q₀,q₁,v = q₁,v,q₀
@@ -104,5 +103,5 @@ function _gauss(W, N, tfunc, a, b, rtol, quad)
 
     w = E.vectors[1,:]
     w .= (abs(xscale) * wint) .* abs2.(w)
-    return (a .+ (E.values .+ 1) .* xscale, w)
+    return (tfunc.(a .+ (E.values .+ 1) .* xscale), w)
 end

@@ -66,14 +66,14 @@ end
     @test x ≈ x′ ≈ [-0.9739065285171717, -0.8650633666889845, -0.6794095682990244, -0.4333953941292472, -0.14887433898163124, 0.14887433898163124, 0.4333953941292472, 0.6794095682990244, 0.8650633666889845, 0.9739065285171717]
     @test w ≈ w′ ≈ [0.06667134430868811, 0.14945134915058064, 0.2190863625159821, 0.26926671930999635, 0.29552422471475276, 0.29552422471475276, 0.26926671930999635, 0.2190863625159821, 0.14945134915058064, 0.06667134430868811]
 
-    # Gauss–Hermite quadrature
-    xH,wH = @inferred gauss(x->exp(-x^2), 5, -Inf, Inf, rtol=1e-10)
-    @test xH ≈ [-2.020182870456085632929, -0.9585724646138185071128, 0, 0.9585724646138185071128, 2.020182870456085632929]
-    @test wH ≈ [0.01995324205904591320774, 0.3936193231522411598285, 0.9453087204829418812257, 0.393619323152241159829, 0.01995324205904591320774]
+    # infinite intervals — similar in spirit to Gauss–Hermite quadrature,
+    # but due to the way we use Chebyshev polynomials there is a change of variables
+    # in the polynomial exactness condition
+    xH,wH = @inferred gauss(x->exp(-x^2), 40, -Inf, Inf, rtol=1e-10)
     @test sum(xH.^4 .* wH) ≈ quadgk(x -> x^4 * exp(-x^2), -Inf, Inf)[1] ≈ 3sqrt(π)/4
 
-    x,w = gauss(200, -1, 1)
-    x′,w′ = @inferred gauss(x->1, 200, -1, 1, rtol=1e-11)
+    x,w = gauss(200, 2, 3)
+    x′,w′ = gauss(x->1, 200, 2, 3, rtol=1e-11)
     @test x ≈ x′
     @test w ≈ w′
 end
