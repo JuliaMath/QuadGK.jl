@@ -33,17 +33,17 @@ integration — with a little experimentation, you may be able to decide on an a
 you can use `x, w = gauss(N, a, b)` to find the quadrature points `x` and weights `w`, so that
 `sum(f.(x) .* w)` is an `N`-point approximation to `∫f(x)dx` from `a` to `b`.
 
-For computing many integrands of similar functions with *singularities* (and/or infinite intervals),
+For computing many integrands of similar functions with *singularities*,
 `x, w = gauss(W, N, a, b)` function allows you to pass a *weight function* `W(x)` as the first argument,
 so that `sum(f.(x) .* w)` is an `N`-point approximation to `∫W(x)f(x)dx` from `a` to `b`.   In this way,
 you can put all of the singularities etcetera into `W` and precompute an accurate quadrature rule as
 long as the remaining `f(x)` terms are smooth.   For example,
 ```jl
 using QuadGK
-x, w = gauss(x -> exp(-x) / sqrt(x), 10, 0, Inf, rtol=1e-10)
+x, w = gauss(x -> exp(-x) / sqrt(x), 10, 0, 20)
 ```
-computes the points and weights for performing `∫exp(-x)f(x)/√x dx` integrals from `0` to `∞`, so that
-there is a `1/√x` singularity in the integrand at `x=0` and an implicit singularity from the `x=∞` endpoint.    For example, with `f(x) = sin(x)`, the exact answer is `0.5^0.25*sin(π/8)*√π ≈ 0.5703705559915792`.  Using the points and weights above with `sum(sin.(x) .* w)`, we obtain `0.5703705399484373`, which is correct to 7 digits using only 10 `f(x)` evaluations.  Obtaining similar
+computes the points and weights for performing `∫exp(-x)f(x)/√x dx` integrals from `0` to `20`, so that
+there is a `1/√x` singularity in the integrand at `x=0` and a rapid decay for increasing `x`.    For example, with `f(x) = sin(x)`, the exact answer is `0.57037055568959477…`.  Using the points and weights above with `sum(sin.(x) .* w)`, we obtain `0.5703706546318231`, which is correct to 6–7 digits using only 10 `f(x)` evaluations.  Obtaining similar
 accuracy for the same integral from `quadgk` requires nearly 300 function evaluations.   However, the
 `gauss` function itself computes many (`2N`) numerical integrals of your weight function (multiplied
 by polynomials), so this is only more efficient if your `f(x)` is very expensive or if you need
