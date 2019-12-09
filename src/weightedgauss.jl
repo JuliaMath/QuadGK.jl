@@ -1,7 +1,42 @@
 # Constructing Gaussian quadrature weights for an
 # arbitrary weight function and integration bounds.
 
-using Polynomials
+# for numerical stability, we apply the usual Lanczos
+# Gram–Schmidt procedure to the basis {T₀,T₁,T₂,…} of
+# Chebyshev polynomials on [-1,1] rather than to the
+# textbook monomial basis {1,x,x²,…}.
+
+# evaluate Chebyshev polynomial p(x) with coefficients a[i]
+# by a Clenshaw recurrence.
+function chebeval(x, a)
+    if length(a) ≤ 2
+        length(a) == 1 && return a[1] + x * zero(a[1])
+        return a[1]+x*a[2]
+    end
+    bₖ = a[end-1] + 2x*a[end]
+    bₖ₊₁ = oftype(bₖ, a[end])
+    for j = lastindex(a)-2:-1:2
+        bⱼ = a[j] + 2x*bₖ - bₖ₊₁
+        bₖ, bₖ₊₁ = bⱼ, bₖ
+    end
+    return a[1] + x*bₖ - bₖ₊₁
+end
+
+# if a[i] are coefficients of Chebyshev series, compute the coefficients xa (in-place)
+# of the series multiplied by x, using recurrence xTₙ = 0.5 (Tₙ₊₁+Tₙ₋₁) for n > 0
+function chebx!(xa, a)
+    resize!(xa, length(a)+1)
+    xa .= 0
+    for n = 2:lastindex(a)
+        c = 0.5*a[n]
+        xa[n-1] += c
+        xa[n+1] += c
+    end
+    if !isempty(a)
+        xa[2] += a[1]
+    end
+    return xa
+end
 
 """
     gauss(W, N, a, b; rtol=sqrt(eps), quad=quadgk)
@@ -22,33 +57,52 @@ via the `quad` keyword argument, which should accept arguments `quad(f,a,b,rtol=
 similar to `quadgk`.  (This is useful if your weight function has discontinuities, in which
 case you might want to break up the integration interval at the discontinuities.)
 """
-function gauss(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
+gauss(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk) =
+    handle_infinities(W, (a,b)) do W, ab, tfunc
+        x, w = _gauss(W, N, tfunc, ab..., rtol, quad)
+        return (x, w)
+    end
+
+function _gauss(W, N, tfunc, a, b, rtol, quad)
     # Uses the Lanczos recurrence described in Trefethen & Bau,
     # Numerical Linear Algebra, to find the `N`-point Gaussian quadrature
-    # using O(N) integrals and O(N²) operations.
-    α = zeros(N)
-    β = zeros(N+1)
-    T = typeof(float(b-a))
-    x = Poly(T[0, 1])
-    q₀ = Poly(T[0])
-    wint = first(quad(W, a, b, rtol=rtol))
+    # using O(N) integrals and O(N²) operations, applied to Chebyshev basis:
+    xscale = 0.5*(b-a) # scaling from [-1,1] to (a,b)
+    T = typeof(xscale)
+    α = zeros(T, N)
+    β = zeros(T, N+1)
+    q₀ = sizehint!(T[0], N+1) # 0 polynomial
+    # (note that our integrals are rescaled to [-1,1], with the Jacobian
+    #  factor |xscale| absorbed into the definition of the inner product.)
+    wint = first(quad(x -> W(a + (x+1)*xscale), T(-1), T(1), rtol=rtol))
+    (wint isa Real && wint > 0) ||
+        throw(ArgumentError("weight W must be real and positive"))
     atol = rtol*wint
-    q₁ = Poly(T[T(1)/sqrt(wint)])
+    q₁ = sizehint!(T[1/sqrt(wint)],N+1) # normalized constant polynomial
+    v = copy(q₀)
     for n = 1:N
-        v = x * q₁
-        q₁v = q₁ * v
-        α[n] = first(quad(x -> W(x) * q₁v(x), a, b, rtol=rtol, atol=atol))
+        chebx!(v, q₁) # v = x * q₁
+        α[n] = first(quad(T(-1), T(1), rtol=rtol, atol=atol) do x
+            y = a + (x+1)*xscale
+            t = tfunc(y)
+            W(y) * chebeval(t, q₁) * chebeval(t, v)
+        end)
         n == N && break
-        v -= β[n]*q₀ + α[n]*q₁
-        v² = v*v
-        β[n+1] = sqrt(first(quad(x -> W(x) * v²(x), a, b, rtol=rtol, atol=atol)))
-        q₀ = q₁
-        q₁ = v / β[n+1]
+        for j = 1:length(q₀); v[j] -= β[n]*q₀[j]; end
+        for j = 1:length(q₁); v[j] -= α[n]*q₁[j]; end
+        β[n+1] = sqrt(first(quad(T(-1), T(1), rtol=rtol, atol=atol) do x
+            y = a + (x+1)*xscale
+            W(y) * chebeval(tfunc(y), v)^2
+        end))
+        v .*= inv(β[n+1])
+        q₀,q₁,v = q₁,v,q₀
     end
 
     # TODO: handle BigFloat etcetera — requires us to update eignewt() to
     #       support nonzero diagonal entries.
     E = eigen(SymTridiagonal(α, β[2:N]))
 
-    return (E.values, wint .* abs2.(E.vectors[1,:]))
+    w = E.vectors[1,:]
+    w .= (abs(xscale) * wint) .* abs2.(w)
+    return (a .+ (E.values .+ 1) .* xscale, w)
 end
