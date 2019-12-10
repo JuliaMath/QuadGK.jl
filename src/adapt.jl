@@ -62,33 +62,35 @@ function adapt(f, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxeval
     return (I, E)
 end
 
-# transform f and the endpoints s to handle infinite intervals, if any.
-function handle_infinities(f, s, n, atol, rtol, maxevals, nrm)
-    if eltype(s) <: Real # check for infinite or semi-infinite intervals
-        s1 = s[1]; s2 = s[end]; inf1 = isinf(s1); inf2 = isinf(s2)
+# transform f and the endpoints s to handle infinite intervals, if any,
+# and pass transformed data to workfunc(f, s, tfunc)
+function handle_infinities(workfunc, f, s)
+    s1, s2 = s[1], s[end]
+    if s1 isa Real && s2 isa Real # check for infinite or semi-infinite intervals
+        inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
-                return do_quadgk(t -> begin t2 = t*t; den = 1 / (1 - t2);
+                return workfunc(t -> begin t2 = t*t; den = 1 / (1 - t2);
                                             f(t*den) * (1+t2)*den*den; end,
                                 map(x -> isinf(x) ? copysign(one(x), x) : 2x / (1+hypot(1,2x)), s),
-                                n, atol, rtol, maxevals, nrm)
+                                t -> t / (1 - t^2))
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < 0 # x = s0 - t/(1-t)
-                    return do_quadgk(t -> begin den = 1 / (1 - t);
+                    return workfunc(t -> begin den = 1 / (1 - t);
                                                 f(s0 - t*den) * den*den; end,
                                     reverse(map(x -> 1 / (1 + 1 / (s0 - x)), s)),
-                                    n, atol, rtol, maxevals, nrm)
+                                    t -> s0 - t/(1-t))
                 else # x = s0 + t/(1-t)
-                    return do_quadgk(t -> begin den = 1 / (1 - t);
+                    return workfunc(t -> begin den = 1 / (1 - t);
                                                 f(s0 + t*den) * den*den; end,
                                     map(x -> 1 / (1 + 1 / (x - s0)), s),
-                                    n, atol, rtol, maxevals, nrm)
+                                    t -> s0 + t/(1-t))
                 end
             end
         end
     end
-    return do_quadgk(f, s, n, atol, rtol, maxevals, nrm)
+    return workfunc(f, s, identity)
 end
 
 # Gauss-Kronrod quadrature of f from a to b to c...
@@ -153,4 +155,6 @@ quadgk(f, a, b, c...; kws...) =
 
 quadgk(f, a::T,b::T,c::T...;
        atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm) where {T} =
-    handle_infinities(f, (a, b, c...), order, atol, rtol, maxevals, norm)
+    handle_infinities(f, (a, b, c...)) do f, s, _
+        do_quadgk(f, s, order, atol, rtol, maxevals, norm)
+    end
