@@ -57,24 +57,21 @@ via the `quad` keyword argument, which should accept arguments `quad(f,a,b,rtol=
 similar to `quadgk`.  (This is useful if your weight function has discontinuities, in which
 case you might want to break up the integration interval at the discontinuities.)
 """
-gauss(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk) =
-    handle_infinities(W, (a,b)) do W, ab, tfunc
-        x, w = _gauss(W, N, tfunc, ab..., rtol, quad)
-        return (x, w)
-    end
+function gauss(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
+    (isfinite(a) && isfinite(b)) || throw(ArgumentError("a finite interval is required"))
+    return _gauss(W, N, a, b, rtol, quad)
+end
 
-function _gauss(W, N, tfunc, a, b, rtol, quad)
+function _gauss(W, N, a, b, rtol, quad)
     # Uses the Lanczos recurrence described in Trefethen & Bau,
     # Numerical Linear Algebra, to find the `N`-point Gaussian quadrature
     # using O(N) integrals and O(N²) operations, applied to Chebyshev basis:
-    xscale = 0.5*(b-a) # scaling from [-1,1] to (a,b)
+    xscale = 2.0/(b-a) # scaling from (a,b) to (-1,1)
     T = typeof(xscale)
     α = zeros(T, N)
-    β = zeros(T, N+1)
+    β = zeros(T, N)
     q₀ = sizehint!(T[0], N+1) # 0 polynomial
-    # (note that our integrals are rescaled to [-1,1], with the Jacobian
-    #  factor |xscale| absorbed into the definition of the inner product.)
-    wint = first(quad(x -> W(a + (x+1)*xscale), T(-1), T(1), rtol=rtol))
+    wint = first(quad(W, a, b, rtol=rtol))
     (wint isa Real && wint > 0) ||
         throw(ArgumentError("weight W must be real and positive"))
     atol = rtol*wint
@@ -82,16 +79,15 @@ function _gauss(W, N, tfunc, a, b, rtol, quad)
     v = copy(q₀)
     for n = 1:N
         chebx!(v, q₁) # v = x * q₁
-        α[n] = first(quad(T(-1), T(1), rtol=rtol, atol=atol) do x
-            y = a + (x+1)*xscale
-            W(y) * chebeval(x, q₁) * chebeval(x, v)
+        α[n] = first(quad(a, b, rtol=rtol, atol=atol) do x
+            t = (x-a)*xscale - 1
+            W(x) * chebeval(t, q₁) * chebeval(t, v)
         end)
         n == N && break
         for j = 1:length(q₀); v[j] -= β[n]*q₀[j]; end
         for j = 1:length(q₁); v[j] -= α[n]*q₁[j]; end
-        β[n+1] = sqrt(first(quad(T(-1), T(1), rtol=rtol, atol=atol) do x
-            y = a + (x+1)*xscale
-            W(y) * chebeval(x, v)^2
+        β[n+1] = sqrt(first(quad(a, b, rtol=rtol, atol=atol) do x
+            W(x) * chebeval((x-a)*xscale - 1, v)^2
         end))
         v .*= inv(β[n+1])
         q₀,q₁,v = q₁,v,q₀
@@ -102,6 +98,6 @@ function _gauss(W, N, tfunc, a, b, rtol, quad)
     E = eigen(SymTridiagonal(α, β[2:N]))
 
     w = E.vectors[1,:]
-    w .= (abs(xscale) * wint) .* abs2.(w)
-    return (tfunc.(a .+ (E.values .+ 1) .* xscale), w)
+    w .= wint .* abs2.(w)
+    return ((E.values .+ 1) ./ xscale .+ a, w)
 end
