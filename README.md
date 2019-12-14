@@ -48,8 +48,7 @@ accuracy for the same integral from `quadgk` requires nearly 300 function evalua
 by polynomials), so this is only more efficient if your `f(x)` is very expensive or if you need
 to compute a large number of integrals with the same `W`.
 
-
-See the [`gauss` documentation](https://juliamath.github.io/QuadGK.jl/stable/#QuadGK.gauss) for more information.
+See the [`gauss` documentation](https://juliamath.github.io/QuadGK.jl/stable/#QuadGK.gauss) for more information.  See also our example using a [weight function interpolated from tabulated data](https://nbviewer.jupyter.org/urls/math.mit.edu/~stevenj/Solar-Quadrature.ipynb).
 
 ## Similar packages
 
