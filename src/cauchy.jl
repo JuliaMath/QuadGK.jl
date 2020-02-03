@@ -14,17 +14,59 @@ function do_cauchy(f::F, s::NTuple{2,T}, c::T, n_gk, n_cc, atol, rtol, maxevals,
   # this point where we have the type of E from f.  Also, follow
   # Base.isapprox in that if atol≠0 is supplied by the user, rtol
   # defaults to zero.
-  atol_ = something(atol, zero(E))
+  atol_ = something(atol, E)
   rtol_ = something(rtol, iszero(atol_) ? sqrt(eps(one(eltype(gk_rule[1])))) : zero(eltype(gk_rule[1])))
 
   if E ≤ atol_ || E ≤ rtol_ * nrm(I) || numevals ≥ maxevals
     return (I, E)
   end
-
-  return adapt_cauchy(f, heapify!([seg], Reverse), I, E, numevals, gk_rule, cc_rule, atol_, rtol_, maxevals, nrm)
+  return adapt_cauchy(f, heapify!([seg], Reverse), c, I, E, numevals, n_gk, gk_rule, cc_rule, atol_, rtol_, maxevals, nrm)
 end
 
-function adapt_cauchy(f, seg::T, I, E, numevals, gk_rule, cc_rule, atol, rtol, maxevals, nrm) where {T}
+function adapt_cauchy(f, segs::T, c, I, E, numevals, n_gk, gk_rule, cc_rule, atol, rtol, maxevals, nrm) where {T}
+    # Pop the biggest-error segment and subdivide (h-adaptation)
+    # until convergence is achieved or maxevals is exceeded.
+    while E > atol && E > rtol * nrm(I) && numevals < maxevals
+        s = heappop!(segs, Reverse)
+        
+        a1 = s.a
+        b1 = 0.5*(s.a + s.b)
+        a2 = b1
+        b2 = s.b
+        
+        if c > a1 && c <= b1
+          b1 = 0.5 * (c + b2) ;
+          a2 = b1;
+        elseif (c > b1 && c < b2)
+          b1 = 0.5 * (a1 + c) ;
+          a2 = b1;
+        end
+        
+        s1 = evalrule_cauchy(f, a1, b1, c, gk_rule,cc_rule, nrm)
+        s2 = evalrule_cauchy(f, a2, b2, c, gk_rule,cc_rule, nrm)
+
+        I = (I - s.I) + s1.I + s2.I
+        E = (E - s.E) + s1.E + s2.E
+        numevals += 4n_gk+2
+        # handle type-unstable functions by converting to a wider type if needed
+        Tj = promote_type(typeof(s1), promote_type(typeof(s2), T))
+        if Tj !== T
+            return adapt_cauchy(f, heappush!(heappush!(Vector{Tj}(segs), s1, Reverse), s2, Reverse),
+                         c, I, E, numevals, n_gk, gk_rule, cc_rule, atol, rtol, maxevals, nrm)
+        end
+        
+        heappush!(segs, s1, Reverse)
+        heappush!(segs, s2, Reverse)
+    end
+    
+    # re-sum (paranoia about accumulated roundoff)
+    I = segs[1].I
+    E = segs[1].E
+    for i in 2:length(segs)
+        I += segs[i].I
+        E += segs[i].E
+    end
+    return (I, E)
 end
 
 # When close to the singularity c, use a special modified Clenshaw-Curtis rule
@@ -76,7 +118,7 @@ This function computes the Cauchy principal value of the integral of f over
 cauchy(f, a, c, b; kws...) = cauchy(f, promote(a,c,b)..., kws...)
 
 function cauchy(f, a::T, c::T, b::T;
-                atol=nothing, rtol=nothing, maxevals=10^7, order_gk=7, order_cc=25, norm=norm) where {T}
+                atol=eps(T), rtol=nothing, maxevals=10^7, order_gk=7, order_cc=25, norm=norm) where {T}
 
   if c == a || c == b
     error("cannot integrate with singularity on endpoint")
