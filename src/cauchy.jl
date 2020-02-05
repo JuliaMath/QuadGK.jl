@@ -1,10 +1,11 @@
-# Internal routine: integrate f over the interval (s[1], s[2]) using 
-# h-adaptive integration
-function do_cauchy(segs::NTuple{N,T}, n_gk, n_cc, atol, rtol, maxevals, nrm) where {T,N}
+# Internal routine: integrate f over the the union of the open intervals
+# (s[1],s[2]), (s[2],s[3]), ..., (s[end-1],s[end]), using h-adaptive
+# integration
+function do_cauchy(fs::NTuple{N,F}, segs::NTuple{N,T}, cs::NTuple{N,U}, n_gk, n_cc, atol, rtol, maxevals, nrm) where {F,T,U,N}
   gk_rule = cachedrule(eltype(atol), n_gk)
   cc_rule = clenshawcurtisnodes(eltype(atol), n_cc)
 
-  segs = ntuple(i -> evalrule_cauchy(segs[i].f, segs[i].a, segs[i].b, segs[i].c, gk_rule, cc_rule, nrm), Val{N}())
+  segs = ntuple(i -> evalrule_cauchy(fs[i], segs[i]..., cs[i], gk_rule, cc_rule, nrm), Val{N}())
   I = sum(s -> s.I, segs)
   E = sum(s -> s.E, segs)
   numevals = (2n_cc+1) * N # Because it will definitely be a Clenshaw-Curtis evaluation
@@ -20,14 +21,15 @@ function do_cauchy(segs::NTuple{N,T}, n_gk, n_cc, atol, rtol, maxevals, nrm) whe
   if E ≤ atol_ || E ≤ rtol_ * nrm(I) || numevals ≥ maxevals
     return (I, E)
   end
-  return adapt_cauchy(heapify!(collect(segs), Reverse), I, E, numevals, n_gk, gk_rule, cc_rule, atol_, rtol_, maxevals, nrm)
+  return adapt_cauchy(heapify!(collect(segs), Reverse), I, E, numevals, n_gk, n_cc, gk_rule, cc_rule, atol_, rtol_, maxevals, nrm)
 end
 
-function adapt_cauchy(seg::T, I, E, numevals, n_gk, gk_rule, cc_rule, atol, rtol, maxevals, nrm) where {T}
+# internal routine to perform the h-adaptive refinement of the integration segments (segs)
+function adapt_cauchy(segs::Vector{T}, I, E, numevals, n_gk, n_cc, gk_rule, cc_rule, atol, rtol, maxevals, nrm) where {T}
   # Pop the biggest-error segment and subdivide (h-adaptation)
   # until convergence is achieved or maxevals is exceeded.
   while E > atol && E > rtol * nrm(I) && numevals < maxevals
-    s = heappop!(seg, Reverse)
+    s = heappop!(segs, Reverse)
     
     a1 = s.a
     b1 = 0.5 * (s.a + s.b)
@@ -44,7 +46,7 @@ function adapt_cauchy(seg::T, I, E, numevals, n_gk, gk_rule, cc_rule, atol, rtol
     
     s1 = evalrule_cauchy(s.f, a1, b1, s.c, gk_rule,cc_rule, nrm)
     s2 = evalrule_cauchy(s.f, a2, b2, s.c, gk_rule,cc_rule, nrm)
-    numevals += 4*length(cc_rule)+2
+    numevals += 4n_cc+2
 
     I = (I - s.I) + s1.I + s2.I
     E = (E - s.E) + s1.E + s2.E
@@ -52,20 +54,20 @@ function adapt_cauchy(seg::T, I, E, numevals, n_gk, gk_rule, cc_rule, atol, rtol
     # handle type-unstable functions by converting to a wider type if needed
     Tj = promote_type(typeof(s1), promote_type(typeof(s2), T))
     if Tj !== T
-      return adapt_cauchy(heappush!(heappush!(Vector{Tj}(seg), s1, Reverse), s2, Reverse),
-                  I, E, numevals, n_gk, gk_rule, cc_rule, atol, rtol, maxevals, nrm)
+      return adapt_cauchy(heappush!(heappush!(Vector{Tj}(segs), s1, Reverse), s2, Reverse),
+                  I, E, numevals, n_cc, n_gk, gk_rule, cc_rule, atol, rtol, maxevals, nrm)
     end
     
-    heappush!(seg, s1, Reverse)
-    heappush!(seg, s2, Reverse)
+    heappush!(segs, s1, Reverse)
+    heappush!(segs, s2, Reverse)
   end
   
   # re-sum (paranoia about accumulated roundoff)
-  I = seg[1].I
-  E = seg[1].E
-  for i in 2:length(seg)
-      I += seg[i].I
-      E += seg[i].E
+  I = segs[1].I
+  E = segs[1].E
+  for i in 2:length(segs)
+      I += segs[i].I
+      E += segs[i].E
   end
   return (I, E)
 end
@@ -121,34 +123,33 @@ struct CauchySegment{TX,TI,TE}
 end
 Base.isless(i::CauchySegment, j::CauchySegment) = isless(i.E, j.E)
 
-function gen_funcs(f::Function, cs::NTuple{N,T}) where {N,T}
-  if N == 1
-    return (f, )
-  end
-
-  funcs = tuple()
-  for c in cs
-    non_singularities = tuple(setdiff(cs, c)...)
-    ex = :(*())
-    for ns in non_singularities
-      push!(ex.args, :(x - $ns))
-    end
-    funcs = tuple(funcs..., mk_function(:(x -> $f(x) / $ex)))
-  end
-
-  return funcs
+@generated function unroll_poles(z, seq::NTuple{N,T}) where {N,T} 
+  expand(i) = i == 0 ? :1 : :(*(z - seq[$i], $(expand(i-1))))
+  return expand(N)
 end
 
+@inline init(t::Tuple) = _init(t...)
+_init() = throw(ArgumentError("Cannot call init on an empty tuple"))
+_init(v) = ()
+@inline _init(v, t...) = (v, _init(t...)...)
 
 """
-This function computes the Cauchy principal value of the integral of f over 
-(a,b), with a singularity at c
-"""
-cauchy(f, a, b, cs...; kws...) = cauchy(f, promote(a,b,cs...)..., kws...)
+  quadgk(f, a,c1,...,b; atol=sqrt(eps), rtol=0, maxevals=10^7, order_gk=7, order_cc=25, norm=norm)
 
-function cauchy(f, a::T, b::T, cs::Vararg{T,N};
+Numerically computes the Cauchy principal value integral of the function `f(x)/ Π_i (x - cᵢ)`
+from `a` to `b` for simple poles located at `c1`, `c2` and so on.
+
+Returns a pair `(I,E)` of the estimated integral `I` and an estimated upper bound on the
+absolute error `E`. If `maxevals` is not exceeded then `E <= max(atol, rtol*norm(I))`
+will hold.
+"""
+cauchy(f, a, bs...; kws...) = cauchy(f, promote(a,bs...)..., kws...)
+
+function cauchy(f, a::T, bs::Vararg{T,N};
                 atol=sqrt(eps(T)), rtol=nothing, maxevals=10^7, order_gk=7, order_cc=25, norm=norm) where {T,N}
   
+  cs, b = init(bs), last(bs)
+
   if cs != tuple(unique(cs)...)
     error("can only integrate simple poles")
   end
@@ -163,13 +164,17 @@ function cauchy(f, a::T, b::T, cs::Vararg{T,N};
     error("order_cc must be an odd number")
   end
   
-  # Create segments with singularities in between
-  segs = tuple(a, ntuple(i -> 0.5 * (cs[i] + cs[i+1]), Val{N-1}())..., b)
-  segs = ntuple(i -> (segs[i], segs[i+1]), Val{N}())
+  # Create segments between each pole
+  segs = tuple(a, ntuple(i -> 0.5 * (cs[i] + cs[i+1]), Val{N-2}())..., b)
+  segs = ntuple(i -> (segs[i], segs[i+1]), Val{N-1}())
 
-  funs = gen_funcs(f, cs)
+  # Generate functions without the simple pole of each segment
+  if isone(length(cs))
+    fs = tuple(f)
+  else
+    zs = ntuple(i -> tuple(cs[1:i-1]..., cs[i+1:end]...), Val{N-1}())
+    fs = ntuple(i -> (z -> f(z) / unroll_poles(z, zs[i])), Val{N-1}())
+  end
 
-  segs = (CauchySegment(f, c, s[1], s[2], 0.0, 0.0) for (f, c, s) in zip(funs, cs, segs))
-
-  do_cauchy(tuple(segs...), order_gk, order_cc, atol, rtol, maxevals, norm)
+  do_cauchy(fs, segs, cs, order_gk, order_cc, atol, rtol, maxevals, norm)
 end

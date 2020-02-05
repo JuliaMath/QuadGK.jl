@@ -28,7 +28,7 @@ export quadgk, gauss, kronrod
 using DataStructures, LinearAlgebra
 import Base.Order.Reverse
 using FastTransforms: clenshawcurtisnodes, clenshawcurtisweights
-using GeneralizedGenerated: mk_function
+
 include("gausskronrod.jl")
 include("evalrule.jl")
 include("adapt.jl")
