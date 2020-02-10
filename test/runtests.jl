@@ -79,3 +79,14 @@ end
     @test x ≈ x′
     @test w ≈ w′
 end
+
+@testset "cauchy" begin
+    @test QuadGK.cauchy(x -> x, 0.0,1.0,5.0)[1] ≈ 5+log(4)
+    @test QuadGK.cauchy(x -> x, 0.0,1.0,2.0,3.0,4.0)[1]  ≈ -log(3)
+    @test QuadGK.cauchy(x -> x/(x+1), 0.0,1.0,2.0)[1] ≈ 0.5*log(3)
+    @test QuadGK.cauchy(x -> exp(im*x), 0.0,1.0,2.0)[1] ≈ -1.592202905863904 + im*1.022341728924397
+    @test QuadGK.cauchy(x -> cos(x), 0.0,1.0,2.0)[1] + im*QuadGK.cauchy(x -> sin(x), 0.0,1.0,2.0)[1] ≈ QuadGK.cauchy(x -> exp(im*x), 0.0,1.0,2.0)[1]
+    @test QuadGK.cauchy(x ->x+im*x^2, 0,1,2)[1] ≈ 2+im*4
+end
+
+

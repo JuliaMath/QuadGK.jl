@@ -2,8 +2,8 @@
 # (s[1],s[2]), (s[2],s[3]), ..., (s[end-1],s[end]), using h-adaptive
 # integration
 function do_cauchy(fs::NTuple{N,F}, segs::NTuple{N,T}, cs::NTuple{N,U}, n_gk, n_cc, atol, rtol, maxevals, nrm) where {F,T,U,N}
-  gk_rule = cachedrule(eltype(atol), n_gk)
-  cc_rule = clenshawcurtisnodes(eltype(atol), n_cc)
+  gk_rule = cachedrule(float(eltype(first(segs))), n_gk)
+  cc_rule = clenshawcurtisnodes(float(eltype(first(segs))), n_cc)
 
   segs = ntuple(i -> evalrule_cauchy(fs[i], segs[i]..., cs[i], gk_rule, cc_rule, nrm), Val{N}())
   I = sum(s -> s.I, segs)
@@ -15,7 +15,7 @@ function do_cauchy(fs::NTuple{N,F}, segs::NTuple{N,T}, cs::NTuple{N,U}, n_gk, n_
   # this point where we have the type of E from f.  Also, follow
   # Base.isapprox in that if atol≠0 is supplied by the user, rtol
   # defaults to zero.
-  atol_ = something(atol, E)
+  atol_ = isnothing(atol) ? sqrt(eps(typeof(E))) : atol
   rtol_ = something(rtol, iszero(atol_) ? sqrt(eps(one(eltype(gk_rule[1])))) : zero(eltype(gk_rule[1])))
 
   if E ≤ atol_ || E ≤ rtol_ * nrm(I) || numevals ≥ maxevals
@@ -88,8 +88,8 @@ function evalrule_cauchy(f, a, b, c, rk_rule, cc_rule, nrm)
   else
     f_nodes = f.(b .+ (1 .- cc_rule) .* (a-b)/2)
 
-    cheb = clenshawcurtisweights(f_nodes)
-    cheb₂ = clenshawcurtisweights(f_nodes[1:2:end])
+    cheb = eltype(f_nodes) <: Complex ? clenshawcurtisweights(real.(f_nodes)) .- im .* clenshawcurtisweights(imag.(f_nodes)) : clenshawcurtisweights(f_nodes)
+    cheb₂ = eltype(f_nodes) <: Complex ? clenshawcurtisweights(real.(f_nodes[1:2:end])) .- im .* clenshawcurtisweights(imag.(f_nodes[1:2:end])) : clenshawcurtisweights(f_nodes[1:2:end])
 
     μ = compute_moments(d, length(cc_rule))
 
@@ -113,13 +113,17 @@ function compute_moments(cc::T, n::Int) where T
   μ
 end
 
-struct CauchySegment{TX,TI,TE}
+struct CauchySegment{TX,TC,TA,TB,TI,TE}
   f::Any
-  c::TX
-  a::TX
-  b::TX
+  c::TC
+  a::TA
+  b::TB
   I::TI
   E::TE
+
+  function CauchySegment(f::TX, c::TC, a::TA, b::TB, I::TI, E::TE) where {TX, TC, TA, TB, TI, TE}
+    new{TX, TC, TA, TB, TI, TE}(f, c, a, b, I, E)
+  end
 end
 Base.isless(i::CauchySegment, j::CauchySegment) = isless(i.E, j.E)
 
@@ -146,7 +150,7 @@ will hold.
 cauchy(f, a, bs...; kws...) = cauchy(f, promote(a,bs...)..., kws...)
 
 function cauchy(f, a::T, bs::Vararg{T,N};
-                atol=sqrt(eps(T)), rtol=nothing, maxevals=10^7, order_gk=7, order_cc=25, norm=norm) where {T,N}
+                atol=nothing, rtol=nothing, maxevals=10^7, order_gk=7, order_cc=25, norm=norm) where {T,N}
   
   cs, b = init(bs), last(bs)
 
@@ -175,6 +179,9 @@ function cauchy(f, a::T, bs::Vararg{T,N};
     zs = ntuple(i -> tuple(cs[1:i-1]..., cs[i+1:end]...), Val{N-1}())
     fs = ntuple(i -> (z -> f(z) / unroll_poles(z, zs[i])), Val{N-1}())
   end
-
+   
+    
+    
+    
   do_cauchy(fs, segs, cs, order_gk, order_cc, atol, rtol, maxevals, norm)
 end
