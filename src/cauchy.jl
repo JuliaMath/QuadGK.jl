@@ -5,7 +5,7 @@ function do_cauchy(fs::NTuple{N,F}, segs::NTuple{N,T}, cs::NTuple{N,U}, n_gk, n_
   gk_rule = cachedrule(float(eltype(first(segs))), n_gk)
   cc_rule = clenshawcurtisnodes(float(eltype(first(segs))), n_cc)
 
-  segs = ntuple(i -> evalrule_cauchy(fs[i], segs[i]..., cs[i], gk_rule, cc_rule, nrm), Val{N}())
+  segs = ntuple(i -> evalrule_cauchy(fs[i], segs[i][1], segs[i][2], cs[i], gk_rule, cc_rule, nrm), Val{N}())
   I = sum(s -> s.I, segs)
   E = sum(s -> s.E, segs)
   numevals = (2n_cc+1) * N # Because it will definitely be a Clenshaw-Curtis evaluation
@@ -81,20 +81,20 @@ function evalrule_cauchy(f, a, b, c, rk_rule, cc_rule, nrm)
 
   # Use Gauss-Kronrod
   if abs(d) > 1.1
-    seg = evalrule(x -> f(x) / (x - c), a, b, rk_rule..., nrm)
+    seg = evalrule(x -> f(x) / (x - c), a, b, rk_rule[1], rk_rule[2], rk_rule[3], nrm)
     I, E = seg.I, seg.E
 
   # Use modified Clenshaw-Curtis
   else
     f_nodes = f.(b .+ (1 .- cc_rule) .* (a-b)/2)
 
-    cheb = eltype(f_nodes) <: Complex ? clenshawcurtisweights(real.(f_nodes)) .- im .* clenshawcurtisweights(imag.(f_nodes)) : clenshawcurtisweights(f_nodes)
-    cheb₂ = eltype(f_nodes) <: Complex ? clenshawcurtisweights(real.(f_nodes[1:2:end])) .- im .* clenshawcurtisweights(imag.(f_nodes[1:2:end])) : clenshawcurtisweights(f_nodes[1:2:end])
+    cheb = ccweights(f_nodes)
+    cheb₂ = ccweights(f_nodes[1:2:end])
 
     μ = compute_moments(d, length(cc_rule))
 
-    I₂ = cheb₂' * μ[1:length(cheb₂)]
-    I = cheb' * μ
+    I₂ = μ[1:length(cheb₂)]' * cheb₂
+    I = μ' * cheb 
     E = abs(I - I₂)
   end
   return CauchySegment(f, c, oftype(d, a), oftype(d, b), I, E)
@@ -111,6 +111,15 @@ function compute_moments(cc::T, n::Int) where T
     end
   end
   μ
+end
+
+# helper function
+function ccweights(x::Vector{T}) where T
+  if T <: Complex
+    return clenshawcurtisweights(real.(x)) .+ 1.0im * clenshawcurtisweights(imag.(x))
+  else
+    return clenshawcurtisweights(x)
+  end
 end
 
 struct CauchySegment{TX,TC,TA,TB,TI,TE}
@@ -179,9 +188,6 @@ function cauchy(f, a::T, bs::Vararg{T,N};
     zs = ntuple(i -> tuple(cs[1:i-1]..., cs[i+1:end]...), Val{N-1}())
     fs = ntuple(i -> (z -> f(z) / unroll_poles(z, zs[i])), Val{N-1}())
   end
-   
-    
-    
     
   do_cauchy(fs, segs, cs, order_gk, order_cc, atol, rtol, maxevals, norm)
 end
