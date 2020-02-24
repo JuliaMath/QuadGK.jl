@@ -3,7 +3,7 @@
 # integration
 function do_cauchy(fs::NTuple{N,F}, segs::NTuple{N,T}, cs::NTuple{N,U}, n_gk, n_cc, atol, rtol, maxevals, nrm) where {F,T,U,N}
   gk_rule = cachedrule(float(eltype(first(segs))), n_gk)
-  cc_rule = clenshawcurtisnodes(float(eltype(first(segs))), n_cc)
+  cc_rule = cachedpoints(float(eltype(first(segs))), n_cc)
 
   segs = ntuple(i -> evalrule_cauchy(fs[i], segs[i][1], segs[i][2], cs[i], gk_rule, cc_rule, nrm), Val{N}())
   I = sum(s -> s.I, segs)
@@ -72,24 +72,21 @@ function adapt_cauchy(segs::Vector{T}, I, E, numevals, n_gk, n_cc, gk_rule, cc_r
   return (I, E)
 end
 
-# When close to the singularity c, use a special modified Clenshaw-Curtis rule
-# otherwise, stick with Gauss-Kronrod
 function evalrule_cauchy(f, a, b, c, rk_rule, cc_rule, nrm)
-
-  # Determine how close we are to the singularity
+  # Determine how close we are to the pole
   d = (2 * c - b - a) / (b - a)
 
-  # Use Gauss-Kronrod
+  # Use Gauss-Kronrod if far away
   if abs(d) > 1.1
     seg = evalrule(x -> f(x) / (x - c), a, b, rk_rule[1], rk_rule[2], rk_rule[3], nrm)
     I, E = seg.I, seg.E
 
-  # Use modified Clenshaw-Curtis
+  # Use modified Clenshaw-Curtis if close
   else
-    f_nodes = f.(b .+ (1 .- cc_rule) .* (a-b)/2)
+    f_nodes = f.(b .+ (1 .- cos.(cc_rule)) .* (a-b)/2)
 
-    cheb = ccweights(f_nodes)
-    cheb₂ = ccweights(f_nodes[1:2:end])
+    cheb = chebyshevcoeffs(f_nodes, cc_rule)
+    cheb₂ = chebyshevcoeffs(f_nodes[1:2:end], cc_rule[1:2:end])
 
     μ = compute_moments(d, length(cc_rule))
 
@@ -100,6 +97,16 @@ function evalrule_cauchy(f, a, b, c, rk_rule, cc_rule, nrm)
   return CauchySegment(f, c, oftype(d, a), oftype(d, b), I, E)
 end
 
+cachedpoints(::Type{T}, n::Integer) where T<:Number = n == 1 ? error() : T[π * (k + 0.5) / n for k=0:n-1]
+
+function chebyshevcoeffs(f::Vector{T}, p::Vector) where T
+  n = length(f)
+  out = T[2 / n * sum(fk * cos(j * pk) for (fk, pk) in zip(f, p)) for j in 0:n-1]
+  out[1] *= 0.5; out[n] *= 0.5
+  return out
+end
+
+# Cauchy weight moments (Sec 3.2 from 10.1016/0771-050X(75)90009-1)
 function compute_moments(cc::T, n::Int) where T
   μ = zeros(T, n)
   n > 0 && (μ[1] = log(abs((1.0 - cc) / (1.0 + cc))))
@@ -111,15 +118,6 @@ function compute_moments(cc::T, n::Int) where T
     end
   end
   μ
-end
-
-# helper function
-function ccweights(x::Vector{T}) where T
-  if T <: Complex
-    return clenshawcurtisweights(real.(x)) .+ 1.0im * clenshawcurtisweights(imag.(x))
-  else
-    return clenshawcurtisweights(x)
-  end
 end
 
 struct CauchySegment{TX,TC,TA,TB,TI,TE}
@@ -147,7 +145,7 @@ _init(v) = ()
 @inline _init(v, t...) = (v, _init(t...)...)
 
 """
-  quadgk(f, a,c1,...,b; atol=sqrt(eps), rtol=0, maxevals=10^7, order_gk=7, order_cc=25, norm=norm)
+  cauchy(f, a,c1,...,b; atol=sqrt(eps), rtol=0, maxevals=10^7, order_gk=7, order_cc=25, norm=norm)
 
 Numerically computes the Cauchy principal value integral of the function `f(x)/ Π_i (x - cᵢ)`
 from `a` to `b` for simple poles located at `c1`, `c2` and so on.
@@ -175,6 +173,8 @@ function cauchy(f, a::T, bs::Vararg{T,N};
 
   if iseven(order_cc)
     error("order_cc must be an odd number")
+  elseif order_cc == 1
+    error("order_cc must be > 2")
   end
   
   # Create segments between each pole
