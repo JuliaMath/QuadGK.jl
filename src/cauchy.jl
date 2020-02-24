@@ -101,7 +101,7 @@ cachedpoints(::Type{T}, n::Integer) where T<:Number = n == 1 ? error() : T[π * 
 
 function chebyshevcoeffs(f::Vector{T}, p::Vector) where T
   n = length(f)
-  out = T[2 / n * sum(fk * cos(j * pk) for (fk, pk) in zip(f, p)) for j in 0:n-1]
+  out = T[2.0 / n * sum(f[i] * cos(j * p[i]) for i in 1:n) for j in 0:n-1]
   out[1] *= 0.5; out[n] *= 0.5
   return out
 end
