@@ -4,7 +4,7 @@
 # with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
 function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm) where {T,N,F}
-    x,w,gw = cachedrule(eltype(s),n)
+    x,w,gw = cachedrule(T,n)
 
     @assert N ≥ 2
     segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
