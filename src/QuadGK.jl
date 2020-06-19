@@ -23,10 +23,30 @@ and returns the approximate `integral = 0.746824132812427` and error estimate
 """
 module QuadGK
 
-export quadgk, gauss, kronrod
+export quadgk, quadgk!, gauss, kronrod
 
 using DataStructures, LinearAlgebra
 import Base.Order.Reverse
+
+# an in-place integrand function f!(result, x) and
+# temporary mutable data (e.g. arrays) of type R for evalrule
+struct InplaceIntegrand{F,R,RI}
+    f!::F
+
+    # temporary arrays for evalrule
+    fg::R
+    fk::R
+    Ig::R
+    Ik::R
+    fx::R
+    Idiff::RI
+
+    # final result array
+    I::RI
+end
+
+InplaceIntegrand(f!::F, I::RI, fx::R) where {F,RI,R} =
+    InplaceIntegrand{F,R,RI}(f!, similar(fx), similar(fx), similar(fx), similar(fx), fx, similar(I), I)
 
 include("gausskronrod.jl")
 include("evalrule.jl")

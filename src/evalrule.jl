@@ -42,3 +42,46 @@ function evalrule(f, a,b, x,w,gw, nrm)
     end
     return Segment(oftype(s, a), oftype(s, b), Ik_s, E)
 end
+
+# compute result = f(x1) + f(x2) in-place
+function eval2x!(result, f::InplaceIntegrand{F}, x1, x2) where {F}
+    f.f!(result, x1)
+    f.f!(f.fx, x2)
+    result .+= f.fx
+end
+
+# as above, but call assume a mutable result type (e.g. an array) and
+# act in-place using `f!(result, x)`.
+function evalrule(f::InplaceIntegrand{F}, a,b, x,w,gw, nrm) where {F}
+    # Ik and Ig are integrals via Kronrod and Gauss rules, respectively
+    s = convert(eltype(x), 0.5) * (b-a)
+    n1 = 1 - (length(x) & 1) # 0 if even order, 1 if odd order
+    fg, fk, Ig, Ik = f.fg, f.fk, f.Ig, f.Ik # pre-allocated temporary arrays
+    # unroll first iterationof loop to get correct type of Ik and Ig
+    eval2x!(fg, f, a + (1+x[2])*s, a + (1-x[2])*s)
+    eval2x!(fk, f, a + (1+x[1])*s, a + (1-x[1])*s)
+    Ig .= fg .* gw[1]
+    Ik .= fg .* w[2] .+ fk .* w[1]
+    for i = 2:length(gw)-n1
+        eval2x!(fg, f, a + (1+x[2i])*s, a + (1-x[2i])*s)
+        eval2x!(fk, f, a + (1+x[2i-1])*s, a + (1-x[2i-1])*s)
+        Ig .+= fg .* gw[i]
+        Ik .+= fg .* w[2i] .+ fk .* w[2i-1]
+    end
+    f.f!(f.fx, a + s)
+    if n1 == 0 # even: Gauss rule does not include x == 0
+        Ik .+= f.fx .* w[end]
+    else # odd: don't count x==0 twice in Gauss rule
+        Ig .+= f.fx .* gw[end]
+        f.f!(f.fg, a + (1+x[end-1])*s)
+        f.f!(f.fk, a + (1-x[end-1])*s)
+        Ik .+= f.fx .* w[end] .+ (f.fg + f.fk) .* w[end-1]
+    end
+    Ik_s = Ik * s # new variable since this may change the type
+    f.Idiff .= Ik_s .- Ig .* s
+    E = nrm(f.Idiff)
+    if isnan(E) || isinf(E)
+        throw(DomainError(a+s, "integrand produced $E in the interval ($a, $b)"))
+    end
+    return Segment(oftype(s, a), oftype(s, b), Ik_s, E)
+end

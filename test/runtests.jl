@@ -79,3 +79,15 @@ end
     @test x ≈ x′
     @test w ≈ w′
 end
+
+≅(x::Tuple, y::Tuple) = all(a -> isapprox(a[1],a[2]), zip(x,y))
+
+@testset "inplace" begin
+    I = [0., 0.]
+    I′,E′ = quadgk!(I, 0, 1) do r,x
+        r[1] = cos(100x)
+        r[2] = sin(30x)
+    end
+    @test quadgk(x -> [cos(100x), sin(30x)], 0, 1) ≅ (I′,E′) ≅ ([-0.005063656411097513, 0.028191618337080532], 4.2100180879009775e-10)
+    @test I === I′ # result is written in-place to I
+end
