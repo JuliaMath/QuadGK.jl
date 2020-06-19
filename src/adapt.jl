@@ -194,6 +194,10 @@ types supporting in-place operations).  In particular, there are two differences
    into the `result` argument, so that `I === result`.
 
 Otherwise, the behavior is identical to `quadgk`.
+
+For integrands whose values are *small* arrays whose length is known at compile-time,
+it is usually more efficient to use `quadgk` and modify your integrand to return
+an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl).
 """
 function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm) where {T}
     fx = result / oneunit(T) # pre-allocate array of correct type for integrand evaluations
