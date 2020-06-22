@@ -8,6 +8,7 @@ The code was originally part of Base Julia.
 
 ```@docs
 QuadGK.quadgk
+QuadGK.quadgk!
 QuadGK.gauss
 QuadGK.kronrod
 ```
