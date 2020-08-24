@@ -4,14 +4,39 @@ os:
 julia:
   - 0.7
   - 1.0
-  - 1.1
+  - 1
   - nightly
 notifications:
   email: false
 #script: # the default script is equivalent to the following
 #  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
 #  - julia -e 'Pkg.clone(pwd()); Pkg.build("QuadGK"); Pkg.test("QuadGK"; coverage=true)';
+
+branches:
+  only:
+  - master
+  - gh-pages # For building documentation
+  - /^testing-.*$/ # testing branches
+  - /^v[0-9]+\.[0-9]+\.[0-9]+$/ # version tags
+
+cache:
+  directories:
+  - $HOME/.julia/artifacts
+
+jobs:
+  allow_failures:
+    - julia: nightly
+  include:
+    - stage: "Documentation"
+      julia: 1.4
+      os: linux
+      script:
+        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));
+                                               Pkg.instantiate();
+                                               Pkg.build("QuadGK")'
+        - julia --project=docs/ docs/make.jl
+      after_success: skip
+
 after_success:
-  - julia -e 'cd(Pkg.dir("QuadGK")); ps=Pkg.PackageSpec(name="Documenter", version="0.19"); Pkg.add(ps); Pkg.pin(ps); include(joinpath("docs", "make.jl"))';
   - julia -e 'cd(Pkg.dir("QuadGK")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())';
 #  - julia -e 'cd(Pkg.dir("QuadGK")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())';
