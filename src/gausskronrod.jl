@@ -48,14 +48,18 @@ function eignewt(b,m,n)
         lambda[i] = lambda0[i]
         for k = 1:1000
             (p,pderiv) = eigpoly(b,lambda[i],m)
-            lambda[i] = (lamold = lambda[i]) - p / pderiv
-            if abs(lambda[i] - lamold) < 10 * eps(lambda[i]) * abs(lambda[i])
+            δλ = p / pderiv # may be NaN or Inf if pderiv underflows to 0.0
+            if isfinite(δλ)
+                lambda[i] -= δλ
+                if abs(δλ) ≤ 10 * eps(lambda[i])
+                    # do one final Newton iteration for luck and profit:
+                    δλ = (/)(eigpoly(b,lambda[i],m)...) # = p / pderiv
+                    isfinite(δλ) && (lambda[i] -= δλ)
+                end
+            else
                 break
             end
         end
-        # do one final Newton iteration for luck and profit:
-        (p,pderiv) = eigpoly(b,lambda[i],m)
-        lambda[i] = lambda[i] - p / pderiv
     end
     return lambda
 end

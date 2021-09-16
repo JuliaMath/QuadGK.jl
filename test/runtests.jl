@@ -78,6 +78,10 @@ end
     x′,w′ = gauss(x->1, 200, 2, 3, rtol=1e-11)
     @test x ≈ x′
     @test w ≈ w′
+
+    # check for underflow bug: https://discourse.julialang.org/t/nan-returned-by-gauss/68260
+    x,w = gauss(1093)
+    @test all(isfinite, x) && all(isfinite, w)
 end
 
 ≅(x::Tuple, y::Tuple) = all(a -> isapprox(a[1],a[2]), zip(x,y))
