@@ -36,7 +36,7 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm) where {T,
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
-function adapt(f, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {T}
+function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
     while E > atol && E > rtol * nrm(I) && numevals < maxevals

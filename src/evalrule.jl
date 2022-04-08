@@ -12,7 +12,7 @@ Base.isless(i::Segment, j::Segment) = isless(i.E, j.E)
 
 # Internal routine: approximately integrate f(x) over the interval (a,b)
 # by evaluating the integration rule (x,w,gw). Return a Segment.
-function evalrule(f, a,b, x,w,gw, nrm)
+function evalrule(f::F, a,b, x,w,gw, nrm) where {F}
     # Ik and Ig are integrals via Kronrod and Gauss rules, respectively
     s = convert(eltype(x), 0.5) * (b-a)
     n1 = 1 - (length(x) & 1) # 0 if even order, 1 if odd order
