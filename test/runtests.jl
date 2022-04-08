@@ -95,3 +95,27 @@ end
     @test quadgk(x -> [cos(100x), sin(30x)], 0, 1) ≅ (I′,E′) ≅ ([-0.005063656411097513, 0.028191618337080532], 4.2100180879009775e-10)
     @test I === I′ # result is written in-place to I
 end
+
+# This is enough for allocation currently caused by the do-lambda in quadgk(...)
+const smallallocbytes = 500
+
+@testset "segbuf" begin
+    # Should not need subdivision
+    function id(x::Float64)::Float64
+        1.0
+    end
+    # Should need subdivision
+    function osc(x::Float64)::Float64
+        (x - 0.3)^2 * sin(87(x + 0.07))
+    end
+    no_subdiv() = @timed quadgk(id, -1.0, 1.0)
+    subdiv_alloc() = @timed quadgk(osc, -1.0, 1.0)
+    segbuf = alloc_segbuf(size=1)
+    subdiv_alloc_segbuf() = @timed quadgk(osc, -1.0, 1.0, segbuf=segbuf)
+    no_subdiv() # warmup
+    @test no_subdiv().bytes < smallallocbytes
+    subdiv_alloc() # warmup
+    @test subdiv_alloc().bytes > smallallocbytes
+    subdiv_alloc_segbuf() # warmup
+    @test subdiv_alloc_segbuf().bytes < smallallocbytes
+end
