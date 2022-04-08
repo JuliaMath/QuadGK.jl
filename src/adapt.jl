@@ -32,7 +32,7 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
         return (I, E) # fast return when no subdivisions required
     end
 
-    segheap = isnothing(segbuf) ? collect(segs) : (resize!(segbuf, N-1) .= segs)
+    segheap = segbuf === nothing ? collect(segs) : (resize!(segbuf, N-1) .= segs)
     heapify!(segheap, Reverse)
     return adapt(f, segheap, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm)
 end
