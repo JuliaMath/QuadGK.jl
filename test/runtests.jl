@@ -113,9 +113,9 @@ const smallallocbytes = 500
     segbuf = alloc_segbuf(size=1)
     subdiv_alloc_segbuf() = @timed quadgk(osc, -1.0, 1.0, segbuf=segbuf)
     no_subdiv() # warmup
-    @test no_subdiv().bytes < smallallocbytes
+    @test no_subdiv()[3] < smallallocbytes # [3] == .bytes starting in Julia 1.5
     subdiv_alloc() # warmup
-    @test subdiv_alloc().bytes > smallallocbytes
+    @test subdiv_alloc()[3] > smallallocbytes
     subdiv_alloc_segbuf() # warmup
-    @test subdiv_alloc_segbuf().bytes < smallallocbytes
+    @test subdiv_alloc_segbuf()[3] < smallallocbytes
 end
