@@ -174,7 +174,7 @@ transformation is performed internally to map the infinite interval to a finite 
 
 In normal usage, `quadgk(...)` will allocate a buffer for segments. You can
 instead pass a preallocated buffer allocated using `alloc_segbuf(...)` as the
-`segbuf` argument. This buffer can be used across muliple calls to avoid
+`segbuf` argument. This buffer can be used across multiple calls to avoid
 repeated allocation.
 """
 quadgk(f, segs...; kws...) =
