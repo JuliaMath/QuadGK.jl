@@ -23,7 +23,7 @@ and returns the approximate `integral = 0.746824132812427` and error estimate
 """
 module QuadGK
 
-export quadgk, quadgk!, gauss, kronrod
+export quadgk, quadgk!, gauss, kronrod, alloc_segbuf
 
 using DataStructures, LinearAlgebra
 import Base.Order.Reverse

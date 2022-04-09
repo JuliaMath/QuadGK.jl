@@ -3,7 +3,7 @@
 # integration with the order-n Kronrod rule and weights of type Tw,
 # with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
-function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm) where {T,N,F}
+function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) where {T,N,F}
     x,w,gw = cachedrule(T,n)
 
     @assert N ≥ 2
@@ -32,11 +32,13 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm) where {T,
         return (I, E) # fast return when no subdivisions required
     end
 
-    return adapt(f, heapify!(collect(segs), Reverse), I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm)
+    segheap = segbuf === nothing ? collect(segs) : (resize!(segbuf, N-1) .= segs)
+    heapify!(segheap, Reverse)
+    return adapt(f, segheap, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm)
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
-function adapt(f, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {T}
+function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
     while E > atol && E > rtol * nrm(I) && numevals < maxevals
@@ -116,7 +118,7 @@ end
 # Gauss-Kronrod quadrature of f from a to b to c...
 
 """
-    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm)
+    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm, segbuf=nothing)
 
 Numerically integrate the function `f(x)` from `a` to `b`, and optionally over additional
 intervals `b` to `c` and so on. Keyword options include a relative error tolerance `rtol`
@@ -169,15 +171,35 @@ or `1/sqrt(x)` singularity).
 
 For real-valued endpoints, the starting and/or ending points may be infinite. (A coordinate
 transformation is performed internally to map the infinite interval to a finite one.)
-"""
-quadgk(f, a, b, c...; kws...) =
-    quadgk(f, promote(a, b, c...)...; kws...)
 
-quadgk(f, a::T,b::T,c::T...;
-       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm) where {T} =
-    handle_infinities(f, (a, b, c...)) do f, s, _
-        do_quadgk(f, s, order, atol, rtol, maxevals, norm)
+In normal usage, `quadgk(...)` will allocate a buffer for segments. You can
+instead pass a preallocated buffer allocated using `alloc_segbuf(...)` as the
+`segbuf` argument. This buffer can be used across multiple calls to avoid
+repeated allocation.
+"""
+quadgk(f, segs...; kws...) =
+    quadgk(f, promote(segs...)...; kws...)
+
+function quadgk(f, segs::T...;
+       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
+    handle_infinities(f, segs) do f, s, _
+        do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf)
     end
+end
+
+"""
+    function alloc_segbuf(domain_type=Float64, range_type=Float64, error_type=Float64; size=1)
+
+This helper will allocate a segment buffer for segments to a `quadgk(...)` call
+with the given `domain_type`, which is the same as the type of the integration
+limits, `range_type` i.e. the range of the function being integrated and
+`error_type`, the type returned by the `norm` given to `quadgk(...)` and
+starting with the given `size`. The buffer can then be reused across multiple
+compatible calls to `quadgk(...)` to avoid repeated allocation.
+"""
+function alloc_segbuf(domain_type=Float64, range_type=Float64, error_type=Float64; size=1)
+    Vector{Segment{domain_type, range_type, error_type}}(undef, size)
+end
 
 """
     quadgk!(f!, result, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm)
@@ -199,8 +221,8 @@ For integrands whose values are *small* arrays whose length is known at compile-
 it is usually more efficient to use `quadgk` and modify your integrand to return
 an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl).
 """
-function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm) where {T}
+function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
     fx = result / oneunit(T) # pre-allocate array of correct type for integrand evaluations
     f = InplaceIntegrand(f!, result, fx)
-    return quadgk(f, a, b, c...; atol=atol, rtol=rtol, maxevals=maxevals, order=order, norm=norm)
+    return quadgk(f, a, b, c...; atol=atol, rtol=rtol, maxevals=maxevals, order=order, norm=norm, segbuf=segbuf)
 end
