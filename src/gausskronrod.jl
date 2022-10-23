@@ -250,15 +250,14 @@ const rulecache = Dict{Type,Dict}(
 # for BigFloat rules, we need a separate cache keyed by (n,precision)
 const bigrulecache = Dict{Tuple{Int,Int}, NTuple{3,Vector{BigFloat}}}()
 
-cachedrule(::Type{T}, n::Integer) where {T<:Number} = cachedrule(typeof(float(real(one(T)))), n::Integer)
-
-function cachedrule(::Type{BigFloat}, n::Integer)
+function cachedrule(::Union{Type{BigFloat},Type{Complex{BigFloat}}}, n::Integer)
     key = (n, precision(BigFloat))
     haskey(bigrulecache, key) ? bigrulecache[key] : (bigrulecache[key] = kronrod(BigFloat, n))
 end
 
 # use a generated function to make this type-stable
-@generated function cachedrule(::Type{T}, n::Integer) where {T<:AbstractFloat}
-    cache = haskey(rulecache, T) ? rulecache[T] : (rulecache[T] = Dict{Int,NTuple{3,Vector{T}}}())
+@generated function cachedrule(::Type{T}, n::Integer) where {T<:Number}
+    TF = typeof(float(real(one(T))))
+    cache = haskey(rulecache, TF) ? rulecache[TF] : (rulecache[TF] = Dict{Int,NTuple{3,Vector{TF}}}())
     :(haskey($cache, n) ? $cache[n] : ($cache[n] = kronrod($T, n)))
 end
