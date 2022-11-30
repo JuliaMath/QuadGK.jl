@@ -115,6 +115,35 @@ function handle_infinities(workfunc, f, s)
     return workfunc(f, s, identity)
 end
 
+function handle_infinities(workfunc, f::InplaceIntegrand, s)
+    s1, s2 = s[1], s[end]
+    if s1 isa Real && s2 isa Real # check for infinite or semi-infinite intervals
+        inf1, inf2 = isinf(s1), isinf(s2)
+        if inf1 || inf2
+            if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
+                return workfunc(InplaceIntegrand((v, t) -> begin t2 = t*t; den = 1 / (1 - t2);
+                                            f.f!(v, t*den); v .*= (1+t2)*den*den; end, f.I, f.fx),
+                                map(x -> isinf(x) ? copysign(one(x), x) : 2x / (1+hypot(1,2x)), s),
+                                t -> t / (1 - t^2))
+            end
+            let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
+                if si < 0 # x = s0 - t/(1-t)
+                    return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
+                                            f.f!(v, s0 - t*den); v .*= den * den; end, f.I, f.fx),
+                                    reverse(map(x -> 1 / (1 + 1 / (s0 - x)), s)),
+                                    t -> s0 - t/(1-t))
+                else # x = s0 + t/(1-t)
+                    return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
+                                            f.f!(v, s0 + t*den); v .*= den * den; end, f.I, f.fx),
+                                    map(x -> 1 / (1 + 1 / (x - s0)), s),
+                                    t -> s0 + t/(1-t))
+                end
+            end
+        end
+    end
+    return workfunc(f, s, identity)
+end
+
 # Gauss-Kronrod quadrature of f from a to b to c...
 
 """
