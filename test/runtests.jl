@@ -96,6 +96,13 @@ end
     @test I === I′ # result is written in-place to I
 end
 
+@testset "inplace Inf" begin
+    f!(v, x) = v .= exp(-x^2)
+    @test quadgk!(f!, [0.], 1., Inf)[1] ≈ quadgk(x -> [exp(-x^2)], 1., Inf)[1]
+    @test quadgk!(f!, [0.], -Inf, 1.)[1] ≈ quadgk(x -> [exp(-x^2)], -Inf, 1.)[1]
+    @test quadgk!(f!, [0.], -Inf, Inf)[1] ≈ quadgk(x -> [exp(-x^2)], -Inf, Inf)[1]
+end
+
 # This is enough for allocation currently caused by the do-lambda in quadgk(...)
 const smallallocbytes = 500
 
