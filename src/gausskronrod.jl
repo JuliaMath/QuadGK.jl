@@ -256,8 +256,10 @@ function cachedrule(::Union{Type{BigFloat},Type{Complex{BigFloat}}}, n::Integer)
 end
 
 # use a generated function to make this type-stable
-@generated function cachedrule(::Type{T}, n::Integer) where {T<:Number}
-    TF = typeof(float(real(one(T))))
+@generated function _cachedrule(::Type{T}, ::Type{TF}, n::Integer) where {T,TF}
     cache = haskey(rulecache, TF) ? rulecache[TF] : (rulecache[TF] = Dict{Int,NTuple{3,Vector{TF}}}())
     :(haskey($cache, n) ? $cache[n] : ($cache[n] = kronrod($T, n)))
 end
+
+cachedrule(::Type{T}, n::Integer) where {T<:Number} =
+    _cachedrule(T, typeof(float(real(one(T)))), n)
