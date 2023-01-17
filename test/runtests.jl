@@ -93,6 +93,11 @@ end
         r[2] = sin(30x)
     end
     @test quadgk(x -> [cos(100x), sin(30x)], 0, 1) ≅ (I′,E′) ≅ ([-0.005063656411097513, 0.028191618337080532], 4.2100180879009775e-10)
+    I″,E″= quadgk!(I, 0, 1.0) do r,x # check mixed-type argument promotion
+        r[1] = cos(100x)
+        r[2] = sin(30x)
+    end
+    @test (I″,E″) ≅ (I′,E′)
     @test I === I′ # result is written in-place to I
 end
 

@@ -20,7 +20,7 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     numevals = (2n+1) * (N-1)
 
     # logic here is mainly to handle dimensionful quantities: we
-    # don't know the correct type of atol, in particular, until
+    # don't know the correct type of atol115, in particular, until
     # this point where we have the type of E from f.  Also, follow
     # Base.isapprox in that if atol≠0 is supplied by the user, rtol
     # defaults to zero.
@@ -84,30 +84,33 @@ function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxe
     return (I, E)
 end
 
+realone(x) = false
+realone(x::Number) = one(x) isa Real
+
 # transform f and the endpoints s to handle infinite intervals, if any,
 # and pass transformed data to workfunc(f, s, tfunc)
 function handle_infinities(workfunc, f, s)
     s1, s2 = s[1], s[end]
-    if s1 isa Real && s2 isa Real # check for infinite or semi-infinite intervals
+    if realone(s1) && realone(s2) # check for infinite or semi-infinite intervals
         inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
                 return workfunc(t -> begin t2 = t*t; den = 1 / (1 - t2);
-                                            f(t*den) * (1+t2)*den*den; end,
-                                map(x -> isinf(x) ? copysign(one(x), x) : 2x / (1+hypot(1,2x)), s),
-                                t -> t / (1 - t^2))
+                                            f(oneunit(s1)*t*den) * (1+t2)*den*den*oneunit(s1); end,
+                                map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
+                                t -> oneunit(s1) * t / (1 - t^2))
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
-                if si < 0 # x = s0 - t/(1-t)
+                if si < zero(si) # x = s0 - t/(1-t)
                     return workfunc(t -> begin den = 1 / (1 - t);
-                                                f(s0 - t*den) * den*den; end,
-                                    reverse(map(x -> 1 / (1 + 1 / (s0 - x)), s)),
-                                    t -> s0 - t/(1-t))
+                                                f(s0 - oneunit(s1)*t*den) * den*den*oneunit(s1); end,
+                                    reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
+                                    t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
                     return workfunc(t -> begin den = 1 / (1 - t);
-                                                f(s0 + t*den) * den*den; end,
-                                    map(x -> 1 / (1 + 1 / (x - s0)), s),
-                                    t -> s0 + t/(1-t))
+                                                f(s0 + oneunit(s1)*t*den) * den*den*oneunit(s1); end,
+                                    map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
+                                    t -> s0 + oneunit(s1)*t/(1-t))
                 end
             end
         end
@@ -117,26 +120,27 @@ end
 
 function handle_infinities(workfunc, f::InplaceIntegrand, s)
     s1, s2 = s[1], s[end]
-    if s1 isa Real && s2 isa Real # check for infinite or semi-infinite intervals
+    if realone(s1) && realone(s2) # check for infinite or semi-infinite intervals
         inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
+            ftmp = f.fx # original integrand may have different units
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
                 return workfunc(InplaceIntegrand((v, t) -> begin t2 = t*t; den = 1 / (1 - t2);
-                                            f.f!(v, t*den); v .*= (1+t2)*den*den; end, f.I, f.fx),
-                                map(x -> isinf(x) ? copysign(one(x), x) : 2x / (1+hypot(1,2x)), s),
-                                t -> t / (1 - t^2))
+                                            f.f!(ftmp, oneunit(s1)*t*den); v .= ftmp .* ((1+t2)*den*den*oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
+                                map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
+                                t -> oneunit(s1) * t / (1 - t^2))
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
-                if si < 0 # x = s0 - t/(1-t)
+                if si < zero(si) # x = s0 - t/(1-t)
                     return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
-                                            f.f!(v, s0 - t*den); v .*= den * den; end, f.I, f.fx),
-                                    reverse(map(x -> 1 / (1 + 1 / (s0 - x)), s)),
-                                    t -> s0 - t/(1-t))
+                                            f.f!(ftmp, s0 - oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
+                                    reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
+                                    t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
                     return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
-                                            f.f!(v, s0 + t*den); v .*= den * den; end, f.I, f.fx),
-                                    map(x -> 1 / (1 + 1 / (x - s0)), s),
-                                    t -> s0 + t/(1-t))
+                                            f.f!(ftmp, s0 + oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
+                                    map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
+                                    t -> s0 + oneunit(s1)*t/(1-t))
                 end
             end
         end
@@ -250,6 +254,9 @@ For integrands whose values are *small* arrays whose length is known at compile-
 it is usually more efficient to use `quadgk` and modify your integrand to return
 an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl).
 """
+quadgk!(f!, result, segs...; kws...) =
+    quadgk!(f!, result, promote(segs...)...; kws...)
+
 function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
     fx = result / oneunit(T) # pre-allocate array of correct type for integrand evaluations
     f = InplaceIntegrand(f!, result, fx)
