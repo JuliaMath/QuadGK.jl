@@ -299,6 +299,8 @@ julia> cauchy_quadgk(x -> x^3 / ((x^2 + 1)*(x^2 + 4)), -Inf, Inf)
 ```
 which returns $\pi/3 \approx 1.047197551196597746\ldots$ to about 15 digits.
 
+This approach and other approaches to computing Cauchy principal
+values are discussed in [Keller and Wróbel (2016)](https://doi.org/10.1016/j.cam.2015.08.021).
 This kind of "singularity subtraction" is powerful approach to efficient
 computation of integrals with singularities or near singularities.
 A huge variety of related techniques have been developed for
