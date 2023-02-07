@@ -131,3 +131,9 @@ const smallallocbytes = 500
     subdiv_alloc_segbuf() # warmup
     @test subdiv_alloc_segbuf()[3] < smallallocbytes
 end
+
+@testset "quadgk_count and quadgk_print" begin
+    @test quadgk_count(x->cos(200x), 0,1) ≅ (-0.004366486486069923, 2.552995927726856e-13, 1905)
+    @test sprint(io -> quadgk_print(io, x -> x^2, 0, 1, order=2), context=:compact=>true) ==
+        "f(0.211325 = 0.0446582\nf(0.788675 = 0.622008\nf(0.03709 = 0.00137566\nf(0.96291 = 0.927196\nf(0.5 = 0.25\n"
+end

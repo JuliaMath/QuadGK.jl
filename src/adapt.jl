@@ -262,3 +262,48 @@ function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxe
     f = InplaceIntegrand(f!, result, fx)
     return quadgk(f, a, b, c...; atol=atol, rtol=rtol, maxevals=maxevals, order=order, norm=norm, segbuf=segbuf)
 end
+
+"""
+    quadgk_count(f, args...; kws...)
+
+Identical to [`quadgk`](@ref) but returns a triple `(I, E, count)`
+of the estimated integral `I`, the estimated error bound `E`, and a `count`
+of the number of times the integrand `f` was evaluated.
+
+The count of integrand evaluations is a useful performance metric, a large
+number typically indicates a badly behaved integrand (with singularities,
+discontinuities, sharp peaks, and/or rapid oscillations), in which case
+it may be possible to mathematically transform the problem in some way
+to improve the convergence rate.
+"""
+function quadgk_count(f, args...; kws...)
+    count = 0
+    i = quadgk(args...; kws...) do x
+        count += 1
+        f(x)
+    end
+    return (i..., count)
+end
+
+"""
+    quadgk_print([io], f, args...; kws...)
+
+Identical to [`quadgk`](@ref), but **prints** each integrand
+evaluation to the stream `io` (defaults to `stdout`) in the form:
+```
+f(x1) = y1
+f(x2) = y2
+...
+```
+which is useful for pedagogy and debugging.
+
+Also, like [`quadgk_count`](@ref), it returns a triple `(I, E, count)`
+of the estimated integral `I`, the estimated error bound `E`, and a `count`
+of the number of times the integrand `f` was evaluated.
+"""
+quadgk_print(io::IO, f, args...; kws...) = quadgk_count(args...; kws...) do x
+    y = f(x)
+    println(io, "f(", x, " = ", y)
+    y
+end
+quadgk_print(f, args...; kws...) = quadgk_print(stdout, f, args...; kws...)
