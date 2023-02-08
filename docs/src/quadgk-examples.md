@@ -300,7 +300,7 @@ which is correct to about 16 digits.
 
 This approach and other approaches to computing Cauchy principal
 values are discussed in [Keller and Wróbel (2016)](https://doi.org/10.1016/j.cam.2015.08.021).
-This kind of "singularity subtraction" is powerful approach to efficient
+This kind of "singularity subtraction" is a powerful approach to efficient
 computation of integrals with singularities or near singularities.
 A huge variety of related techniques have been developed for
 [boundary element methods](https://en.wikipedia.org/wiki/Boundary_element_method), where a vast number of singular integrals
