@@ -133,7 +133,7 @@ julia> quadgk_count(x -> x > 1, 0, 3)
 (2.0000000043200235, 1.7916158219741817e-8, 705)
 ```
 Even though $H(x-1)$ is nearly constant, `quadgk` struggles to integrate it (`705`
-function evaluations to get about 8 digits), thank to the discontinuity at $x=1$.
+function evaluations to get about 8 digits), thanks to the discontinuity at $x=1$.
 (Note that `true` and `false` in Julia are equal to numeric `0` and `1`, which is
 why we could implement $H(x-1)$ as simply `x > 1`.)
 On the other hand, if we *tell it* the location of the discontinuity:
