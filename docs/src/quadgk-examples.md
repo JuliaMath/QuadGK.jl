@@ -328,7 +328,7 @@ and then you only need to numerically integrate $I - I_0$, which has the spike s
 
 As for [Cauchy principal values](@ref) above, we want to include
 a $I_0 / (b-a)$ term directly in the integrand so that the error
-tolerances are computedd correctly, and include $x=0$ as an explicit
+tolerances are computed correctly, and include $x=0$ as an explicit
 endpoint to let `quadgk` know that the integral is badly behaved there.
 
 In code:
