@@ -242,7 +242,7 @@ endpoint must be the same as the starting point ($z=1$).
 ## Cauchy principal values
 
 Integrands $f(x) = g(x)/x$ that diverge $\sim 1/x$ cannot be integrated
-through $x=0$ in the usual way (the singularity is not integrable.
+through $x=0$ in the usual way (the singularity is not integrable).
 However, if you integrate *around* $x=0$, for both signs of $x$, then you
 can define a kind of integral that is the "difference" of the divergence
 on the two sides.  This definition is called a [Cauchy principal value](https://en.wikipedia.org/wiki/Cauchy_principal_value), and is usually presented
