@@ -165,7 +165,7 @@ which correctly gives $\approx 2 - 2i$.  Note that we explicitly put an
 endpoint at $x=0$ to tell `quadgk` about the singularity at that point,
 as described above.
 
-Or let's integrate the vector-valued function $f(x) = [1, x, x^2, x^3]$:
+Or let's integrate the vector-valued function $f(x) = [1, x, x^2, x^3]$ for $x \in (0,1)$:
 ```
 julia> quadgk(x -> [1,x,x^2,x^3], 0, 1)
 ([1.0, 0.5, 0.3333333333333333, 0.25], 6.206335383118183e-17)
@@ -187,8 +187,8 @@ an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/S
 ```
 julia> using StaticArrays
 
-julia> integral, error = quadgk(x -> @SVector[1,x,x^2,x^3], 0, 1, norm=v->maximum(abs, v))
-([1.0, 0.5, 0.3333333333333333, 0.25], 5.551115123125783e-17)
+julia> integral, error = quadgk(x -> @SVector[1,x,x^2,x^3], 0, 1)
+([1.0, 0.5, 0.3333333333333333, 0.25], 6.206335383118183e-17)
 
 julia> typeof(integral)
 SVector{4, Float64} (alias for SArray{Tuple{4}, Float64, 1, 4})
