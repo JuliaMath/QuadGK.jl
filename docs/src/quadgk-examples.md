@@ -16,7 +16,7 @@ which give gives the correct answer (1) exactly in this case.  Note that
 the error estimate `≈ 4.5e-11` is pessimistic, as is often the case.
 
 The [Gaussian integral](https://en.wikipedia.org/wiki/Gaussian_integral)
-$\int_{-\infty}^{+\infty} e^{-x}^2 dx = \sqrt{\pi} = 1.772453850905516027298167483341\ldots$ is computed by:
+$\int_{-\infty}^{+\infty} e^{-x^2} dx = \sqrt{\pi} = 1.772453850905516027298167483341\ldots$ is computed by:
 ```
 julia> quadgk(x -> exp(-x^2), -Inf, Inf)
 (1.7724538509055137, 6.4296367126505234e-9)
@@ -24,13 +24,13 @@ julia> quadgk(x -> exp(-x^2), -Inf, Inf)
 which is the correct answer to nearly [machine precision](https://en.wikipedia.org/wiki/Machine_epsilon), despite the pessimistic error estimate `≈ 6.4e-9`.
 
 Internally, `quadgk` handles infinite limits by the [changes of variables](https://en.wikipedia.org/wiki/Integration_by_substitution)
-$$
+```math
 \int_a^\infty f(x)dx = \int_0^1 f\left(a + \frac{t}{1-t}\right) \frac{1}{(1-t)^2} dt
-$$
+```
 and
-$$
+```math
 \int_{-\infty}^\infty f(x)dx = \int_{-1}^1 f\left(\frac{t}{1-t^2}\right) \frac{1+t^2}{(1-t^2)^2} dt
-$$
+```
 respectively.   Although the transformed integrands are singular at the endpoints
 $t = 1$ and $t = \pm 1$, respectively, because the singularities are integrable
 and `quadgk` *never evaluates the integrand exactly at the endpoints*, it is able
@@ -242,17 +242,17 @@ endpoint must be the same as the starting point ($z=1$).
 ## Cauchy principal values
 
 Integrands $f(x) = g(x)/x$ that diverge $\sim 1/x$ cannot be integrated
-through $x=0$ in the usual way (the singularity is not integrable*.
+through $x=0$ in the usual way (the singularity is not integrable.
 However, if you integrate *around* $x=0$, for both signs of $x$, then you
 can define a kind of integral that is the "difference" of the divergence
 on the two sides.  This definition is called a [Cauchy principal value](https://en.wikipedia.org/wiki/Cauchy_principal_value), and is usually presented
 as a limit:
-$$
+```math
 \text{p.v.}\int_a^b \frac{g(x)}{x} dx =
 \lim_{\varepsilon\to 0^+} \left[
     \int_a^{-\varepsilon} \frac{g(x)}{x} dx + \int_{+\varepsilon}^b \frac{g(x)}{x} dx
 \right] \, .
-$$
+```
 That is, you subtract a "ball" of radius $\varepsilon$ from the integration
 domain $a < 0 < b$ to eliminate the singularity at $x=0$, and take the limit of the resulting integral as the $\varepsilon$ goes to zero.
 
@@ -261,16 +261,16 @@ extrapolation of numerical integrals for a sequence of $\varepsilon > 0$
 values, perhas using Richardson extrapolation via the [Richardson.jl package](https://github.com/JuliaMath/Richardson.jl).  However, it is
 mathematically equivalent and *much* more efficient to use a simple
 singularity-subtraction procedure:
-$$
+```math
 \\frac{g(x)}{x}  =
 \frac{g(x)-g(0)}{x} + \frac{g(0)}{x}
-$$
+```
 where the first term is *not singular* if $g(x)$ is differentiable at $x=0$,
 and the latter term can be integrated analytically, giving:
-$$
+```math
 \text{p.v.}\int_a^b \frac{g(x)}{x} dx = \int_a^b \frac{g(x)-g(0)}{x} dx +
 g(0) \log|b/a|
-$$
+```
 Since the remaining integral has no singularity, we can do it numerically
 directly.  There are two tricks to help us a bit further:
 
@@ -288,16 +288,16 @@ function cauchy_quadgk(g, a, b; kws...)
 end
 ```
 For example, it [can be shown](https://uregina.ca/~kozdron/Teaching/Regina/312Fall13/Handouts/lecture34_dec_2.pdf) that
-$$
+```math
 \text{p.v.} \int_{-\infty}^\infty \frac{x^2}{(x^2 + 1)(x^2 + 4)} dx = \frac{\pi}{3} \, ,
-$$
+```
 corresponding to $g(x) = x^3 / (x^2 + 1)(x^2 + 4)$, and we can reproduce this
 with `cauchy_quadgk`:
 ```
 julia> cauchy_quadgk(x -> x^3 / ((x^2 + 1)*(x^2 + 4)), -Inf, Inf)
 (1.0471975511965979, 2.6949015241584107e-10, 150)
 ```
-which returns $\pi/3 \approx 1.047197551196597746\ldots$ to about 15 digits.
+which correctly returns $\pi/3 \approx 1.047197551196597746\ldots$ to about 15 digits.
 
 This approach and other approaches to computing Cauchy principal
 values are discussed in [Keller and Wróbel (2016)](https://doi.org/10.1016/j.cam.2015.08.021).
@@ -317,14 +317,14 @@ increase the efficiency of numerical integration if you can separate
 the sharp peak analytically.
 
 For example, suppose that you are integrating:
-$$
+```math
 I = \int_a^b \frac{g(x)}{x - i\alpha} dx
-$$
+```
 for a small $0 < \alpha \ll 1$.  For $\alpha \to 0^+$, it approaches $i\pi g(0)$ if $a = -b$, but for small $\alpha > 0$ you have to numerically integrate (for a general function $g(x)$) a function with a sharp spike at $x=0$, which will require a large number of quadrature points.  But you can subtract out the singularity analytically:
-$$
+```math
 I = \int_a^b \left[ \frac{g(x)-g(0)}{x - i\alpha} + \frac{g(0)}{x - i\alpha} \right] dx \\
 = \int_a^b \frac{g(x)-g(0)}{x - i\alpha}dx + \underbrace{g(0) \left[\frac{1}{2}\log(x^2 + \alpha^2) + i\tan^{-1}(x/\alpha) \right]_a^b}_{I_0}
-$$
+```
 and then you only need to numerically integrate $I - I_0$, which has the spike subtracted.
 
 As for [Cauchy principal values](@ref) above, we want to include
