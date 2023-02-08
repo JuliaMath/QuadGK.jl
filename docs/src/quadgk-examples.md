@@ -287,17 +287,16 @@ function cauchy_quadgk(g, a, b; kws...)
     return quadgk_count(x -> (g(x)-g₀)/x + g₀int, a, 0, b; kws...)
 end
 ```
-For example, it [can be shown](https://uregina.ca/~kozdron/Teaching/Regina/312Fall13/Handouts/lecture34_dec_2.pdf) that
+For example, [Mathematica tells us](https://www.wolframalpha.com/input?i=Integrate%5BCos%5Bx%5E2-1%5D%2Fx%2C+%7Bx%2C+-1%2C+2%7D%2C+PrincipalValue+-%3E+True%5D) that
 ```math
-\text{p.v.} \int_{-\infty}^\infty \frac{x^2}{(x^2 + 1)(x^2 + 4)} dx = \frac{\pi}{3} \, ,
+\text{p.v.} \int_{-1}^2 \frac{cos(x^2-1}{x} dx \approx 0.212451309942989788929352736695\ldots ,
 ```
-corresponding to $g(x) = x^3 / (x^2 + 1)(x^2 + 4)$, and we can reproduce this
-with `cauchy_quadgk`:
+and we can reproduce this with `cauchy_quadgk`:
 ```
-julia> cauchy_quadgk(x -> x^3 / ((x^2 + 1)*(x^2 + 4)), -Inf, Inf)
-(1.0471975511965979, 2.6949015241584107e-10, 150)
+julia> cauchy_quadgk(x -> cos(x^2-1), -1, 2)
+(0.21245130994298977, 1.8366794196644776e-11, 60)
 ```
-which correctly returns $\pi/3 \approx 1.047197551196597746\ldots$ to about 15 digits.
+which is correct to about 16 digits.
 
 This approach and other approaches to computing Cauchy principal
 values are discussed in [Keller and Wróbel (2016)](https://doi.org/10.1016/j.cam.2015.08.021).
