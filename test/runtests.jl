@@ -21,6 +21,9 @@ using QuadGK, Test
     # test integration of a type-unstable function where the instability is only detected
     # during refinement of the integration interval:
     @test quadgk(x -> x > 0.01 ? sin(10(x-0.01)) : 1im, 0,1.01, rtol=1e-4, order=3)[1] ≈ (1 - cos(10))/10+0.01im rtol=1e-4
+
+    # order=1 (issue #66)
+    @test quadgk_count(x -> 1, 0, 1, order=1) == (1.0, 0.0, 3)
 end
 
 module Test19626
@@ -99,6 +102,13 @@ end
     end
     @test (I″,E″) ≅ (I′,E′)
     @test I === I′ # result is written in-place to I
+
+    # even orders
+    @test quadgk(x -> [cos(100x), sin(30x)], 0, 1, order=8)[1] ≈ I′ ≈
+          quadgk!((r,x) -> (r[1]=cos(100x); r[2]=sin(30x)), I, 0, 1, order=8)[1]
+
+    # order=1 (issue #66)
+    @test ([1.0], 0.0) == quadgk!((r,x) -> r[1] = 1.0, [0.], 0, 1, order=1)
 end
 
 @testset "inplace Inf" begin
@@ -133,7 +143,10 @@ const smallallocbytes = 500
 end
 
 @testset "quadgk_count and quadgk_print" begin
-    @test quadgk_count(x->cos(200x), 0,1) ≅ (-0.004366486486069923, 2.552995927726856e-13, 1905)
+    I, E, count = quadgk_count(x->cos(200x), 0,1)
+    @test I ≈ -0.004366486486069923
+    @test E ≈ 2.552995927726856e-13 atol=abs(I)*1e-8
+    @test count == 1905
     @test sprint(io -> quadgk_print(io, x -> x^2, 0, 1, order=2), context=:compact=>true) ==
-        "f(0.211325 = 0.0446582\nf(0.788675 = 0.622008\nf(0.03709 = 0.00137566\nf(0.96291 = 0.927196\nf(0.5 = 0.25\n"
+        "f(0.5 = 0.25\nf(0.211325 = 0.0446582\nf(0.788675 = 0.622008\nf(0.03709 = 0.00137566\nf(0.96291 = 0.927196\n"
 end

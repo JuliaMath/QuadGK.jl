@@ -147,8 +147,8 @@ rule, which uses 15 points to interpolate with a high-degree polynomial.  Once
 we subdivide the integral, we could actually get away with a lower-order rule
 by setting the `order` parameter, e.g.:
 ```
-julia> quadgk_count(x -> x > 1, 0, 1, 3, order=2)
-(2.0000000000000004, 0.0, 10)
+julia> quadgk_count(x -> x > 1, 0, 1, 3, order=1)
+(2.0, 0.0, 6)
 ```
 
 ## Complex and vector-valued integrands
