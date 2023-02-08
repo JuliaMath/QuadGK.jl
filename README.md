@@ -4,7 +4,7 @@
 
 Documentation:
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaMath.github.io/QuadGK.jl/stable)
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://JuliaMath.github.io/QuadGK.jl/latest)
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://JuliaMath.github.io/QuadGK.jl/dev)
 
 This package provides support for one-dimensional numerical integration in Julia using adaptive
 Gauss-Kronrod quadrature.
