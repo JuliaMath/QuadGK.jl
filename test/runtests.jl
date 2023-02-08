@@ -103,6 +103,10 @@ end
     @test (I″,E″) ≅ (I′,E′)
     @test I === I′ # result is written in-place to I
 
+    # even orders
+    @test quadgk(x -> [cos(100x), sin(30x)], 0, 1, order=8)[1] ≈ I′ ≈
+          quadgk!((r,x) -> (r[1]=cos(100x); r[2]=sin(30x)), I, 0, 1, order=8)[1]
+
     # order=1 (issue #66)
     @test ([1.0], 0.0) == quadgk!((r,x) -> r[1] = 1.0, [0.], 0, 1, order=1)
 end
