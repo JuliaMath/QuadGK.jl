@@ -289,7 +289,7 @@ end
 ```
 For example, [Mathematica tells us](https://www.wolframalpha.com/input?i=Integrate%5BCos%5Bx%5E2-1%5D%2Fx%2C+%7Bx%2C+-1%2C+2%7D%2C+PrincipalValue+-%3E+True%5D) that
 ```math
-\text{p.v.} \int_{-1}^2 \frac{cos(x^2-1}{x} dx \approx 0.212451309942989788929352736695\ldots ,
+\text{p.v.} \int_{-1}^2 \frac{cos(x^2-1)}{x} dx \approx 0.212451309942989788929352736695\ldots ,
 ```
 and we can reproduce this with `cauchy_quadgk`:
 ```
