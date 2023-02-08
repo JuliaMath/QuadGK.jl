@@ -36,6 +36,30 @@ $t = 1$ and $t = \pm 1$, respectively, because the singularities are integrable
 and `quadgk` *never evaluates the integrand exactly at the endpoints*, it is able
 to perform the numerical integration successfully.
 
+Important tip: This change-of-variables trick works best if your function decays with $|x|$ over a lengthscale of order $\sim 1$.
+If your decay length is much larger or shorter than that, it will perform poorly.  For example, with $f(x) = e^{-x/10^6}$ the
+decay is over a lengthscale $\sim 10^6$ and `quadgk` requires many more evaluations (705) than for $e^{-x}$ (135, as measured by [`quadgk_count`](@ref),
+described below):
+```
+julia> quadgk_count(x -> exp(-x), 0, Inf)
+(1.0, 4.507382674563286e-11, 135)
+
+julia> quadgk_count(x -> exp(-x/1e6), 0, Inf)
+(1.000000000001407e6, 0.0014578728207218505, 705)
+```
+If your function decays over a lengthscale $\sim L$, it is a good idea to compute improper integrals using a change of variables
+$\int_a^b f(x)dx = \int_{a/L}^{b/L} f(uL) L \, du$, for example:
+```
+julia> L = 1e6 # decay lengthscale
+1.0e6
+
+julia> f(x) = exp(-x/L)
+f (generic function with 1 method)
+
+julia> quadgk_count(u -> f(u*L) * L, 0, Inf) # rescaled integration over u = x/L
+(1.0e6, 4.507388807828416e-5, 135)
+```
+
 ## Counting and printing integrand evaluations
 
 Often, it is a good idea to count the number of times the integrand is evaluated,
