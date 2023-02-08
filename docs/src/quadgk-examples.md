@@ -258,7 +258,7 @@ domain $a < 0 < b$ to eliminate the singularity at $x=0$, and take the limit of 
 
 In principle, you might imagine taking this limit numerically by
 extrapolation of numerical integrals for a sequence of $\varepsilon > 0$
-values, perhas using Richardson extrapolation via the [Richardson.jl package](https://github.com/JuliaMath/Richardson.jl).  However, it is
+values, perhaps using Richardson extrapolation via the [Richardson.jl package](https://github.com/JuliaMath/Richardson.jl).  However, it is
 mathematically equivalent and *much* more efficient to use a simple
 singularity-subtraction procedure:
 ```math
