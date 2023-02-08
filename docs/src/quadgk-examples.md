@@ -181,6 +181,23 @@ e.g. to use the [maximum norm](https://en.wikipedia.org/wiki/Chebyshev_distance)
 or some other norm (e.g. a weighted norm if the different components have different
 units or have unequal error tolerances).
 
+For integrands whose values are *small* arrays whose length is known at compile time,
+it is [usually most efficient](https://docs.julialang.org/en/v1/manual/performance-tips/#Consider-StaticArrays.jl-for-small-fixed-size-vector/matrix-operations) to modify your integrand to return
+an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl).  For the example above:
+```
+julia> using StaticArrays
+
+julia> integral, error = quadgk(x -> @SVector[1,x,x^2,x^3], 0, 1, norm=v->maximum(abs, v))
+([1.0, 0.5, 0.3333333333333333, 0.25], 5.551115123125783e-17)
+
+julia> typeof(integral)
+SVector{4, Float64} (alias for SArray{Tuple{4}, Float64, 1, 4})
+```
+Note that the return value also gives the `integral` as an `SVector` (a [statically](https://en.wikipedia.org/wiki/Static_program_analysis) sized array).
+
+The QuadGK package did not need any code specific to StaticArrays, and was written long before that package even existed.  The
+fact that unrelated packages like this can be [composed](https://en.wikipedia.org/wiki/Composability) is part of the [beauty of multiple dispatch](https://www.youtube.com/watch?v=kc9HwsxE1OY) and [duck typing](https://en.wikipedia.org/wiki/Duck_typing) for [generic programming](https://en.wikipedia.org/wiki/Generic_programming).
+
 ## Arbitrary-precision integrals
 
 `quadgk` also supports [arbitrary-precision arithmetic](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) using Julia's [`BigFloat` type](https://docs.julialang.org/en/v1/base/numbers/#BigFloats-and-BigInts) to compute integrals to arbitrary accuracy (albeit at increased computational cost).
