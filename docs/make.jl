@@ -8,6 +8,7 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Examples" => "quadgk-examples.md",
+        "Weighted Gauss" => "weighted-gauss.md",
         "Reference" => "functions.md",
     ],
 )
