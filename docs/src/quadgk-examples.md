@@ -262,7 +262,7 @@ values, perhaps using Richardson extrapolation via the [Richardson.jl package](h
 mathematically equivalent and *much* more efficient to use a simple
 singularity-subtraction procedure:
 ```math
-\\frac{g(x)}{x}  =
+\frac{g(x)}{x}  =
 \frac{g(x)-g(0)}{x} + \frac{g(0)}{x}
 ```
 where the first term is *not singular* if $g(x)$ is differentiable at $x=0$,
