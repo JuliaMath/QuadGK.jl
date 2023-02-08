@@ -23,7 +23,7 @@ Features of the QuadGK package include:
 
 ## Quick start
 
-The following code computes $\int_0^1 \cos(200x) dx$ numerically, to the default accuracy (a [relative error](https://en.wikipedia.org/wiki/Approximation_error) $\lesssim 10^{-8}$):
+The following code computes $\int_0^1 \cos(200x) dx$ numerically, to the default accuracy (a [relative error](https://en.wikipedia.org/wiki/Approximation_error) $\lesssim 10^{-8}$), using [`quadgk`](@ref):
 ```
 julia> using QuadGK
 
