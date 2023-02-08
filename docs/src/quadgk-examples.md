@@ -219,8 +219,8 @@ around the [pole](https://en.wikipedia.org/wiki/Zeros_and_poles) at
 $z=0$, we should get exactly $2\pi i \cos(0) = 2\pi i$.
 
 One way to do this integral is to [parameterize a contour](https://en.wikipedia.org/wiki/Parametric_equation), say a
-circle $|z|=1$ parameterized by $z= e^{i\phi}$ (`= cis(ϕ)` in Julia), which gives $dz = i z d\phi$, to
-obtain an ordinary integral $\int_0^{2\pi} \frac{\cos(e^{i\phi}}{e^{i\phi}} ie^{i\phi} d\phi$ over the *real* parameter $\phi \in (0,2\pi)$:
+circle $|z|=1$ parameterized by $z= e^{i\phi}$ (`= cis(ϕ)` in Julia), which gives $dz = i z\, d\phi$, to
+obtain an ordinary integral $\int_0^{2\pi} \frac{\cos(e^{i\phi})}{e^{i\phi}} ie^{i\phi} d\phi$ over the *real* parameter $\phi \in (0,2\pi)$:
 ```
 julia> quadgk(ϕ -> cos(cis(ϕ)) * im, 0, 2π)
 (0.0 + 6.283185307179586im, 1.8649646913725044e-8)
