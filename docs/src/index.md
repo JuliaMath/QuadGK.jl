@@ -46,7 +46,7 @@ For integrands whose values are *small* arrays whose length is known at compile-
 it is usually most efficient to modify your integrand to return
 an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl).
 
-However, for integrands that return large or variable-length arrays, we also provide a function
+However, for integrands that return large or runtime-length arrays, we also provide a function
 `quadgk!(f!, result, a,b...)` in order to exploit in-place operations where possible.   The
 `result` argument is used to store the estimated integral `I` in-place, and the integrand function
 is now of the form `f!(r, x)` and should write `f(x)` in-place into the result array `r`.  See the [`quadgk!`](@ref) documentation for more detail.
