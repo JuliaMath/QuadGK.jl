@@ -230,7 +230,7 @@ which indeed gives us $\approx 2\pi i$ (to machine precision).
 As an alternative, however, you can directly supply a sequence of
 *complex "endpoints"* to `quadgk` and it will perform the contour
 integral along a sequence of line segments connecting these points.  For example, instead of integrating around a circular contour, we can integrate
-around the diamond (rotated square) connecting the conners $\pm 1$ and $\pm i$:
+around the diamond (rotated square) connecting the corners $\pm 1$ and $\pm i$:
 ```
 julia> quadgk(z -> cos(z)/z, 1, im, -1, -im, 1)
 (0.0 + 6.283185307179587im, 5.369976662961913e-9)
