@@ -18,24 +18,38 @@ Features of the QuadGK package include:
 * Arbitrary precision: arbitrary-precision arithmetic types such as `BigFloat` can be integrated to arbitrary accuracy
 * ["Improper" integrals](https://en.wikipedia.org/wiki/Improper_integral): Integral endpoints can be $\pm \infty$ (`±Inf` in Julia).
 * [Contour integrals](https://en.wikipedia.org/wiki/Contour_integration): You can specify a sequence of points in the complex plane to perform a contour integral along a piecewise-linear contour.
-* Arbitrary-order and custom quadrature rules: Any polynomial `order` of the Gauss–Kronrod quadrature rule can be specified, and custom Gaussian-quadrature rules can be constructed for arbitrary weight functions.
+* Arbitrary-order and custom quadrature rules: Any polynomial `order` of the Gauss–Kronrod quadrature rule can be specified, and custom Gaussian-quadrature rules can be constructed for arbitrary weight functions.  See [Gaussian quadrature and arbitrary weight functions](@ref).
 * In-place integration: For memory efficiency, integrand functions that write in-place into a pre-allocated buffer (e.g. for vector-valued integrands) can be used with the [`quadgk!`](@ref) function, along with pre-allocated buffers using [`alloc_segbuf`](@ref).
 
 ## Quick start
 
 The following code computes $\int_0^1 \cos(200x) dx$ numerically, to the default accuracy (a [relative error](https://en.wikipedia.org/wiki/Approximation_error) $\lesssim 10^{-8}$):
 ```
-using QuadGK
+julia> using QuadGK
 
-integral = quadgk(x -> cos(200x), 0, 1)
+julia> integral, error = quadgk(x -> cos(200x), 0, 1)
+(-0.004366486486069925, 2.552917865170437e-13)
 ```
-returning a result `integral` of about `(-0.004366486486069923, 2.552995927726856e-13)`.  That is, the result is a [tuple](https://docs.julialang.org/en/v1/manual/functions/#Tuples) of two values: `integral[1]`, the estimated integral, and `integral[2]` an estimated upper bound on the [truncation error](https://en.wikipedia.org/wiki/Truncation_error) in the computed integral (due to the finite number of points at which `quadgk` evaluates the integrand).
+Notice that the result is a [tuple](https://docs.julialang.org/en/v1/manual/functions/#Tuples) of two values: the estimated `integral`
+of `-0.004366486486069925`, an estimated upper bound `error ≈ 2.55e-13`
+on the [truncation error](https://en.wikipedia.org/wiki/Truncation_error) in the computed integral (due to the finite number of points at which `quadgk` evaluates the integrand).
 
-For extremely [smooth functions](https://en.wikipedia.org/wiki/Smoothness) like $\cos(200x)$, even though it is highly oscillatory, `quadgk` often gives a very accurate result, even more accurate than the minimum accuracy you requested (defaulting to about 8 digits).  In this particular case, we know that the exact integral is $\sin(200)/200 \approx -0.004366486486069972908665092105754\ldots$, and `integral[1]` matches this to about 14 [significant digits](https://en.wikipedia.org/wiki/Significant_figures).
+For extremely [smooth functions](https://en.wikipedia.org/wiki/Smoothness) like $\cos(200x)$, even though it is highly oscillatory, `quadgk` often gives a very accurate result, even more accurate than the minimum accuracy you requested (defaulting to about 8 digits).  In this particular case, we know that the exact integral is $\sin(200)/200 \approx -0.004366486486069972908665092105754\ldots$, and `integral` matches this to about 14 [significant digits](https://en.wikipedia.org/wiki/Significant_figures).
 
 ## Tutorial examples
 
 The [`quadgk` examples](@ref) chapter of this manual presents several other examples, including improper integrals, vector-valued integrands, improper integrals, singular or near-singular integrands, and Cauchy principal values.
+
+## In-place operations for array-valued integrands
+
+For integrands whose values are *small* arrays whose length is known at compile-time,
+it is usually most efficient to modify your integrand to return
+an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl).
+
+However, for integrands that return large or variable-length arrays, we also provide a function
+`quadgk!(f!, result, a,b...)` in order to exploit in-place operations where possible.   The
+`result` argument is used to store the estimated integral `I` in-place, and the integrand function
+is now of the form `f!(r, x)` and should write `f(x)` in-place into the result array `r`.  See the [`quadgk!`](@ref) documentation for more detail.
 
 ## API Reference
 
