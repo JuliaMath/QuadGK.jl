@@ -319,7 +319,7 @@ For example, suppose that you are integrating:
 ```math
 I = \int_a^b \frac{g(x)}{x - i\alpha} dx
 ```
-for a small $0 < \alpha \ll 1$.  For $\alpha \to 0^+$, it approaches $i\pi g(0)$ if $a = -b$, but for small $\alpha > 0$ you have to numerically integrate (for a general function $g(x)$) a function with a sharp spike at $x=0$, which will require a large number of quadrature points.  But you can subtract out the singularity analytically:
+for a small $0 < \alpha \ll 1$.  For $\alpha \to 0^+$, it approaches $i\pi g(0)$ plus a Cauchy principal part (the latter being zero if $a = -b$ and $g(x)=g(-x)$), but for small $\alpha > 0$ you have to numerically integrate (for a general function $g(x)$) a function with a sharp spike at $x=0$, which will require a large number of quadrature points.  But you can subtract out the singularity analytically:
 ```math
 I = \int_a^b \left[ \frac{g(x)-g(0)}{x - i\alpha} + \frac{g(0)}{x - i\alpha} \right] dx \\
 = \int_a^b \frac{g(x)-g(0)}{x - i\alpha}dx + \underbrace{g(0) \left[\frac{1}{2}\log(x^2 + \alpha^2) + i\tan^{-1}(x/\alpha) \right]_a^b}_{I_0}
