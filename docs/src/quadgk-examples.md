@@ -87,7 +87,7 @@ third element is the number of integrand evaluations.)
 
 ## Integrands with singularities and discontinuities
 
-The integral $\int_0^1 x^{-1/2} dx = \left. 2 \sqrt{x} \right|_0^1 2$ is perfectly finite even though the integrand $1/\sqrt{x}$ blows up at $x=0$.  This is an example
+The integral $\int_0^1 x^{-1/2} dx = \left. 2 \sqrt{x} \right|_0^1 = 2$ is perfectly finite even though the integrand $1/\sqrt{x}$ blows up at $x=0$.  This is an example
 of an *integrable singularity*, and `quadgk` can compute this integral:
 ```
 julia> quadgk_count(x -> 1/sqrt(x), 0, 1)
