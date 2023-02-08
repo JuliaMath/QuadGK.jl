@@ -170,7 +170,7 @@ Or let's integrate the vector-valued function $f(x) = [1, x, x^2, x^3]$:
 julia> quadgk(x -> [1,x,x^2,x^3], 0, 1)
 ([1.0, 0.5, 0.3333333333333333, 0.25], 6.206335383118183e-17)
 ```
-which correctly return $\approx [1, 1/2, 1/3, 1/4]$.  Note that the error estimate
+which correctly returns $\approx [1, \frac{1}{2}, \frac{1}{3}, \frac{1}{4}]$.  Note that the error estimate
 in this case is an approximate bound on the [norm](https://en.wikipedia.org/wiki/Norm_(mathematics)) of the error, as computed by the [`LinearAlgebra.norm`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.norm) function in Julia.  It defaults to the Euclidean (L2) norm, but you can change this with the `norm`
 argument:
 ```
