@@ -303,7 +303,7 @@ of the number of times the integrand `f` was evaluated.
 """
 quadgk_print(io::IO, f, args...; kws...) = quadgk_count(args...; kws...) do x
     y = f(x)
-    println(io, "f(", x, " = ", y)
+    println(io, "f(", x, ") = ", y)
     y
 end
 quadgk_print(f, args...; kws...) = quadgk_print(stdout, f, args...; kws...)
