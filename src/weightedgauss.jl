@@ -56,6 +56,9 @@ you may need to decrease `rtol`.   You can also pass in a specialized quadrature
 via the `quad` keyword argument, which should accept arguments `quad(f,a,b,rtol=_,atol=_)`
 similar to `quadgk`.  (This is useful if your weight function has discontinuities, in which
 case you might want to break up the integration interval at the discontinuities.)
+
+The type used for calculations and the return value is the same as the type the
+endpoints `a` and `b`.
 """
 function gauss(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
     (isfinite(a) && isfinite(b)) || throw(ArgumentError("a finite interval is required"))
@@ -66,7 +69,7 @@ function _gauss(W, N, a, b, rtol, quad)
     # Uses the Lanczos recurrence described in Trefethen & Bau,
     # Numerical Linear Algebra, to find the `N`-point Gaussian quadrature
     # using O(N) integrals and O(N²) operations, applied to Chebyshev basis:
-    xscale = 2.0/(b-a) # scaling from (a,b) to (-1,1)
+    xscale = 2/(b-a) # scaling from (a,b) to (-1,1)
     T = typeof(xscale)
     α = zeros(T, N)
     β = zeros(T, N)
