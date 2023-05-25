@@ -3,11 +3,11 @@
 # integration with the order-n Kronrod rule and weights of type Tw,
 # with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
-function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) where {T,N,F}
+function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf, parallel) where {T,N,F}
     x,w,gw = cachedrule(T,n)
 
     @assert N ≥ 2
-    segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+    segs = ntuple(i -> evalrule(parallel, f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
     if f isa InplaceIntegrand
         I = f.I .= segs[1].I
         for i = 2:length(segs)
@@ -34,35 +34,77 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
 
     segheap = segbuf === nothing ? collect(segs) : (resize!(segbuf, N-1) .= segs)
     heapify!(segheap, Reverse)
-    return adapt(f, segheap, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm)
+    return adapt(f, segheap, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm, parallel)
+end
+
+# pop segments that contribute most to error
+function pop_segs(::Sequential, segs, E, tol)
+    return (heappop!(segs, Reverse),)
+end
+function pop_segs(p::Parallel, segs, E, tol)
+    resize!(p.old_segs, 1)
+    p.old_segs[1] = heappop!(segs, Reverse)
+    E -= p.old_segs[1].E
+    while tol < E && !isempty(segs)
+        push!(p.old_segs, heappop!(segs, Reverse))
+    end
+    return p.old_segs
+end
+
+# bisect segments
+function bisect_segs(p::Sequential, (s,), f::F, x,w,gw, nrm) where {F}
+    mid = (s.a + s.b) / 2
+    s1 = evalrule(p, f, s.a, mid, x,w,gw, nrm)
+    s2 = evalrule(p, f, mid, s.b, x,w,gw, nrm)
+    return (s1, s2)
+end
+function bisect_segs(p::Parallel, old_segs, f::F, x,w,gw, nrm) where {F}
+    l = length(x)
+    n = 2*l-1   # number of Kronrod points
+    m = 2*length(old_segs)
+    resize!(p.new_segs, m)
+    (nm = n*m) <= length(p.f) || resize!(p.f, nm)
+    Threads.@threads for i in 1:m
+        s = old_segs[div(i-1, 2)+1]
+        mid = (s.a + s.b) / 2
+        v = view(p.f, (1+(i-1)*n):(i*n))
+        a, b = isodd(i) ? (s.a, mid) : (mid, s.b)
+        p.new_segs[i] = parevalrule(v, f, a,b, x,w,gw, nrm, l,n)
+    end
+    return p.new_segs
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
-function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
+function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm, parallel) where {F, T}
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
-    while E > atol && E > rtol * nrm(I) && numevals < maxevals
-        s = heappop!(segs, Reverse)
-        mid = (s.a + s.b) / 2
-        s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
-        s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
+    while (tol = max(atol, rtol*nrm(I))) < E && numevals < maxevals
+        old_segs = pop_segs(parallel, segs, E, tol)
+        new_segs = bisect_segs(parallel, old_segs, f, x,w,gw, nrm)
+
         if f isa InplaceIntegrand
-            I .= (I .- s.I) .+ s1.I .+ s2.I
+            for i = eachindex(old_segs)
+                I .-= old_segs[i].I
+            end
+            for i = eachindex(new_segs)
+                I .+= new_segs[i].I
+            end
         else
-            I = (I - s.I) + s1.I + s2.I
+            I = (I - sum(s -> s.I, old_segs)) + sum(s -> s.I, new_segs)
         end
-        E = (E - s.E) + s1.E + s2.E
-        numevals += 4n+2
+        E = (E - sum(s -> s.E, old_segs)) + sum(s -> s.E, new_segs)
+        numevals += length(new_segs)*(2n+1)
 
         # handle type-unstable functions by converting to a wider type if needed
-        Tj = promote_type(typeof(s1), promote_type(typeof(s2), T))
+        Tj = promote_type(T, typeof.(new_segs)...)
         if Tj !== T
-            return adapt(f, heappush!(heappush!(Vector{Tj}(segs), s1, Reverse), s2, Reverse),
-                         I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
+            segs_ = Vector{Tj}(segs)
+            foreach(s -> heappush!(segs_, s, Reverse), new_segs)
+            return adapt(f, segs_,
+                         I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm, parallel)
         end
 
-        heappush!(segs, s1, Reverse)
-        heappush!(segs, s2, Reverse)
+        foreach(s -> heappush!(segs, s, Reverse), new_segs)
     end
 
     # re-sum (paranoia about accumulated roundoff)
@@ -151,7 +193,7 @@ end
 # Gauss-Kronrod quadrature of f from a to b to c...
 
 """
-    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm, segbuf=nothing)
+    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm, segbuf=nothing, parallel=Sequential())
 
 Numerically integrate the function `f(x)` from `a` to `b`, and optionally over additional
 intervals `b` to `c` and so on. Keyword options include a relative error tolerance `rtol`
@@ -214,9 +256,9 @@ quadgk(f, segs...; kws...) =
     quadgk(f, promote(segs...)...; kws...)
 
 function quadgk(f, segs::T...;
-       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
+       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing, parallel=Sequential()) where {T}
     handle_infinities(f, segs) do f, s, _
-        do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf)
+        do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf, parallel)
     end
 end
 
@@ -257,10 +299,10 @@ an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/S
 quadgk!(f!, result, segs...; kws...) =
     quadgk!(f!, result, promote(segs...)...; kws...)
 
-function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
+function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing, parallel=Sequential()) where {T}
     fx = result / oneunit(T) # pre-allocate array of correct type for integrand evaluations
     f = InplaceIntegrand(f!, result, fx)
-    return quadgk(f, a, b, c...; atol=atol, rtol=rtol, maxevals=maxevals, order=order, norm=norm, segbuf=segbuf)
+    return quadgk(f, a, b, c...; atol=atol, rtol=rtol, maxevals=maxevals, order=order, norm=norm, segbuf=segbuf, parallel=parallel)
 end
 
 """
