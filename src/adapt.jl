@@ -1,3 +1,21 @@
+function eval_segs(p::Sequential, s::NTuple{N}, f::F, x,w,gw, nrm) where {N,F}
+    return ntuple(i -> evalrule(p, f, s[i]..., x,w,gw, nrm), Val(N))
+end
+function eval_segs(p::Parallel, s, f::F, x,w,gw, nrm) where {F}
+    l = length(x)
+    n = 2*l-1   # number of Kronrod points
+    m = length(s)
+    resize!(p.new_segs, m)
+    (nm = n*m) <= length(p.f) || resize!(p.f, nm)
+    segs = collect(enumerate(s)) # TODO: remove allocation
+    Threads.@threads for item in segs
+        i, (a, b) = item
+        v = view(p.f, (1+(i-1)*n):(i*n))
+        p.new_segs[i] = parevalrule(v, f, a, b, x,w,gw, nrm, l,n)
+    end
+    return p.new_segs
+end
+
 # Internal routine: integrate f over the union of the open intervals
 # (s[1],s[2]), (s[2],s[3]), ..., (s[end-1],s[end]), using h-adaptive
 # integration with the order-n Kronrod rule and weights of type Tw,
@@ -7,7 +25,7 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf, p
     x,w,gw = cachedrule(T,n)
 
     @assert N ≥ 2
-    segs = ntuple(i -> evalrule(parallel, f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+    segs = eval_segs(parallel, ntuple(i -> (s[i],s[i+1]), Val(N-1)), f, x,w,gw, nrm)
     if f isa InplaceIntegrand
         I = f.I .= segs[1].I
         for i = 2:length(segs)
@@ -54,24 +72,12 @@ end
 # bisect segments
 function bisect_segs(p::Sequential, (s,), f::F, x,w,gw, nrm) where {F}
     mid = (s.a + s.b) / 2
-    s1 = evalrule(p, f, s.a, mid, x,w,gw, nrm)
-    s2 = evalrule(p, f, mid, s.b, x,w,gw, nrm)
-    return (s1, s2)
+    return eval_segs(p, ((s.a, mid), (mid, s.b)), f, x,w,gw, nrm)
 end
+
 function bisect_segs(p::Parallel, old_segs, f::F, x,w,gw, nrm) where {F}
-    l = length(x)
-    n = 2*l-1   # number of Kronrod points
-    m = 2*length(old_segs)
-    resize!(p.new_segs, m)
-    (nm = n*m) <= length(p.f) || resize!(p.f, nm)
-    Threads.@threads for i in 1:m
-        s = old_segs[div(i-1, 2)+1]
-        mid = (s.a + s.b) / 2
-        v = view(p.f, (1+(i-1)*n):(i*n))
-        a, b = isodd(i) ? (s.a, mid) : (mid, s.b)
-        p.new_segs[i] = parevalrule(v, f, a,b, x,w,gw, nrm, l,n)
-    end
-    return p.new_segs
+    lims = map(s -> (mid=(s.a+s.b)/2 ; ((s.a,mid), (mid,s.b))), old_segs) # TODO: remove allocation
+    eval_segs(p, Iterators.flatten(lims), f, x,w,gw, nrm)
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
