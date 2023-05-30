@@ -42,11 +42,11 @@ function pop_segs(::Sequential, segs, E, tol)
     return (heappop!(segs, Reverse),)
 end
 function pop_segs(p::Parallel, segs, E, tol)
-    resize!(p.old_segs, 1)
-    p.old_segs[1] = heappop!(segs, Reverse)
-    E -= p.old_segs[1].E
+    empty!(p.old_segs)
     while tol < E && !isempty(segs)
-        push!(p.old_segs, heappop!(segs, Reverse))
+        s = heappop!(segs, Reverse)
+        E -= s.E
+        push!(p.old_segs, s)
     end
     return p.old_segs
 end
