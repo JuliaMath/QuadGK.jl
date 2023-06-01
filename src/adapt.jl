@@ -105,12 +105,16 @@ function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxe
         Tj = promote_type(T, typeof.(new_segs)...)
         if Tj !== T
             segs_ = Vector{Tj}(segs)
-            foreach(s -> heappush!(segs_, s, Reverse), new_segs)
+            for s in new_segs
+                heappush!(segs_, s, Reverse)
+            end
             return adapt(f, segs_,
                          I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm, parallel)
         end
 
-        foreach(s -> heappush!(segs, s, Reverse), new_segs)
+        for s in new_segs
+            heappush!(segs, s, Reverse)
+        end
     end
 
     # re-sum (paranoia about accumulated roundoff)
