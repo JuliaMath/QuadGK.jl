@@ -48,31 +48,9 @@ end
 InplaceIntegrand(f!::F, I::RI, fx::R) where {F,RI,R} =
     InplaceIntegrand{F,R,RI}(f!, similar(fx), similar(fx), similar(fx), similar(fx), fx, similar(I), I)
 
-struct Sequential end
-struct Parallel{T,S}
-    f::Vector{T} # array to store function evaluations
-    old_segs::Vector{S} # array to store segments popped off of heap
-    new_segs::Vector{S} # array to store segments to add to heap
-end
-
 include("gausskronrod.jl")
 include("evalrule.jl")
 include("adapt.jl")
 include("weightedgauss.jl")
-
-"""
-    Parallel(domain_type=Float64, range_type=Float64, error_type=Float64; order=7)
-
-This helper will allocate a buffer to parallelize `quadgk` calls across function evaluations
-with a given `domain_type`, i.e. the type of the integration limits, `range_type`, i.e. the
-type of the range of the integrand, and `error_type`, the type returned by the `norm` given
-to `quadgk`. The keyword `order` allocates enough memory so that the Gauss-Kronrod rule of
-that order can initially be evaluated without additional allocations. By passing this buffer
-to multiple compatible `quadgk` calls, they can all be parallelized without repeated
-allocation.
-"""
-function Parallel(TX=Float64, TI=Float64, TE=Float64; order=7)
-    Parallel(Vector{TI}(undef, 2*order+1), alloc_segbuf(TX,TI,TE), alloc_segbuf(TX,TI,TE, size=2))
-end
 
 end # module QuadGK

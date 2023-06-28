@@ -12,7 +12,7 @@ Base.isless(i::Segment, j::Segment) = isless(i.E, j.E)
 
 # Internal routine: approximately integrate f(x) over the interval (a,b)
 # by evaluating the integration rule (x,w,gw). Return a Segment.
-function evalrule(::Sequential, f::F, a,b, x,w,gw, nrm) where {F}
+function evalrule(f::F, a,b, x,w,gw, nrm) where {F}
     # Ik and Ig are integrals via Kronrod and Gauss rules, respectively
     s = convert(eltype(x), 0.5) * (b-a)
     n1 = 1 - (length(x) & 1) # 0 if even order, 1 if odd order
@@ -48,7 +48,7 @@ end
 
 # as above, but call assume a mutable result type (e.g. an array) and
 # act in-place using `f!(result, x)`.
-function evalrule(::Sequential, f::InplaceIntegrand{F}, a,b, x,w,gw, nrm) where {F}
+function evalrule(f::InplaceIntegrand{F}, a,b, x,w,gw, nrm) where {F}
     # Ik and Ig are integrals via Kronrod and Gauss rules, respectively
     s = convert(eltype(x), 0.5) * (b-a)
     n1 = 1 - (length(x) & 1) # 0 if even order, 1 if odd order
@@ -76,51 +76,4 @@ function evalrule(::Sequential, f::InplaceIntegrand{F}, a,b, x,w,gw, nrm) where 
         throw(DomainError(a+s, "integrand produced $E in the interval ($a, $b)"))
     end
     return Segment(oftype(s, a), oftype(s, b), Ik_s, E)
-end
-
-function batcheval!(fx, f::F, x, a, s, l, n) where {F}
-    Threads.@threads for i in 1:n
-        z = i <= l ? x[i] : -x[n-i+1]
-        fx[i] = f(a + (1 + z)*s)
-    end
-end
-function batcheval!(fx, f::InplaceIntegrand{F}, x, a, s, l, n) where {F}
-    Threads.@threads for i in 1:n
-        z = i <= l ? x[i] : -x[n-i+1]
-        fx[i] = zero(f.fx) # allocate the output
-        f.f!(fx[i], a + (1 + z)*s)
-    end
-end
-
-function parevalrule(fx, f::F, a,b, x,w,gw, nrm, l, n) where {F}
-    n1 = 1 - (l & 1) # 0 if even order, 1 if odd order
-    s = convert(eltype(x), 0.5) * (b-a)
-    batcheval!(fx, f, x, a, s, l, n)
-    if n1 == 0 # even: Gauss rule does not include x == 0
-        Ik = fx[l] * w[end]
-        Ig = zero(Ik)
-    else # odd: don't count x==0 twice in Gauss rule
-        f0 = fx[l]
-        Ig = f0 * gw[end]
-        Ik = f0 * w[end] + (fx[l-1] + fx[l+1]) * w[end-1]
-    end
-    for i = 1:length(gw)-n1
-        fg = fx[2i] + fx[n-2i+1]
-        fk = fx[2i-1] + fx[n-2i+2]
-        Ig += fg * gw[i]
-        Ik += fg * w[2i] + fk * w[2i-1]
-    end
-    Ik_s, Ig_s = Ik * s, Ig * s # new variable since this may change the type
-    E = nrm(Ik_s - Ig_s)
-    if isnan(E) || isinf(E)
-        throw(DomainError(a+s, "integrand produced $E in the interval ($a, $b)"))
-    end
-    return Segment(oftype(s, a), oftype(s, b), Ik_s, E)
-end
-
-function evalrule(p::Parallel, f::F, a,b, x,w,gw, nrm) where {F}
-    l = length(x)
-    n = 2*l-1   # number of Kronrod points
-    n <= length(p.f) || resize!(p.f, n)
-    parevalrule(p.f, f, a,b, x,w,gw, nrm, l,n)
 end
