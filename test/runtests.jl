@@ -293,3 +293,23 @@ end
     @test sprint(io -> quadgk_print(io, x -> x^2, 0, 1, order=2), context=:compact=>true) ==
         "f(0.5) = 0.25\nf(0.211325) = 0.0446582\nf(0.788675) = 0.622008\nf(0.03709) = 0.00137566\nf(0.96291) = 0.927196\n"
 end
+
+@testset "batch" begin
+    f(x) = min(abs(x), 1) # integrand requiring exactly three bisections on [-2,2]
+    f!(y, x) = y .= f.(x)
+    for order=1:7
+        for max_batch in 1:2order+1
+            g = QuadGK.BatchIntegrand(f!, Float64, max_batch=max_batch)
+            I′,E′ = quadgk(g, -2, 2, order=order)
+            @test quadgk(f, -2, 2, order=order) == (I′,E′)
+        end
+    end
+end
+
+@testset "batch Inf" begin
+    f!(v, x) = v .= exp.(-1 .* x .^ 2)
+    g = QuadGK.BatchIntegrand(f!, Float64, Float64)
+    @test quadgk(g, 1., Inf)[1] ≈ quadgk(x -> exp(-x^2), 1., Inf)[1]
+    @test quadgk!(f!, [0.], -Inf, 1.)[1] ≈ quadgk(x -> [exp(-x^2)], -Inf, 1.)[1]
+    @test quadgk!(f!, [0.], -Inf, Inf)[1] ≈ quadgk(x -> [exp(-x^2)], -Inf, Inf)[1]
+end

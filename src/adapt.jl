@@ -1,7 +1,3 @@
-function eval_segs(f::F, s::NTuple{N}, x,w,gw, nrm) where {N,F}
-    return ntuple(i -> evalrule(f, s[i]..., x,w,gw, nrm), Val(N))
-end
-
 # Internal routine: integrate f over the union of the open intervals
 # (s[1],s[2]), (s[2],s[3]), ..., (s[end-1],s[end]), using h-adaptive
 # integration with the order-n Kronrod rule and weights of type Tw,
@@ -11,7 +7,11 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     x,w,gw = cachedrule(T,n)
 
     @assert N ≥ 2
-    segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+    if f isa BatchIntegrand
+        segs = evalsegs(f, ntuple(i -> (s[i], s[i+1]), Val{N-1}()), x,w,gw, nrm)
+    else
+        segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+    end
     if f isa InplaceIntegrand
         I = f.I .= segs[1].I
         for i = 2:length(segs)
@@ -74,8 +74,8 @@ function resum(f, segs)
     return (I, E)
 end
 
-# internal routine to bisect the segments whose error surpasses the tolerance
-function bisect(f::F, segs::Vector{T}, I,E, numevals, tol, x,w,gw,n, atol, rtol, maxevals, nrm) where {F,T}
+# internal routine to bisect the segments whose combined error surpasses the tolerance
+function bisect(f::F, segs::Vector{T}, I,E, numevals, tol, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
     s = heappop!(segs, Reverse)
     mid = (s.a + s.b) / 2
     s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
@@ -112,6 +112,58 @@ function bisect(f::F, segs::Vector{T}, I,E, numevals, tol, x,w,gw,n, atol, rtol,
     heappush!(segs, s1, Reverse)
     heappush!(segs, s2, Reverse)
     return I, E, numevals
+end
+
+# it would be nice to not rely on recursion, since this will lead to additional code
+# generation, however the alternative is to give evalsegs an iterator instead of a tuple,
+# and that would break since it is assumed the iterator is stateless and has known length,
+# both of which are not true for the heap. There may be workarounds but this is easier
+function bisect(f::BatchIntegrand{F}, segs::Vector{T}, I,E, numevals, tol, x,w,gw,n, atol, rtol, maxevals, nrm, ss::T...) where {F,T}
+    if ss isa Tuple{}
+        # special case this for inference
+        if tol < E
+            s = heappop!(segs, Reverse)
+            return bisect(f, segs, I,E, numevals, tol + s.E, x,w,gw,n, atol, rtol, maxevals, nrm, s, ss...)
+        else
+            throw(ArgumentError("no segments to bisect"))
+        end
+    elseif tol < E
+        s = heappop!(segs, Reverse)
+        return bisect(f, segs, I,E, numevals, tol + s.E, x,w,gw,n, atol, rtol, maxevals, nrm, s, ss...)
+    else
+        new = seg_to_bisect(ss...)
+        segitr = BatchedSegmentIterator(f, new, x,w,gw, nrm) # fewer allocations
+        # segitr = evalsegs(f, new, x,w,gw, nrm)
+        next_seg = iterate(segitr)
+        next_seg === nothing && throw(ArgumentError("exhausted segments before completion"))
+        I, E = update_segs!(segs, I, E, segitr, next_seg, ss...)
+        return I, E, numevals
+    end
+end
+
+seg_to_bisect() = ()
+function seg_to_bisect(seg, segs...)
+    mid = (seg.a + seg.b) / 2
+    return (seg_to_bisect(segs...)..., (seg.a, mid), (mid, seg.b))
+end
+
+# matching the order of operations in the unbatched case
+update_segs!(segheap, I, E, segitr, ::Nothing) = I, E
+function update_segs!(segheap, I, E, segitr, next_seg, s, segs...)
+    next_seg === nothing && throw(ArgumentError("exhausted segments before completion"))
+    s1, segstate = next_seg
+    next_seg = iterate(segitr, segstate)
+    next_seg === nothing && throw(ArgumentError("exhausted segments before completion"))
+    s2, segstate = next_seg
+
+    I = (I - s.I) + s1.I + s2.I
+    E = (E - s.E) + s1.E + s2.E
+
+    I, E = update_segs!(segheap, I, E, segitr, iterate(segitr, segstate), segs...)
+
+    heappush!(segheap, s1, Reverse)
+    heappush!(segheap, s2, Reverse)
+    return I, E
 end
 
 realone(x) = false
@@ -169,6 +221,37 @@ function handle_infinities(workfunc, f::InplaceIntegrand, s)
                 else # x = s0 + t/(1-t)
                     return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
                                             f.f!(ftmp, s0 + oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
+                                    map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
+                                    t -> s0 + oneunit(s1)*t/(1-t))
+                end
+            end
+        end
+    end
+    return workfunc(f, s, identity)
+end
+
+function handle_infinities(workfunc, f::BatchIntegrand, s)
+    s1, s2 = s[1], s[end]
+    if realone(s1) && realone(s2) # check for infinite or semi-infinite intervals
+        inf1, inf2 = isinf(s1), isinf(s2)
+        if inf1 || inf2
+            xtmp = f.x # buffer to store evaluation points
+            ftmp = f.y # original integrand may have different units
+            if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
+                return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ftmp, length(v));
+                                            f.f!(ftmp, xtmp .= oneunit(s1) .* t ./ (1 .- t .* t)); v .= ftmp .* (1 .+ t .* t) .* oneunit(s1) ./ (1 .- t .* t) .^ 2; end, typeof(oneunit(eltype(f.y))*oneunit(s1)), typeof(one(eltype(f.x)))),
+                                map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
+                                t -> oneunit(s1) * t / (1 - t^2))
+            end
+            let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
+                if si < zero(si) # x = s0 - t/(1-t)
+                    return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ftmp, length(v));
+                                            f.f!(ftmp, xtmp .= s0 .- oneunit(s1) .* t ./ (1 .- t)); v .= ftmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, typeof(oneunit(eltype(f.y))*oneunit(s1)), typeof(one(eltype(f.x)))),
+                                    reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
+                                    t -> s0 - oneunit(s1)*t/(1-t))
+                else # x = s0 + t/(1-t)
+                    return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ftmp, length(v));
+                                            f.f!(ftmp, xtmp .= s0 .+ oneunit(s1) .* t ./ (1 .- t)); v .= ftmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, typeof(oneunit(eltype(f.y))*oneunit(s1)), typeof(one(eltype(f.x)))),
                                     map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
                                     t -> s0 + oneunit(s1)*t/(1-t))
                 end
@@ -242,6 +325,12 @@ repeated allocation.
 """
 quadgk(f, segs...; kws...) =
     quadgk(f, promote(segs...)...; kws...)
+
+function quadgk(f::BatchIntegrand{F,Y,Nothing}, segs::T...; kwargs...) where {F,Y,T}
+    FT = float(T) # the gk points are floating-point
+    g = BatchIntegrand{F,Y,FT}(f.f!, f.y, FT[], f.max_batch)
+    return quadgk(g, segs...; kwargs...)
+end
 
 function quadgk(f, segs::T...;
        atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
