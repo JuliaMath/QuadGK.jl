@@ -121,33 +121,6 @@ end
 Base.length(sb::BatchedSegmentIterator) = length(sb.segs)
 Base.eltype(::Type{<:BatchedSegmentIterator{E}}) where {E} = E
 
-# TODO help inference by dealing with the type instability created by multiple iterators and
-# look to Iterators.product for inspiration since
-function iterate_xseg(x, segitr, next_seg=iterate(segitr))
-    next_seg === nothing && return nothing
-    seg, segstate = next_seg
-    next_seg = iterate(segitr, segstate)
-    a, b = seg
-    s = convert(eltype(x), 0.5) * (b-a)
-    xitr = XIterator(x, oftype(s, a), s)
-    return next_seg, xitr
-end
-
-function fill_xbuf!(xbuf, x, segitr, next_seg, xitr, next_x=iterate(xitr))
-    for i in eachindex(xbuf)
-        if next_x === nothing
-            # get the next segment when the current one is exhausted
-            next_xseg = iterate_xseg(x, segitr, next_seg)
-            next_xseg === nothing && return nothing
-            next_seg, xitr = next_xseg
-            next_x = iterate(xitr)
-        end
-        xbuf[i], xstate = next_x
-        next_x = iterate(xitr, xstate)
-    end
-    return next_seg, xitr, next_x
-end
-
 function fill_xbuf!!(ybuf, xbuf, max_batch, ix, itr::XSegIterator, next)
     # TODO: resize buffers based on expected length of itr, i.e. whether there are segments
     while next !== nothing
@@ -157,6 +130,7 @@ function fill_xbuf!!(ybuf, xbuf, max_batch, ix, itr::XSegIterator, next)
     end
     # truncate buffers when points are exhausted or limits reached
     if next === nothing || ix == max_batch
+        # TODO don't let iterator type instability of next propagate to outer functions
         resize!(xbuf, ix)
         resize!(ybuf, ix)
         ix = 0
@@ -293,27 +267,3 @@ function evalsegs_(::Val{N}, itr, next=iterate(itr)) where {N}
     item, state = next
     return (item, evalsegs_(Val{N-1}(), itr, iterate(itr, state))...)
 end
-
-#=
-# this is an alternative to using the iterator interface, only for segs::NTuple
-function evalsegs(f::BatchIntegrand{F}, segs::NTuple{N}, x,w,gw, nrm) where {F,N}
-    l = length(x)
-    n = 2l-1
-    numevals = n*N
-    m = min(f.max_batch, numevals)
-    resize!(f.x, m)
-    resize!(f.y, m)
-
-    next_seg = iterate(segs)
-    next_seg === nothing && return nothing
-
-    itrstate = (0,0,XSegIterator(x, segs))
-
-    return evalsegs_(f, x,w,gw, nrm, segs,itrstate, segs...)
-end
-function evalsegs_(f::BatchIntegrand{F}, x,w,gw, nrm, segitr,itrstate, s,segs...) where {F}
-    seg, itrstate_ = evalrule(f, s[1],s[2], w,gw, nrm, itrstate...)
-    return (seg, evalsegs_(f, x,w,gw, nrm, segitr,itrstate_, segs...)...)
-end
-evalsegs_(::BatchIntegrand{F}, x,w,gw, nrm, segitr,itrstate) where {F} = ()
-=#
