@@ -312,17 +312,6 @@ end
 kronrod(N::Integer) = kronrod(Float64, N)
 
 ###########################################################################
-# Gauss–Kronrod rules for an arbitrary Jacobi matrix J
-
-function gauss(J::AbstractSymTri{<:Real})
-    # Golub–Welch algorithm
-    x = eignewt(J, size(J,1))
-    v = Vector{promote_type(eltype(J),eltype(x))}(undef, size(J,1))
-    w = [ 2abs2(eigvec1!(v,J,x[i])[1]) for i = 1:size(J,1) ]
-    return (x, w)
-end
-
-###########################################################################
 # Type-stable cache of quadrature rule results, so that we don't
 # repeat the kronrod calculation unnecessarily.
 
