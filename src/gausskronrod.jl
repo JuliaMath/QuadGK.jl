@@ -271,7 +271,7 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
         u = zero(T)
         for k = m+1-n:div(m-1,2)
             j = n - (m - k) - 1
-            u -= b[k + n + 1]*s[j+2] - (m > k ? b[m - k]*s[j+3] : zero(T))
+            u -= b[k + n + 1]*s[j+2] - b[m - k]*s[j+3]
             s[j+2] = u
         end
         k = div(m+1,2)
