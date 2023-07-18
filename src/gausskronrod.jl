@@ -254,7 +254,7 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
         b[j] = j^2 / (4j^2 - o)
     end
     s = zeros(T, div(n,2) + 2)
-    t = zeros(T, div(n,2) + 2)
+    t = zeros(T, length(s))
     t[2] = b[n+1]
     for m = 0:n-2
         u = zero(T)
