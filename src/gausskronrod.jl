@@ -249,20 +249,17 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
         throw(ArgumentError("Kronrod rules require positive order"))
     end
     o = one(T)
-    b = zeros(T, 2n+1)
-    b[1] = 2*o
+    b = zeros(T, 2n)
     for j = 1:div(3n+1,2)
-        b[j+1] = j^2 / (4j^2 - o)
+        b[j] = j^2 / (4j^2 - o)
     end
     s = zeros(T, div(n,2) + 2)
     t = zeros(T, div(n,2) + 2)
-    t[2] = b[n+2]
+    t[2] = b[n+1]
     for m = 0:n-2
         u = zero(T)
         for k = div(m+1,2):-1:0
-            l = m - k + 1
-            k1 = k + n + 2
-            u += b[k1]*s[k+1] - b[l]*s[k+2]
+            u += b[k + n + 1]*s[k+1] - (m > k ? b[m - k]*s[k+2] : zero(T))
             s[k+2] = u
         end
         s,t = t,s
@@ -273,23 +270,18 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
     for m = n-1:2n-3
         u = zero(T)
         for k = m+1-n:div(m-1,2)
-            l = m - k + 1
-            j = n - l
-            k1 = k + n + 2
-            u -= b[k1]*s[j+2] - b[l]*s[j+3]
+            j = n - (m - k) - 1
+            u -= b[k + n + 1]*s[j+2] - (m > k ? b[m - k]*s[j+3] : zero(T))
             s[j+2] = u
         end
         k = div(m+1,2)
         if 2k != m
             j = n - (m - k + 2)
-            b[k+n+2] = s[j+2] / s[j+3]
+            b[k+n+1] = s[j+2] / s[j+3]
         end
         s,t = t,s
     end
-    for j = 1:2n
-        b[j] = sqrt(b[j+1])
-    end
-    resize!(b, 2n) # no longer need last point
+    b .= sqrt.(b)
 
     # get negative quadrature points x
     x = eignewt(b,2n+1,n+1) # x <= 0
