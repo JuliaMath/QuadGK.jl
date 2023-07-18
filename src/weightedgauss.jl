@@ -93,11 +93,8 @@ function _gauss(W, N, a, b, rtol, quad)
         q₀,q₁,v = q₁,v,q₀
     end
 
-    # TODO: handle BigFloat etcetera — requires us to update eignewt() to
-    #       support nonzero diagonal entries.
-    E = eigen(SymTridiagonal(α, β[2:N]))
-
-    w = E.vectors[1,:]
-    w .= wint .* abs2.(w)
-    return ((E.values .+ 1) ./ xscale .+ a, w)
+    x, w = gauss(SymTridiagonal(α, β[2:N]))
+    @. x = (x + 1) / xscale + a
+    w .*= wint * 0.5
+    return (x, w)
 end
