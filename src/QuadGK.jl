@@ -48,27 +48,10 @@ end
 InplaceIntegrand(f!::F, I::RI, fx::R) where {F,RI,R} =
     InplaceIntegrand{F,R,RI}(f!, similar(fx), similar(fx), similar(fx), similar(fx), fx, similar(I), I)
 
-struct BatchIntegrand{F,Y,X}
-    # in-place function f!(y, x) that takes an array of x values and outputs an array of results in-place
-    f!::F
-    y::Vector{Y}
-    x::Vector{X}
-    max_batch::Int # maximum number of x to supply in parallel (defaults to typemax(Int))
-    function BatchIntegrand{F,Y,X}(f!::F, y::Vector{Y}, x::Vector{X}, max_batch::Int) where {F,Y,X}
-        max_batch > 0 || throw(ArgumentError("maximum batch size must be positive"))
-        return new{F,Y,X}(f!, y, x, max_batch)
-    end
-end
-
-BatchIntegrand(f!::F, y::Vector{Y}, x::Vector{X}; max_batch::Integer=typemax(Int)) where {F,Y,X} =
-    BatchIntegrand{F,Y,X}(f!, y, x, max_batch)
-BatchIntegrand(f!::F, ::Type{Y}, ::Type{X}=Nothing; kwargs...) where {F,Y,X} =
-    BatchIntegrand(f!, Y[], X[]; kwargs...)
-
 include("gausskronrod.jl")
 include("evalrule.jl")
-include("evalsegs.jl")
 include("adapt.jl")
 include("weightedgauss.jl")
+include("batch.jl")
 
 end # module QuadGK

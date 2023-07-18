@@ -295,13 +295,16 @@ end
 end
 
 @testset "batch" begin
-    f(x) = min(abs(x), 1) # integrand requiring exactly three bisections on [-2,2]
-    f!(y, x) = y .= f.(x)
+    f(x) = min(abs(x), 1) # integrand requiring exactly three levels of refinement on [-2,2]
+    gcnt = fill(0)
+    f!(y, x) = (gcnt[] += 1; y .= f.(x))
     for order=1:7
-        for max_batch in 1:2order+1
+        for max_batch in (4*order+2, 8*order+4)
+            gcnt[] = 0
             g = QuadGK.BatchIntegrand(f!, Float64, max_batch=max_batch)
             I′,E′ = quadgk(g, -2, 2, order=order)
             @test quadgk(f, -2, 2, order=order) == (I′,E′)
+            @test gcnt[] == 2 + 1 + (max_batch < 8*order+4) # check if calls were batched
         end
     end
 end
@@ -310,6 +313,6 @@ end
     f!(v, x) = v .= exp.(-1 .* x .^ 2)
     g = QuadGK.BatchIntegrand(f!, Float64, Float64)
     @test quadgk(g, 1., Inf)[1] ≈ quadgk(x -> exp(-x^2), 1., Inf)[1]
-    @test quadgk!(f!, [0.], -Inf, 1.)[1] ≈ quadgk(x -> [exp(-x^2)], -Inf, 1.)[1]
-    @test quadgk!(f!, [0.], -Inf, Inf)[1] ≈ quadgk(x -> [exp(-x^2)], -Inf, Inf)[1]
+    @test quadgk(g, -Inf, 1.)[1] ≈ quadgk(x -> exp(-x^2), -Inf, 1.)[1]
+    @test quadgk(g, -Inf, Inf)[1] ≈ quadgk(x -> exp(-x^2), -Inf, Inf)[1]
 end
