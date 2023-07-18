@@ -100,8 +100,6 @@ function refine(f::BatchIntegrand{F}, segs::Vector{T}, I, E, numevals, x,w,gw,n,
         len > nsegs && DataStructures.percolate_down!(segs, 1, y, Reverse, len-nsegs)
     end
 
-    sizehint!(segs, len+nsegs)
-
     resize!(f.x, numevals)
     resize!(f.y, numevals)
     for i in 1:nsegs    # fill buffer with evaluation points
@@ -118,17 +116,20 @@ function refine(f::BatchIntegrand{F}, segs::Vector{T}, I, E, numevals, x,w,gw,n,
         end
     end
     f.f!(f.y, f.x)
+
+    resize!(segs, len+nsegs)
     for i in 1:nsegs    # evaluate segments and update estimates & heap
-        s = pop!(segs)
+        s = segs[len-i+1]
         mid = (s.a + s.b)/2
         s1 = evalrule(view(f.y, 1+2(i-1)*m:(2i-1)*m), s.a,mid, x,w,gw, nrm)
         s2 = evalrule(view(f.y, 1+(2i-1)*m:2i*m), mid,s.b, x,w,gw, nrm)
         I = (I - s.I) + s1.I + s2.I
         E = (E - s.E) + s1.E + s2.E
-        insert!(segs, len-nsegs+2i-1, s1)
-        DataStructures.percolate_up!(segs, len-nsegs+2i-1, s1, Reverse)
-        insert!(segs, len-nsegs+2i, s2)
-        DataStructures.percolate_up!(segs, len-nsegs+2i, s2, Reverse)
+        segs[len-i+1] = s1
+        segs[len+i]   = s2
+    end
+    for i in 1:2nsegs
+        DataStructures.percolate_up!(segs, len-nsegs+i, Reverse)
     end
 
     return I, E, numevals
