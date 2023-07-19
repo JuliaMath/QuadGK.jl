@@ -351,10 +351,11 @@ function _kronrod(J::AbstractSymTri, b::AbstractVector{T}, n::Int) where {T<:Abs
         a[2n+1] = a[n] - b[2n]*s[2]/t[2]
     end
 
-    # Note: this step can throw a DomainError if any element of b is negative.
+    # Note: this sqrt.(b) step can fail if any element of b is negative.
     # This can happen because Gauss–Kronrod points and weights are not guaranteed
     # to be real for all orthogonal polynomials (all Jacobi matrices J)!
     # We won't try to handle this case in QuadGK for now.
+    any(<(0), b) && throw(ArgumentError("real Gauss–Kronrod rule does not exist for this Jacobi matrix"))
     b .= sqrt.(b)
 
     # the Jacobi–Kronrod matrix:
