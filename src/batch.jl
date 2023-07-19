@@ -1,25 +1,24 @@
-struct BatchIntegrand{F,Y,X}
-    # in-place function f!(y, x) that takes an array of x values and outputs an array of results in-place
-    f!::F
-    y::Vector{Y}
-    x::Vector{X}
-    max_batch::Int # maximum number of x to supply in parallel (defaults to typemax(Int))
-    function BatchIntegrand{F,Y,X}(f!::F, y::Vector{Y}, x::Vector{X}, max_batch::Int) where {F,Y,X}
-        max_batch > 0 || throw(ArgumentError("maximum batch size must be positive"))
-        return new{F,Y,X}(f!, y, x, max_batch)
-    end
-end
-
 """
-    BatchIntegrand(f!, y::Vector, x::Vector; max_batch=typemax(Int))
+    BatchIntegrand(f!, y::AbstractVector, x::AbstractVector, max_batch=typemax(Int))
 
 Constructor for a `BatchIntegrand` accepting an integrand of the form `f!(y,x) = y .= f.(x)`
 that can evaluate the integrand at multiple quadrature nodes using, for example, threads,
 the GPU, or distributed-memory. The `max_batch` keyword limits the number of nodes passed to
 the integrand, and it must be at least `4*order+2` to evaluate two GK rules simultaneously.
+The buffers `y,x` must both be `resize!`-able since the number of evaluation points may vary
+between calls to `f!`.
 """
-BatchIntegrand(f!::F, y::Vector{Y}, x::Vector{X}; max_batch::Integer=typemax(Int)) where {F,Y,X} =
-    BatchIntegrand{F,Y,X}(f!, y, x, max_batch)
+struct BatchIntegrand{F,Y,X}
+    # in-place function f!(y, x) that takes an array of x values and outputs an array of results in-place
+    f!::F
+    y::Y
+    x::X
+    max_batch::Int # maximum number of x to supply in parallel
+    function BatchIntegrand(f!, y::AbstractVector, x::AbstractVector, max_batch::Integer=typemax(Int))
+        max_batch > 0 || throw(ArgumentError("maximum batch size must be positive"))
+        return new{typeof(f!),typeof(y),typeof(x)}(f!, y, x, max_batch)
+    end
+end
 
 """
     BatchIntegrand(f!, y::Type, x::Type=Nothing; max_batch=typemax(Int))
@@ -27,8 +26,8 @@ BatchIntegrand(f!::F, y::Vector{Y}, x::Vector{X}; max_batch::Integer=typemax(Int
 Constructor for a `BatchIntegrand` whose range type is known. The domain type is optional.
 Array buffers for those types are allocated internally.
 """
-BatchIntegrand(f!::F, ::Type{Y}, ::Type{X}=Nothing; kwargs...) where {F,Y,X} =
-    BatchIntegrand(f!, Y[], X[]; kwargs...)
+BatchIntegrand(f!, Y::Type, X::Type=Nothing; max_batch::Integer=typemax(Int)) =
+    BatchIntegrand(f!, Y[], X[], max_batch)
 
 function evalrule(fx::AbstractVector{T}, a,b, x,w,gw, nrm) where {T}
     l = length(x)
@@ -85,29 +84,29 @@ function refine(f::BatchIntegrand{F}, segs::Vector{T}, I, E, numevals, x,w,gw,n,
     nsegs = 0
     len = length(segs)
     l = length(x)
-    m = 2l-1
+    m = 2l-1 # == 2n+1
 
     # collect as many segments that will have to be evaluated for the current tolerance
     # while staying under max_batch and maxevals
-    while len > nsegs && (4n+2)*(nsegs+1) <= f.max_batch && E > tol && numevals < maxevals
+    while len > nsegs && 2m*(nsegs+1) <= f.max_batch && E > tol && numevals < maxevals
         # same as heappop!, but moves segments to end of heap/vector to avoid allocations
         s = segs[1]
         y = segs[len-nsegs]
         segs[len-nsegs] = s
         nsegs += 1
         tol += s.E
-        numevals += 4n+2
+        numevals += 2m
         len > nsegs && DataStructures.percolate_down!(segs, 1, y, Reverse, len-nsegs)
     end
 
-    resize!(f.x, numevals)
-    resize!(f.y, numevals)
+    resize!(f.x, 2m*nsegs)
+    resize!(f.y, 2m*nsegs)
     for i in 1:nsegs    # fill buffer with evaluation points
         s = segs[len-i+1]
         mid = (s.a+s.b)/2
         for (j,a,b) in ((2,s.a,mid), (1,mid,s.b))
             c = convert(eltype(x), 0.5) * (b-a)
-            o = (2i-j)*(m)
+            o = (2i-j)*m
             f.x[l+o] = a + c
             for k in 1:l-1
                 f.x[k+o] = a + (1 + x[k]) * c
@@ -141,22 +140,24 @@ function handle_infinities(workfunc, f::BatchIntegrand, s)
         inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
             xtmp = f.x # buffer to store evaluation points
-            ftmp = f.y # original integrand may have different units
+            ytmp = f.y # original integrand may have different units
+            xbuf = similar(xtmp, typeof(one(eltype(f.x))))
+            ybuf = similar(ytmp, typeof(oneunit(eltype(f.y))*oneunit(s1)))
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
-                return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ftmp, length(v));
-                                            f.f!(ftmp, xtmp .= oneunit(s1) .* t ./ (1 .- t .* t)); v .= ftmp .* (1 .+ t .* t) .* oneunit(s1) ./ (1 .- t .* t) .^ 2; end, typeof(oneunit(eltype(f.y))*oneunit(s1)), typeof(one(eltype(f.x)))),
+                return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
+                                            f.f!(ytmp, xtmp .= oneunit(s1) .* t ./ (1 .- t .* t)); v .= ytmp .* (1 .+ t .* t) .* oneunit(s1) ./ (1 .- t .* t) .^ 2; end, ybuf, xbuf, f.max_batch),
                                 map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
                                 t -> oneunit(s1) * t / (1 - t^2))
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < zero(si) # x = s0 - t/(1-t)
-                    return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ftmp, length(v));
-                                            f.f!(ftmp, xtmp .= s0 .- oneunit(s1) .* t ./ (1 .- t)); v .= ftmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, typeof(oneunit(eltype(f.y))*oneunit(s1)), typeof(one(eltype(f.x)))),
+                    return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
+                                            f.f!(ytmp, xtmp .= s0 .- oneunit(s1) .* t ./ (1 .- t)); v .= ytmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, ybuf, xbuf, f.max_batch),
                                     reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
                                     t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
-                    return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ftmp, length(v));
-                                            f.f!(ftmp, xtmp .= s0 .+ oneunit(s1) .* t ./ (1 .- t)); v .= ftmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, typeof(oneunit(eltype(f.y))*oneunit(s1)), typeof(one(eltype(f.x)))),
+                    return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
+                                            f.f!(ytmp, xtmp .= s0 .+ oneunit(s1) .* t ./ (1 .- t)); v .= ytmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, ybuf, xbuf, f.max_batch),
                                     map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
                                     t -> s0 + oneunit(s1)*t/(1-t))
                 end
@@ -203,8 +204,8 @@ simultaneously. In particular, there are two differences from `quadgk`
     julia> quadgk(QuadGK.BatchIntegrand((y,x) -> y .= g.(x), Float64), 0, 2pi)
     (628318.5306883648, 0.006730277732329577)
 """
-function quadgk(f::BatchIntegrand{F,Y,Nothing}, segs::T...; kws...) where {F,Y,T}
+function quadgk(f::BatchIntegrand{F,Y,<:AbstractVector{Nothing}}, segs::T...; kws...) where {F,Y,T}
     FT = float(T) # the gk points are floating-point
-    g = BatchIntegrand{F,Y,FT}(f.f!, f.y, FT[], f.max_batch)
+    g = BatchIntegrand(f.f!, f.y, similar(f.x, FT), f.max_batch)
     return quadgk(g, segs...; kws...)
 end
