@@ -228,7 +228,8 @@ User-side parallelization of integrand evaluations is also possible by providing
 an in-place function of the form `f!(y,x) = y .= f.(x)`, which evaluates the
 integrand at multiple points simultaneously. To use this API, `quadgk`
 dispatches on a [`BatchIntegrand`](@ref) type containing `f!` and buffers for
-`y` and `x`.
+`y` and `x`. These buffers may be pre-allocated and reused for multiple
+`BatchIntegrand`s with the same domain and range types.
 
 For example, we can perform multi-threaded integration of a highly oscillatory
 function that needs to be refined globally:
@@ -248,29 +249,11 @@ julia> quadgk(BatchIntegrand(f!, Float64), 0, 1)
 (0.0013768112771231598, 8.493080824940099e-12)
 ```
 
-When batching with a relative error tolerance, it is possible that the integrand
-will be evaluated at more points than would be without batching since the points
-passed to `f!` correspond to refining all of the segments whose error surpasses
-the integration tolerance. While this occurs for functions with multiple peaks,
-and may be helpful so `quadgk` doesn't miss peaks, the number of segments
-refined at any time can be limited to `n` by setting `max_batch=2n*(2*order+1)`.
-For example:
-```
-julia> f(x) = imag(sin(x)/(cos(x)+im*1e-5))^2   # peaked integrand
-f (generic function with 1 method)
+Batching also changes how the adaptive refinement is done, which typically leads
+to slightly different results and sometimes more integrand evaluations. Additionally,
+a `max_batch` size can be set to limit the amount of memory that is allocated
+for integrand evaluations.
 
-julia> g(x) = f(x) + f(x-0.1)                   # multiply-peaked integrand
-g (generic function with 2 methods)
-
-julia> quadgk(g, 0, 2pi)    # incorrect due to dominant peak
-(471238.8998110079, 0.006279426419546496)
-
-julia> quadgk(BatchIntegrand((y,x) -> y .= g.(x), Float64), 0, 2pi) # correct
-(628318.530688365, 0.006730277732329578)
-
-julia> quadgk(BatchIntegrand((y,x) -> y .= g.(x), Float64, max_batch=30), 0, 2pi)
-(471238.8998110079, 0.006279426419546496)
-```
 
 ## Arbitrary-precision integrals
 
