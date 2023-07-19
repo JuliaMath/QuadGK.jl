@@ -122,8 +122,8 @@ end
                     resize!(w, n+1)
                     resize!(gw, length(2:2:n+1))
                 else
-                    # test generic ZeroSymTridiagonal method
-                    J = QuadGK.ZeroSymTridiagonal(b)
+                    # test generic HollowSymTridiagonal method
+                    J = QuadGK.HollowSymTridiagonal(b)
                     x,w,gw = kronrod(J, n)
                 end
             else

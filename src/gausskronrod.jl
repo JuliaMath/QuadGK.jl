@@ -29,29 +29,29 @@
 # compared to the general case of an arbitrary weight function.
 
 # a type for us to dispatch on; we don't actually need the full AbstractMatrix functionality
-struct ZeroSymTridiagonal{T, V<:AbstractVector{T}} <: AbstractMatrix{T}
+struct HollowSymTridiagonal{T, V<:AbstractVector{T}} <: AbstractMatrix{T}
     ev::V # superdiagonal
-    function ZeroSymTridiagonal{T, V}(ev) where {T, V<:AbstractVector{T}}
+    function HollowSymTridiagonal{T, V}(ev) where {T, V<:AbstractVector{T}}
         @static VERSION ≥ v"1.2" && Base.require_one_based_indexing(ev)
         return new{T, V}(ev)
     end
 end
-ZeroSymTridiagonal(ev::AbstractVector{T}) where {T<:Real} =
-    ZeroSymTridiagonal{T,typeof(ev)}(ev)
-Base.size(A::ZeroSymTridiagonal) = (length(A.ev)+1,length(A.ev)+1)
-LinearAlgebra.diag(A::ZeroSymTridiagonal) = zeros(eltype(A), size(A,1))
-LinearAlgebra.SymTridiagonal(A::ZeroSymTridiagonal{T}) where {T} = SymTridiagonal{T}(A)
-LinearAlgebra.SymTridiagonal{T}(A::ZeroSymTridiagonal) where {T} = SymTridiagonal(zeros(T, length(A.ev)+1), Vector{T}(A.ev))
-Base.Matrix(A::ZeroSymTridiagonal) = Matrix(SymTridiagonal(A))
-Base.Matrix{T}(A::ZeroSymTridiagonal) where {T} = Matrix{T}(SymTridiagonal{T}(A))
+HollowSymTridiagonal(ev::AbstractVector{T}) where {T<:Real} =
+    HollowSymTridiagonal{T,typeof(ev)}(ev)
+Base.size(A::HollowSymTridiagonal) = (length(A.ev)+1,length(A.ev)+1)
+LinearAlgebra.diag(A::HollowSymTridiagonal) = zeros(eltype(A), size(A,1))
+LinearAlgebra.SymTridiagonal(A::HollowSymTridiagonal{T}) where {T} = SymTridiagonal{T}(A)
+LinearAlgebra.SymTridiagonal{T}(A::HollowSymTridiagonal) where {T} = SymTridiagonal(zeros(T, length(A.ev)+1), Vector{T}(A.ev))
+Base.Matrix(A::HollowSymTridiagonal) = Matrix(SymTridiagonal(A))
+Base.Matrix{T}(A::HollowSymTridiagonal) where {T} = Matrix{T}(SymTridiagonal{T}(A))
 
-const AbstractSymTri{T} = Union{ZeroSymTridiagonal{T}, SymTridiagonal{T}}
+const AbstractSymTri{T} = Union{HollowSymTridiagonal{T}, SymTridiagonal{T}}
 
 # for display purposes:
-function Base.replace_in_print_matrix(A::ZeroSymTridiagonal, i::Integer, j::Integer, s::AbstractString)
+function Base.replace_in_print_matrix(A::HollowSymTridiagonal, i::Integer, j::Integer, s::AbstractString)
     i==j-1||i==j+1 ? s : Base.replace_with_centered_mark(s)
 end
-@inline function Base.getindex(A::ZeroSymTridiagonal{T}, i::Integer, j::Integer) where T
+@inline function Base.getindex(A::HollowSymTridiagonal{T}, i::Integer, j::Integer) where T
     @boundscheck checkbounds(A, i, j)
     if i == j + 1
         return copy(transpose(@inbounds A.ev[j])) # materialized for type stability
@@ -80,7 +80,7 @@ function eigpoly(b::AbstractVector{<:Real},z::Number,m::Integer=length(b)+1)
     end
     return (d1, d1deriv)
 end
-eigpoly(H::ZeroSymTridiagonal{<:Real},z) = eigpoly(H.ev, z)
+eigpoly(H::HollowSymTridiagonal{<:Real},z) = eigpoly(H.ev, z)
 
 # as above, but for general symmetric tridiagonal (diagonal ≠ 0)
 function eigpoly(H::SymTridiagonal{<:Real},z::Number)
@@ -127,12 +127,12 @@ function eignewt(H::AbstractSymTri{T}, n::Integer) where {T<:Real}
 end
 function eignewt(b::AbstractVector{<:Real},m::Integer,n::Integer)
     m == length(b)+1 || throw(ArgumentError("$m != length(b)+1 = $(length(b)+1) unsupported"))
-    eignewt(ZeroSymTridiagonal(b), n)
+    eignewt(HollowSymTridiagonal(b), n)
 end
 
 # given an eigenvalue λ and the matrix H(b) from above, return
 # the corresponding eigenvector, normalized to 1.
-function eigvec1!(v::AbstractVector, H::ZeroSymTridiagonal, λ::Number)
+function eigvec1!(v::AbstractVector, H::HollowSymTridiagonal, λ::Number)
     # "cheat" and use the fact that our eigenvector v must have a
     # nonzero first entries (since it is a quadrature weight), so we
     # can set v[1] = 1 to solve for the rest of the components:.
@@ -153,7 +153,7 @@ function eigvec1!(v::AbstractVector, H::ZeroSymTridiagonal, λ::Number)
 end
 function eigvec1!(v::AbstractVector, b::AbstractVector, λ::Number, m=length(b)+1)
     m == length(b)+1 || throw(ArgumentError("$m != length(b)+1 = $(length(b)+1) unsupported"))
-    return eigvec1!(v, ZeroSymTridiagonal(b), λ)
+    return eigvec1!(v, HollowSymTridiagonal(b), λ)
 end
 eigvec1(b::AbstractVector, λ::Number, m=length(b)+1) =
     eigvec1!(Vector{promote_type(eltype(b),typeof(λ))}(undef, m), b, λ, m)
@@ -200,7 +200,7 @@ function gauss(::Type{T}, N::Integer) where T<:AbstractFloat
     end
     o = one(T)
     b = T[ n / sqrt(4n^2 - o) for n = 1:N-1 ]
-    return gauss(ZeroSymTridiagonal(b))
+    return gauss(HollowSymTridiagonal(b))
 end
 
 gauss(N::Integer) = gauss(Float64, N) # integration on the standard interval (-1,1)
@@ -259,7 +259,7 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
     for j = 1:div(3n+1,2)
         b[j] = j^2 / (4j^2 - o)
     end
-    x, w, v = _kronrod(ZeroSymTridiagonal(b), b, Int(n))
+    x, w, v = _kronrod(HollowSymTridiagonal(b), b, Int(n))
 
     # Get embedded Gauss rule from even-indexed points, using
     # the Golub–Welch method as described in Trefethen and Bau.
@@ -289,7 +289,7 @@ function kronrod(J::AbstractSymTri{<:Real}, n::Integer)
     Jsmall = if J isa SymTridiagonal
         @views SymTridiagonal(J.dv[1:n], J.ev[1:n-1])
     else
-        @views ZeroSymTridiagonal(J.ev[1:n-1])
+        @views HollowSymTridiagonal(J.ev[1:n-1])
     end
     @views gw = [ 2abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
 
@@ -309,7 +309,7 @@ function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where
     # construct a,b of Jacobi–Kronrod matrix:
     if J isa SymTridiagonal
         a = copyto!(zeros(T, 2n+1), 1, J.dv, 1, div(3n, 2) + 1)
-        # (a is zero if J isa ZeroSymTridiagonal, and is hence omitted).
+        # (a is zero if J isa HollowSymTridiagonal, and is hence omitted).
     end
     s = zeros(T, div(n,2) + 2)
     t = zeros(T, length(s))
@@ -359,11 +359,11 @@ function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where
     b .= sqrt.(b)
 
     # the Jacobi–Kronrod matrix:
-    KJ = J isa SymTridiagonal ? SymTridiagonal(a, b) : ZeroSymTridiagonal(b)
+    KJ = J isa SymTridiagonal ? SymTridiagonal(a, b) : HollowSymTridiagonal(b)
 
     # now we just apply Golub–Welch to KJ:
 
-    # get quadrature points x (negative points only for ZeroSymTridiagonal)
+    # get quadrature points x (negative points only for HollowSymTridiagonal)
     x = eignewt(KJ, J isa SymTridiagonal ? 2n+1 : n+1)
 
     v = Vector{promote_type(eltype(b),eltype(x))}(undef, 2n+1)
