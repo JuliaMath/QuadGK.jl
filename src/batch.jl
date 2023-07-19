@@ -96,7 +96,7 @@ function refine(f::BatchIntegrand{F}, segs::Vector{T}, I, E, numevals, x,w,gw,n,
 
     # collect as many segments that will have to be evaluated for the current tolerance
     # while staying under max_batch and maxevals
-    while len > nsegs && 2m*(nsegs+1) <= f.max_batch && E > tol && numevals < maxevals
+    while len > nsegs && 2m*nsegs < f.max_batch && E > tol && numevals < maxevals
         # same as heappop!, but moves segments to end of heap/vector to avoid allocations
         s = segs[1]
         y = segs[len-nsegs]

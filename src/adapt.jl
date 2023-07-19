@@ -231,7 +231,6 @@ quadgk(f, segs...; kws...) =
 
 function quadgk(f, segs::T...;
        atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
-    f isa BatchIntegrand && f.max_batch < max(length(segs)-1,2)*(2order+1) && throw(ArgumentError("Batch buffer can't fit points"))
     handle_infinities(f, segs) do f, s, _
         do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf)
     end
