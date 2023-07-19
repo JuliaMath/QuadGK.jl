@@ -167,6 +167,28 @@ end
     end
 end
 
+@testset "HollowSymTridiagonal" begin
+    H = QuadGK.HollowSymTridiagonal(1:4)
+    T = SymTridiagonal(zeros(Int, 5), [1:4;])
+    @test H isa QuadGK.HollowSymTridiagonal{Int}
+    @test size(H) == (5,5)
+    @test diag(H)::Vector{Int} == zeros(Int, 5)
+    @test H == T
+    @test SymTridiagonal(H)::SymTridiagonal{Int, Vector{Int}} == T
+    @test SymTridiagonal{Int8}(H)::SymTridiagonal{Int8, Vector{Int8}} == T
+    @test Matrix(H)::Matrix{Int} == T == collect(H)
+    @test Matrix{Int8}(H)::Matrix{Int8} == T
+    @test repr("text/plain", H) == "5×5 QuadGK.HollowSymTridiagonal{$Int, UnitRange{$Int}}:\n ⋅  1  ⋅  ⋅  ⋅\n 1  ⋅  2  ⋅  ⋅\n ⋅  2  ⋅  3  ⋅\n ⋅  ⋅  3  ⋅  4\n ⋅  ⋅  ⋅  4  ⋅"
+
+    λ = [-5.16351661076931, -1.8270457603216725, 0, 1.8270457603216728, 5.16351661076931]
+    v1 = [0.03655465066022525, -0.18875054588494244, 0.469030964154226, -0.681449360868536, 0.5278955504450348]
+    for A in (H, T)
+        @test eigvals(A) ≈ λ ≈ QuadGK.eignewt(A, 5)
+        @test QuadGK.eigvec1!(zeros(5), A, λ[1]) ≈ v1
+    end
+    @test QuadGK.eigvec1(1:4, λ[1]) ≈ v1
+end
+
 ≅(x::Tuple, y::Tuple) = all(a -> isapprox(a[1],a[2]), zip(x,y))
 
 @testset "inplace" begin
