@@ -180,7 +180,7 @@ simultaneously. In particular, there are two differences from `quadgk`
 
 2. `f.max_batch` must be large enough to contain `4*order+2` points to evaluate two Kronrod
    rules simultaneously. Choosing `max_batch=4*order+2` will reproduce the result of
-   `quadgk`, however if `max_batch=n*(4*order+2)` up to `2n` Kronrod rules will be evaluated
+   non-batched `quadgk`, however if `max_batch=n*(4*order+2)` up to `2n` Kronrod rules will be evaluated
    together, which can produce different results for integrands with multiple peaks when
    used together with relative tolerances. For an example see the manual
 """

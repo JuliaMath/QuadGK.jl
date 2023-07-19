@@ -237,10 +237,10 @@ julia> f(x) = sin(100x)
 f (generic function with 1 method)
 
 julia> function f!(y, x)
-       n = Threads.nthreads()
-       Threads.@threads for i in 1:n
-            y[i:n:end] .= f.(@view(x[i:n:end]))
-       end
+           n = Threads.nthreads()
+           Threads.@threads for i in 1:n
+                y[i:n:end] .= f.(@view(x[i:n:end]))
+           end
        end
 f! (generic function with 1 method)
 
