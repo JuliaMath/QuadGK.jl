@@ -18,6 +18,14 @@ QuadGK.quadgk!
 QuadGK.alloc_segbuf
 ```
 
+For a vectorized integrand that can evaluate the integrand at multiple points
+simultaneously, `quadgk` accepts a `BatchIntegrand` wrapper around the user's
+integrand and pre-allocated input and output buffers.
+
+```@docs
+QuadGK.BatchIntegrand
+```
+
 ## Gauss and Gauss–Kronrod rules
 
 For more specialized applications, you may wish to construct your own Gauss or Gauss–Kronrod quadrature rules, as described in [Gauss and Gauss–Kronrod quadrature rules](@ref).   To compute rules for $\int_{-1}^{+1} f(x) dx$ and $\int_a^b f(x) dx$ (unweighted integrals), use:

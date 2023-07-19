@@ -222,6 +222,38 @@ Note that the return value also gives the `integral` as an `SVector` (a [statica
 The QuadGK package did not need any code specific to StaticArrays, and was written long before that package even existed.  The
 fact that unrelated packages like this can be [composed](https://en.wikipedia.org/wiki/Composability) is part of the [beauty of multiple dispatch](https://www.youtube.com/watch?v=kc9HwsxE1OY) and [duck typing](https://en.wikipedia.org/wiki/Duck_typing) for [generic programming](https://en.wikipedia.org/wiki/Generic_programming).
 
+## Batched integrand evaluation
+
+User-side parallelization of integrand evaluations is also possible by providing
+an in-place function of the form `f!(y,x) = y .= f.(x)`, which evaluates the
+integrand at multiple points simultaneously. To use this API, `quadgk`
+dispatches on a [`BatchIntegrand`](@ref) type containing `f!` and buffers for
+`y` and `x`.
+
+For example, we can perform multi-threaded integration of a highly oscillatory
+function that needs to refined globally:
+```
+julia> f(x) = sin(100x)
+f (generic function with 1 method)
+
+julia> function f!(y, x)
+       n = Threads.nthreads()
+       Threads.@threads for i in 1:n
+            y[i:n:end] .= f.(@view(x[i:n:end]))
+       end
+       end
+f! (generic function with 1 method)
+
+julia> quadgk(BatchIntegrand(f!, Float64), 0, 1)
+(0.0013768112771231598, 8.493080824940099e-12)
+```
+When batching with a relative error tolerance, it is possible that the integrand
+will be evaluated at more points than would be without batching since the points
+passed to `f!` correspond to refining all of the segments whose error surpasses
+the integration tolerance. While this occurs for functions with multiple peaks,
+and may be helpful so `quadgk` doesn't miss peaks, the number of segments
+refined at any time can be limited to `n` by setting `max_batch=2n*(2*order+1)`.
+
 ## Arbitrary-precision integrals
 
 `quadgk` also supports [arbitrary-precision arithmetic](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) using Julia's [`BigFloat` type](https://docs.julialang.org/en/v1/base/numbers/#BigFloats-and-BigInts) to compute integrals to arbitrary accuracy (albeit at increased computational cost).
