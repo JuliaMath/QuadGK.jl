@@ -252,7 +252,7 @@ julia> quadgk(BatchIntegrand(f!, Float64), 0, 1)
 Batching also changes how the adaptive refinement is done, which typically leads
 to slightly different results and sometimes more integrand evaluations. You
 can limit the maximum batch size by setting the `max_batch` parameter
-of the [`BatchIntegrand `](@ref), which can be useful in order to set an
+of the [`BatchIntegrand`](@ref), which can be useful in order to set an
 upper bound on the size of the buffers allocated by `quadgk`.
 
 
