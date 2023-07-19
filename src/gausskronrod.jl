@@ -287,14 +287,7 @@ kronrod(N::Integer) = kronrod(Float64, N)
 
 # as above, but generalized to an arbitrary Jacobi matrix
 function kronrod(J::AbstractSymTri{<:Real}, n::Integer)
-    n < 1 && throw(ArgumentError("Kronrod rules require positive order"))
-    size(J,1) ≥ div(3n+3,2) || throw(ArgumentError("J size must be ≥ $(div(3n+3,2)) for n=$n"))
-
-    b = zeros(float(eltype(J)), 2n)
-    for j = 1:div(3n+1,2)
-        b[j] = J.ev[j]^2
-    end
-    x, w, v = _kronrod(J, b, Int(n))
+    x, w, v = _kronrod(J, _kronrod_b(J, n), Int(n))
 
     # Get embedded Gauss rule from even-indexed points
     Jsmall = if J isa SymTridiagonal
@@ -307,12 +300,42 @@ function kronrod(J::AbstractSymTri{<:Real}, n::Integer)
     return x, w, gw
 end
 
+"""
+    kronrodjacobi(J::Union{SymTridiagonal, QuadGK.HollowSymTridiagonal}, n::Integer)
+
+Given a real-symmetric tridiagonal matrix `J`, return the symmetric tridiagonal
+"Kronrod–Jacobi" matrix whose eigenvalues and eigenvectors yield the Gauss–Kronrod
+rule of order `n`, e.g. by calling `x, w = gauss(kronrodjacobi(n))`.
+
+See also the [`kronrod`](@ref) function, which returns the Kronrod points and
+weights directly, along with the weights of an embedded Gauss rule.
+
+``O(n^2)`` algorithm from Dirk P. Laurie, "Calculation of Gauss-Kronrod quadrature rules,"
+*Mathematics of Computation*, vol. 66, no. 219, pp. 1133-1145 (1997).
+"""
+kronrodjacobi(J::AbstractSymTri{<:Real}, n::Integer) =
+    _kronrodjacobi(J, _kronrod_b(J, n), Int(n))
+
 ###########################################################################
 # internal implementation of algorithm from Laurie (1997) to return the (x,w)
 # of the order-n Gauss–Kronrod rule, given the Jacobi matrix J of the weight,
 # the order n, and a vector b of length 2n that has ALREADY been initialized
 # to J.ev[j]^2 for j=1:div(3n+1,2) and to 0 otherwise.  J.ev is NOT used.
-function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where {T<:AbstractFloat}
+
+# construct the b vector from J, for passing to the other _kronrod functions below.
+function _kronrod_b(J::AbstractSymTri{<:Real}, n::Integer)
+    n < 1 && throw(ArgumentError("Kronrod rules require positive order"))
+    size(J,1) ≥ div(3n+3,2) || throw(ArgumentError("J size must be ≥ $(div(3n+3,2)) for n=$n"))
+
+    b = zeros(float(eltype(J)), 2n)
+    for j = 1:div(3n+1,2)
+        b[j] = J.ev[j]^2
+    end
+    return b
+end
+
+# return the Kronrod–Jacobi matrix
+function _kronrodjacobi(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where {T<:AbstractFloat}
     # these are checked above:
     # size(J,1) > div(3n+1,2) || throw(ArgumentError("J size must be > $(div(3n+1,2)) for n=$n"))
     # length(b) == 2n || throw(DimensionMismatch())
@@ -370,7 +393,13 @@ function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where
     b .= sqrt.(b)
 
     # the Jacobi–Kronrod matrix:
-    KJ = J isa SymTridiagonal ? SymTridiagonal(a, b) : HollowSymTridiagonal(b)
+    return J isa SymTridiagonal ? SymTridiagonal(a, b) : HollowSymTridiagonal(b)
+end
+
+# return the Kronrod weights and rule
+function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where {T<:AbstractFloat}
+    # the Jacobi–Kronrod matrix:
+    KJ = _kronrodjacobi(J, b, n)
 
     # now we just apply Golub–Welch to KJ:
 
