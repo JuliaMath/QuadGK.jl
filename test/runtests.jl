@@ -196,7 +196,7 @@ end
     @test SymTridiagonal{Int8}(H)::SymTridiagonal{Int8, Vector{Int8}} == T
     @test Matrix(H)::Matrix{Int} == T == collect(H)
     @test Matrix{Int8}(H)::Matrix{Int8} == T
-    @test repr("text/plain", H) == "5×5 QuadGK.HollowSymTridiagonal{$Int, UnitRange{$Int}}:\n ⋅  1  ⋅  ⋅  ⋅\n 1  ⋅  2  ⋅  ⋅\n ⋅  2  ⋅  3  ⋅\n ⋅  ⋅  3  ⋅  4\n ⋅  ⋅  ⋅  4  ⋅"
+    @test replace(repr("text/plain", H), ",U"=>", U") == "5×5 QuadGK.HollowSymTridiagonal{$Int, UnitRange{$Int}}:\n ⋅  1  ⋅  ⋅  ⋅\n 1  ⋅  2  ⋅  ⋅\n ⋅  2  ⋅  3  ⋅\n ⋅  ⋅  3  ⋅  4\n ⋅  ⋅  ⋅  4  ⋅"
 
     λ = [-5.16351661076931, -1.8270457603216725, 0, 1.8270457603216728, 5.16351661076931]
     v1 = [0.03655465066022525, -0.18875054588494244, 0.469030964154226, -0.681449360868536, 0.5278955504450348]

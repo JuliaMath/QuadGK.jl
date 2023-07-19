@@ -43,7 +43,7 @@ efficiently.
 struct HollowSymTridiagonal{T, V<:AbstractVector{T}} <: AbstractMatrix{T}
     ev::V # superdiagonal
     function HollowSymTridiagonal{T, V}(ev) where {T, V<:AbstractVector{T}}
-        @static VERSION ≥ v"1.2" && Base.require_one_based_indexing(ev)
+        Base.require_one_based_indexing(ev)
         return new{T, V}(ev)
     end
 end
