@@ -21,6 +21,14 @@ struct BatchIntegrand{F,Y,X}
 end
 
 """
+    BatchIntegrand(f!, y, x; max_batch=typemax(Int))
+
+Constructor for a `BatchIntegrand` with pre-allocated buffers.
+"""
+BatchIntegrand(f!, y, x; max_batch::Integer=typemax(Int)) =
+    BatchIntegrand(f!, y, x, max_batch)
+
+"""
     BatchIntegrand(f!, y::Type, x::Type=Nothing; max_batch=typemax(Int))
 
 Constructor for a `BatchIntegrand` whose range type is known. The domain type is optional.
