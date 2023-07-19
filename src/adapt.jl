@@ -8,7 +8,6 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
 
     @assert N ≥ 2
     if f isa BatchIntegrand
-        f.max_batch < (N-1)*(4n+2) && throw(ArgumentError("Batch buffer can't fit points"))
         segs = evalrules(f, s, x,w,gw, nrm)
     else
         segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
@@ -232,6 +231,7 @@ quadgk(f, segs...; kws...) =
 
 function quadgk(f, segs::T...;
        atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
+    f isa BatchIntegrand && f.max_batch < max(length(segs)-1,2)*(2order+1) && throw(ArgumentError("Batch buffer can't fit points"))
     handle_infinities(f, segs) do f, s, _
         do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf)
     end
