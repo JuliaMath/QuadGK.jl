@@ -106,20 +106,26 @@ end
             (5,[big"-0.98408536009484246449617293463613949958055282418847", big"-0.90617984593866399279762687829939296512565191076253", big"-0.75416672657084922044081716694611586638629980437148", big"-0.53846931010568309103631442070020880496728660690556", big"-0.27963041316178319341346652274897743624211881535617", big"0.0"],
                 [big"0.04258203675108183286450945084767009187528571052993", big"0.11523331662247339402462684588057353916959629218019", big"0.1868007965564926574678000268784859712873998237471", big"0.24104033922864758669994261122326211129607983509941", big"0.27284980191255892234099326448445551826261012746316", big"0.28298741785749121320425560137110553621805642196044"],
                 [big"0.23692688505618908751426404071991736264326000221241", big"0.47862867049936646804129151483563819291229555334314", big"0.56888888888888888888888888888888888888888888888889"]),
-            ), generic in (false, true)
-            if generic
-                # test generic Kronrod algorithm that doesn't
-                # assume a Jacobi matrix with zero diagonals
+            ), which in (1,2,3)
+            if which < 3
                 m = div(3n+3,2)
                 b = [ k / sqrt(4k^2 - big"1.0") for k = 1:m-1 ]
-                J = SymTridiagonal(zeros(BigFloat, m), b)
-                x,w,gw = kronrod(J, n)
-                # check symmetric rule & remove redundant points/weights
-                @test x[1:n] ≈ -reverse(x[n+2:end]) atol=1e-55
-                @test w[1:n] ≈ reverse(w[n+2:end]) atol=1e-55
-                resize!(x, n+1)
-                resize!(w, n+1)
-                resize!(gw, length(2:2:n+1))
+                if which == 1
+                    # test generic Kronrod algorithm that doesn't
+                    # assume a Jacobi matrix with zero diagonals
+                    J = SymTridiagonal(zeros(BigFloat, m), b)
+                    x,w,gw = kronrod(J, n)
+                    # check symmetric rule & remove redundant points/weights
+                    @test x[1:n] ≈ -reverse(x[n+2:end]) atol=1e-55
+                    @test w[1:n] ≈ reverse(w[n+2:end]) atol=1e-55
+                    resize!(x, n+1)
+                    resize!(w, n+1)
+                    resize!(gw, length(2:2:n+1))
+                else
+                    # test generic ZeroSymTridiagonal method
+                    J = QuadGK.ZeroSymTridiagonal(b)
+                    x,w,gw = kronrod(J, n)
+                end
             else
                 x,w,gw = kronrod(BigFloat, n)
             end
