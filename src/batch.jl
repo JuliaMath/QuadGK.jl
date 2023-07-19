@@ -182,27 +182,7 @@ simultaneously. In particular, there are two differences from `quadgk`
    rules simultaneously. Choosing `max_batch=4*order+2` will reproduce the result of
    `quadgk`, however if `max_batch=n*(4*order+2)` up to `2n` Kronrod rules will be evaluated
    together, which can produce different results for integrands with multiple peaks when
-   used together with relative tolerances. For example:
-
-    julia> f(x)    = sin(x)/(cos(x)+im*1e-5)   # peaked "nice" integrand
-    f (generic function with 1 method)
-
-    julia> imf(x)  = imag(f(x))                # peaked difficult integrand
-    imf (generic function with 1 method)
-
-    julia> imf2(x) = imf(x)^2                  # even more peaked
-    imf2 (generic function with 1 method)
-
-    julia> g(x, x0=0.1) = imf2(x) + imf2(x-x0) # multiply-peaked integrand
-    g (generic function with 2 methods)
-
-    julia> using QuadGK
-
-    julia> quadgk(g, 0, 2pi)
-    (471238.8998110079, 0.006279426419546496)
-
-    julia> quadgk(QuadGK.BatchIntegrand((y,x) -> y .= g.(x), Float64), 0, 2pi)
-    (628318.5306883648, 0.006730277732329577)
+   used together with relative tolerances. For an example see the manual
 """
 function quadgk(f::BatchIntegrand{F,Y,<:AbstractVector{Nothing}}, segs::T...; kws...) where {F,Y,T}
     FT = float(T) # the gk points are floating-point
