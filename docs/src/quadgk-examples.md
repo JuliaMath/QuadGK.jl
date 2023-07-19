@@ -231,7 +231,7 @@ dispatches on a [`BatchIntegrand`](@ref) type containing `f!` and buffers for
 `y` and `x`.
 
 For example, we can perform multi-threaded integration of a highly oscillatory
-function that needs to refined globally:
+function that needs to be refined globally:
 ```
 julia> f(x) = sin(100x)
 f (generic function with 1 method)
