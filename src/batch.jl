@@ -3,8 +3,8 @@
 
 Constructor for a `BatchIntegrand` accepting an integrand of the form `f!(y,x) = y .= f.(x)`
 that can evaluate the integrand at multiple quadrature nodes using, for example, threads,
-the GPU, or distributed-memory. The `max_batch` keyword limits the number of nodes passed to
-the integrand, and it must be at least `4*order+2` to evaluate two GK rules simultaneously.
+the GPU, or distributed-memory. The `max_batch` keyword roughly limits the number of nodes
+passed to the integrand, though at least `4*order+2` nodes will be used by the GK rule.
 The buffers `y,x` must both be `resize!`-able since the number of evaluation points may vary
 between calls to `f!`.
 """
@@ -15,7 +15,7 @@ struct BatchIntegrand{F,Y,X}
     x::X
     max_batch::Int # maximum number of x to supply in parallel
     function BatchIntegrand(f!, y::AbstractVector, x::AbstractVector, max_batch::Integer=typemax(Int))
-        max_batch > 0 || throw(ArgumentError("maximum batch size must be positive"))
+        max_batch > 0 || throw(ArgumentError("max_batch must be positive"))
         return new{typeof(f!),typeof(y),typeof(x)}(f!, y, x, max_batch)
     end
 end
@@ -186,11 +186,11 @@ simultaneously. In particular, there are two differences from `quadgk`
    return value of `f!` is ignored.) See [`BatchIntegrand`](@ref) for how to define the
    integrand.
 
-2. `f.max_batch` must be large enough to contain `4*order+2` points to evaluate two Kronrod
-   rules simultaneously. Choosing `max_batch=4*order+2` will reproduce the result of
+2. `f.max_batch` changes how the adaptive refinement is done by batching multiple segments
+   together. Choosing `max_batch<=4*order+2` will reproduce the result of
    non-batched `quadgk`, however if `max_batch=n*(4*order+2)` up to `2n` Kronrod rules will be evaluated
-   together, which can produce different results for integrands with multiple peaks when
-   used together with relative tolerances. For an example see the manual
+   together, which can produce slightly different results and sometimes require more
+   integrand evaluations when using relative tolerances.
 """
 function quadgk(f::BatchIntegrand{F,Y,<:AbstractVector{Nothing}}, segs::T...; kws...) where {F,Y,T}
     FT = float(T) # the gk points are floating-point
