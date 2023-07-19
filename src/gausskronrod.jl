@@ -275,7 +275,7 @@ end
 kronrod(N::Integer) = kronrod(Float64, N)
 
 # as above, but generalized to an arbitrary Jacobi matrix
-function kronrod(J::AbstractSymTri, n::Integer)
+function kronrod(J::AbstractSymTri{<:Real}, n::Integer)
     n < 1 && throw(ArgumentError("Kronrod rules require positive order"))
     size(J,1) ≥ div(3n+3,2) || throw(ArgumentError("J size must be ≥ $(div(3n+3,2)) for n=$n"))
 
@@ -301,7 +301,7 @@ end
 # of the order-n Gauss–Kronrod rule, given the Jacobi matrix J of the weight,
 # the order n, and a vector b of length 2n that has ALREADY been initialized
 # to J.ev[j]^2 for j=1:div(3n+1,2) and to 0 otherwise.  J.ev is NOT used.
-function _kronrod(J::AbstractSymTri, b::AbstractVector{T}, n::Int) where {T<:AbstractFloat}
+function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where {T<:AbstractFloat}
     # these are checked above:
     # size(J,1) > div(3n+1,2) || throw(ArgumentError("J size must be > $(div(3n+1,2)) for n=$n"))
     # length(b) == 2n || throw(DimensionMismatch())
