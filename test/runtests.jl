@@ -183,7 +183,8 @@ end
     λ = [-5.16351661076931, -1.8270457603216725, 0, 1.8270457603216728, 5.16351661076931]
     v1 = [0.03655465066022525, -0.18875054588494244, 0.469030964154226, -0.681449360868536, 0.5278955504450348]
     for A in (H, T)
-        @test eigvals(A) ≈ λ ≈ QuadGK.eignewt(A, 5)
+        @test A*v1 ≈ λ[1]*v1
+        @test eigvals(Hermitian(Matrix(A))) ≈ λ ≈ QuadGK.eignewt(A, 5)
         @test QuadGK.eigvec1!(zeros(5), A, λ[1]) ≈ v1
     end
     @test QuadGK.eigvec1(1:4, λ[1]) ≈ v1
