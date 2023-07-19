@@ -245,13 +245,64 @@ be computed for an integrand `f(x)` as follows:
     end
 """
 function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
-    if n < 1
-        throw(ArgumentError("Kronrod rules require positive order"))
-    end
+    n < 1 && throw(ArgumentError("Kronrod rules require positive order"))
+
     o = one(T)
     b = zeros(T, 2n)
     for j = 1:div(3n+1,2)
         b[j] = j^2 / (4j^2 - o)
+    end
+    x, w, v = _kronrod(ZeroSymTridiagonal(b), b, Int(n))
+
+    # Get embedded Gauss rule from even-indexed points, using
+    # the Golub–Welch method as described in Trefethen and Bau.
+    # (we don't need the eigenvalues since we already have them).
+    for j = 1:n-1
+        b[j] = j / sqrt(4j^2 - o)
+    end
+    @views gw = T[ 2abs2(eigvec1!(v[1:n],b[1:n-1],x[i],n)[1]) for i = 2:2:n+1 ]
+
+    return x, w, gw
+end
+
+kronrod(N::Integer) = kronrod(Float64, N)
+
+# as above, but generalized to an arbitrary Jacobi matrix
+function kronrod(J::AbstractSymTri, n::Integer)
+    n < 1 && throw(ArgumentError("Kronrod rules require positive order"))
+    size(J,1) ≥ div(3n+3,2) || throw(ArgumentError("J size must be ≥ $(div(3n+3,2)) for n=$n"))
+
+    b = zeros(float(eltype(J)), 2n)
+    for j = 1:div(3n+1,2)
+        b[j] = J.ev[j]^2
+    end
+    x, w, v = _kronrod(ZeroSymTridiagonal(b), b, Int(n))
+
+    # Get embedded Gauss rule from even-indexed points
+    Jsmall = if J isa SymTridiagonal
+        @views SymTridiagonal(J.dv[1:n], J.ev[1:n-1])
+    else
+        @views ZeroSymTridiagonal(J.ev[1:n-1])
+    end
+    @views gw = [ 2abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:n+1 ]
+
+    return x, w, gw
+end
+
+###########################################################################
+# internal implementation of algorithm from Laurie (1997) to return the (x,w)
+# of the order-n Gauss–Kronrod rule, given the Jacobi matrix J of the weight,
+# the order n, and a vector b of length 2n that has ALREADY been initialized
+# to J.ev[j]^2 for j=1:div(3n+1,2) and to 0 otherwise.  J.ev is NOT used.
+function _kronrod(J::AbstractSymTri, b::AbstractVector{T}, n::Int) where {T<:AbstractFloat}
+    # these are checked above:
+    # size(J,1) > div(3n+1,2) || throw(ArgumentError("J size must be > $(div(3n+1,2)) for n=$n"))
+    # length(b) == 2n || throw(DimensionMismatch())
+
+    # construct a,b of Kronrod–Jacobi matrix:
+    if J isa SymTridiagonal
+        a = zeros(T, 2n+1)
+        # (a is zero if J isa ZeroSymTridiagonal, and is hence omitted).
     end
     s = zeros(T, div(n,2) + 2)
     t = zeros(T, length(s))
@@ -260,6 +311,9 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
         u = zero(T)
         for k = div(m+1,2):-1:0
             u += b[k + n + 1]*s[k+1] - (m > k ? b[m - k]*s[k+2] : zero(T))
+            if J isa SymTridiagonal
+                u += (a[k+n+2] - a[(m-k)+1]) * t[k+2]
+            end
             s[k+2] = u
         end
         s,t = t,s
@@ -272,36 +326,40 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
         for k = m+1-n:div(m-1,2)
             j = n - (m - k) - 1
             u -= b[k + n + 1]*s[j+2] - b[m - k]*s[j+3]
+            if J isa SymTridiagonal
+                u -= (a[k+n+2] - a[(m-k)+1]) * t[j+2]
+            end
             s[j+2] = u
         end
         k = div(m+1,2)
+        j = n - (m - k + 2)
         if 2k != m
-            j = n - (m - k + 2)
             b[k+n+1] = s[j+2] / s[j+3]
+        elseif J isa SymTridiagonal
+            a[k+n+2] = a[k+1] + (s[j+2] - b[k+n+1] * s[j+3]) / t[j+3]
         end
         s,t = t,s
     end
+    if J isa SymTridiagonal
+        a[2n+1] = a[n] - b[2n]*s[2]/t[2]
+    end
     b .= sqrt.(b)
 
+    # the Kronrod–Jacobi matrix:
+    KJ = J isa SymTridiagonal ? SymTridiagonal(a, b) : ZeroSymTridiagonal(b)
+
+    # now we just apply Golub–Welch to KJ:
+
     # get negative quadrature points x
-    x = eignewt(b,2n+1,n+1) # x <= 0
+    x = eignewt(KJ,n+1) # x <= 0
 
     v = Vector{promote_type(eltype(b),eltype(x))}(undef, 2n+1)
 
     # get quadrature weights
-    w = T[ 2abs2(eigvec1!(v,b,x[i],2n+1)[1]) for i in 1:n+1 ]
+    w = T[ 2abs2(eigvec1!(v,KJ,x[i])[1]) for i in 1:n+1 ]
 
-    # Get embedded Gauss rule from even-indexed points, using
-    # the Golub–Welch method as described in Trefethen and Bau.
-    for j = 1:n-1
-        b[j] = j / sqrt(4j^2 - o)
-    end
-    @views gw = T[ 2abs2(eigvec1!(v[1:n],b[1:n-1],x[i],n)[1]) for i = 2:2:n+1 ]
-
-    return (x, w, gw)
+    return (x, w, v)
 end
-
-kronrod(N::Integer) = kronrod(Float64, N)
 
 ###########################################################################
 # Type-stable cache of quadrature rule results, so that we don't
