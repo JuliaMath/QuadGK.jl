@@ -283,7 +283,7 @@ function kronrod(J::AbstractSymTri, n::Integer)
     for j = 1:div(3n+1,2)
         b[j] = J.ev[j]^2
     end
-    x, w, v = _kronrod(ZeroSymTridiagonal(b), b, Int(n))
+    x, w, v = _kronrod(J, b, Int(n))
 
     # Get embedded Gauss rule from even-indexed points
     Jsmall = if J isa SymTridiagonal
@@ -291,7 +291,7 @@ function kronrod(J::AbstractSymTri, n::Integer)
     else
         @views ZeroSymTridiagonal(J.ev[1:n-1])
     end
-    @views gw = [ 2abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:n+1 ]
+    @views gw = [ 2abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
 
     return x, w, gw
 end
@@ -308,7 +308,7 @@ function _kronrod(J::AbstractSymTri, b::AbstractVector{T}, n::Int) where {T<:Abs
 
     # construct a,b of Jacobi–Kronrod matrix:
     if J isa SymTridiagonal
-        a = zeros(T, 2n+1)
+        a = copyto!(zeros(T, 2n+1), 1, J.dv, 1, div(3n, 2) + 1)
         # (a is zero if J isa ZeroSymTridiagonal, and is hence omitted).
     end
     s = zeros(T, div(n,2) + 2)
@@ -363,13 +363,13 @@ function _kronrod(J::AbstractSymTri, b::AbstractVector{T}, n::Int) where {T<:Abs
 
     # now we just apply Golub–Welch to KJ:
 
-    # get negative quadrature points x
-    x = eignewt(KJ,n+1) # x <= 0
+    # get quadrature points x (negative points only for ZeroSymTridiagonal)
+    x = eignewt(KJ, J isa SymTridiagonal ? 2n+1 : n+1)
 
     v = Vector{promote_type(eltype(b),eltype(x))}(undef, 2n+1)
 
     # get quadrature weights
-    w = T[ 2abs2(eigvec1!(v,KJ,x[i])[1]) for i in 1:n+1 ]
+    w = T[ 2abs2(eigvec1!(v,KJ,λ)[1]) for λ in x ]
 
     return (x, w, v)
 end

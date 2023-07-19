@@ -122,6 +122,33 @@ end
             @test gw ≈ gw0 atol=1e-49
         end
     end
+
+    # x -> 1 weight function:
+    let (x, w, wg) = kronrod(x -> 1, 7, -1, 1)
+        x0, w0, wg0 = kronrod(7)
+        @test x ≈ [x0; -reverse(x0[1:end-1])]
+        @test w ≈ [w0; reverse(w0[1:end-1])]
+        @test wg ≈ [wg0; reverse(wg0[1:end-1])]
+    end
+
+    # non-symmetric Gauss–Kronrod rule for an arbitrary weight function
+    let (x, w, wg) = kronrod(x -> 1+x^2, 7, 0, 1)
+        # integral of 1 should be 4/3:
+        @test sum(w) ≈ 4/3
+        @test sum(wg) ≈ 4/3
+        # should hold for well-behaved weights:
+        @test all(>(0), w)
+        @test all(>(0), wg)
+        @test all(x -> 0 ≤ x ≤ 1, x)
+
+        # test against results of Laurie implementatation by Gautschi
+        # in Matlab (from the OPQ suite https://www.cs.purdue.edu/archives/2002/wxg/codes/OPQ.html),
+        # for the same Jacobi matrix:
+        x0 = [0.00438238617866954, 0.02614951914104513, 0.06952432823447702, 0.1331034150629803, 0.2132620595793294, 0.306005657934478, 0.4072933420568336, 0.5125123454997229, 0.6164666827040001, 0.7142807062929434, 0.8021670261548075, 0.8770965454790314, 0.9359980967418293, 0.9759635237163186, 0.9959709148947024]
+        w0 = [0.01177172100204654, 0.03248033795172398, 0.05424896760483217, 0.07382275351146311, 0.0910708306136658, 0.1068683178722224, 0.1213569758811105, 0.1331660440143274, 0.1402336045988007, 0.1410339077741439, 0.1345976965140659, 0.1193309881617451, 0.09351598256107904, 0.05828394027207477, 0.02155126500003199]
+        @test x ≈ x0 rtol=1e-13
+        @test w ≈ w0 rtol=1e-13
+    end
 end
 
 ≅(x::Tuple, y::Tuple) = all(a -> isapprox(a[1],a[2]), zip(x,y))
