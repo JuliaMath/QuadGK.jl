@@ -141,6 +141,10 @@ end
         @test all(>(0), wg)
         @test all(x -> 0 ≤ x ≤ 1, x)
 
+        xg, wg2 = gauss(x -> 1+x^2, 7, 0, 1)
+        @test xg ≈ x[2:2:end]
+        @test wg2 ≈ wg
+
         # test against results of Laurie implementatation by Gautschi
         # in Matlab (from the OPQ suite https://www.cs.purdue.edu/archives/2002/wxg/codes/OPQ.html),
         # for the same Jacobi matrix:
