@@ -299,7 +299,7 @@ function _kronrod(J::AbstractSymTri, b::AbstractVector{T}, n::Int) where {T<:Abs
     # size(J,1) > div(3n+1,2) || throw(ArgumentError("J size must be > $(div(3n+1,2)) for n=$n"))
     # length(b) == 2n || throw(DimensionMismatch())
 
-    # construct a,b of Kronrod–Jacobi matrix:
+    # construct a,b of Jacobi–Kronrod matrix:
     if J isa SymTridiagonal
         a = zeros(T, 2n+1)
         # (a is zero if J isa ZeroSymTridiagonal, and is hence omitted).
@@ -345,7 +345,7 @@ function _kronrod(J::AbstractSymTri, b::AbstractVector{T}, n::Int) where {T<:Abs
     end
     b .= sqrt.(b)
 
-    # the Kronrod–Jacobi matrix:
+    # the Jacobi–Kronrod matrix:
     KJ = J isa SymTridiagonal ? SymTridiagonal(a, b) : ZeroSymTridiagonal(b)
 
     # now we just apply Golub–Welch to KJ:
