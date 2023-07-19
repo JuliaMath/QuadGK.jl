@@ -11,6 +11,13 @@
 #
 # Arbitrary-precision eigenvalue (eignewt & eigpoly) and eigenvector
 # (eigvec1) routines are written by SGJ, independent of the above sources.
+#
+# Another useful reference is the review article:
+#
+#    Sotirios E. Notaris, "Gauss–Kronrod quadrature formulae —
+#    A survey of fifty years of research," Electronic Transactions
+#    on Numerical Analysis vol. 45, pp. 374–404 (2016).
+#    https://etna.ricam.oeaw.ac.at/vol.45.2016/pp371-404.dir/pp371-404.pdf
 
 ###########################################################################
 # Eigensolver utilities:
@@ -343,6 +350,11 @@ function _kronrod(J::AbstractSymTri, b::AbstractVector{T}, n::Int) where {T<:Abs
     if J isa SymTridiagonal
         a[2n+1] = a[n] - b[2n]*s[2]/t[2]
     end
+
+    # Note: this step can throw a DomainError if any element of b is negative.
+    # This can happen because Gauss–Kronrod points and weights are not guaranteed
+    # to be real for all orthogonal polynomials (all Jacobi matrices J)!
+    # We won't try to handle this case in QuadGK for now.
     b .= sqrt.(b)
 
     # the Jacobi–Kronrod matrix:
