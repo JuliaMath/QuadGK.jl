@@ -29,6 +29,17 @@
 # compared to the general case of an arbitrary weight function.
 
 # a type for us to dispatch on; we don't actually need the full AbstractMatrix functionality
+"""
+    QuadGK.HollowSymTridiagonal(ev::AbstractVector)
+
+Construct a "hollow" symmetric tridiagonal matrix, whose diagonal entries are zero and
+whose first sub/super-diagonal is `ev`.
+
+The `HollowSymTridiagonal` type is used in `QuadGK` for Jacobi matrices of symmetric
+weight functions, which dispatch to specialized methods for [`gauss`](@ref) and
+[`kronrod`](@ref) that exploit this to generate symmetric quadrature rules more
+efficiently.
+"""
 struct HollowSymTridiagonal{T, V<:AbstractVector{T}} <: AbstractMatrix{T}
     ev::V # superdiagonal
     function HollowSymTridiagonal{T, V}(ev) where {T, V<:AbstractVector{T}}
