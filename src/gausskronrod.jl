@@ -194,13 +194,13 @@ end
 # Gauss–Kronrod rules for the unit weight function:
 
 """
-    gauss([T,] N, a=-1, b=1)
+    gauss([T,] n, a=-1, b=1)
 
-Return a pair `(x, w)` of `N` quadrature points `x[i]` and weights `w[i]` to
+Return a pair `(x, w)` of `n` quadrature points `x[i]` and weights `w[i]` to
 integrate functions on the interval `(a, b)`,  i.e. `sum(w .* f.(x))`
 approximates the integral.  Uses the method described in Trefethen &
-Bau, Numerical Linear Algebra, to find the `N`-point Gaussian quadrature
-in O(`N`²) operations.
+Bau, Numerical Linear Algebra, to find the `n`-point Gaussian quadrature
+in O(`n`²) operations.
 
 `T` is an optional parameter specifying the floating-point type, defaulting
 to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
@@ -283,7 +283,7 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
     return x, w, gw
 end
 
-kronrod(N::Integer) = kronrod(Float64, N)
+kronrod(n::Integer) = kronrod(Float64, n)
 
 # as above, but generalized to an arbitrary Jacobi matrix
 function kronrod(J::AbstractSymTri{<:Real}, n::Integer)
@@ -297,6 +297,34 @@ function kronrod(J::AbstractSymTri{<:Real}, n::Integer)
     end
     @views gw = [ 2abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
 
+    return x, w, gw
+end
+
+# as above but allow you to pass the interval [a,b],
+# and returns all the points not just half
+function kronrod(n::Integer, a::Real, b::Real)
+    x, w, gw = kronrod(typeof(float(b-a)), n)
+    x = [x; rmul!(reverse!(x[1:end-1]), -1)]
+    w = [w; reverse!(w[1:end-1])]
+    gw = [gw; reverse!(gw[1:end-isodd(n)])]
+    xscale = eltype(x)(b - a) / 2
+    x .= (x .+ 1) .* xscale .+ a
+    w .*= xscale
+    gw .*= xscale
+    return x, w, gw
+end
+
+function kronrod(J::AbstractSymTri{<:Real}, n::Integer, a::Real, b::Real, unitintegral::Real=1)
+    x, w, gw = kronrod(J, n)
+    if J isa HollowSymTridiagonal
+        x = [x; rmul!(reverse!(x[1:end-1]), -1)]
+        w = [w; reverse!(w[1:end-1])]
+        gw = [gw; reverse!(gw[1:end-isodd(n)])]
+    end
+    xscale = eltype(x)(b - a) / 2
+    x .= (x .+ 1) .* xscale .+ a
+    w .= (w .* unitintegral) ./ 2
+    gw .= (gw .* unitintegral) ./ 2
     return x, w, gw
 end
 

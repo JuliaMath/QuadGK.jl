@@ -117,6 +117,9 @@ end
                     # assume a Jacobi matrix with zero diagonals
                     J = SymTridiagonal(zeros(BigFloat, m), b)
                     x,w,gw = kronrod(J, n)
+                    @test kronrod(J, n, -1, 1, 2) ≅ (x,w,gw) atol=1e-55
+                    @test kronrod(QuadGK.HollowSymTridiagonal(b), n, -1, 1, 2) ≅ (x,w,gw) atol=1e-55
+                    @test kronrod(n, -big"1.", big"1.") ≅ (x,w,gw) atol=1e-55
                     # check symmetric rule & remove redundant points/weights
                     @test x[1:n] ≈ -reverse(x[n+2:end]) atol=1e-55
                     @test w[1:n] ≈ reverse(w[n+2:end]) atol=1e-55

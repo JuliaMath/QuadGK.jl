@@ -18,7 +18,7 @@ Features of the QuadGK package include:
 * Arbitrary precision: arbitrary-precision arithmetic types such as `BigFloat` can be integrated to arbitrary accuracy
 * ["Improper" integrals](https://en.wikipedia.org/wiki/Improper_integral): Integral endpoints can be $\pm \infty$ (`±Inf` in Julia).
 * [Contour integrals](https://en.wikipedia.org/wiki/Contour_integration): You can specify a sequence of points in the complex plane to perform a contour integral along a piecewise-linear contour.
-* Arbitrary-order and custom quadrature rules: Any polynomial `order` of the Gauss–Kronrod quadrature rule can be specified, and custom Gaussian-quadrature rules can be constructed for arbitrary weight functions.  See [Gaussian quadrature and arbitrary weight functions](@ref).
+* Arbitrary-order and custom quadrature rules: Any polynomial `order` of the Gauss–Kronrod quadrature rule can be specified, as well as generating quadrature rules and weights directly; see [Gauss and Gauss–Kronrod quadrature rules](@ref).  Custom Gaussian-quadrature rules can also be constructed for arbitrary weight functions; see [Gaussian quadrature and arbitrary weight functions](@ref).
 * In-place integration: For memory efficiency, integrand functions that write in-place into a pre-allocated buffer (e.g. for vector-valued integrands) can be used with the [`quadgk!`](@ref) function, along with pre-allocated buffers using [`alloc_segbuf`](@ref).
 
 ## Quick start
