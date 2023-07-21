@@ -56,19 +56,19 @@ J = \begin{pmatrix}
 & & \ddots & \ddots & \ddots
 \end{pmatrix} .
 ```
-Let $J_n$ be the $n \times n$ upper-left corner of $J$.   As another amazing fact, the
+Let $J_n$ be the $n \times n$ upper-left corner of $J$.   Astonishingly, the
 quadrature points $x_i$ turn out to be exactly the eigenvalues of $J$, and the quadrature weights $w_i$
-are the first component² of the corresponding normalized eigenvectors, scaled by $I[1]$ [(Golub & Welch, 1968)](https://www.ams.org/journals/mcom/1969-23-106/S0025-5718-69-99647-1/S0025-5718-69-99647-1.pdf)!
+are the first components² of the corresponding normalized eigenvectors, scaled by $I[1]$ [(Golub & Welch, 1968)](https://www.ams.org/journals/mcom/1969-23-106/S0025-5718-69-99647-1/S0025-5718-69-99647-1.pdf)!
 
 Given the $n \times n$ matrix $J_n$ (represented by a [`LinearAlgebra.SymTridiagonal`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.SymTridiagonal) object, which only stores the $\alpha_k$ and $\sqrt{\beta_k}$ coefficients) and the integral `unitintegral` $= I[1]$, you can construct the points $x_i$ and
 weights $w_i$ of the $n$-point Gaussian quadrature rule in QuadGK via `x, w = gauss(Jₙ, unitintegral)`.  To construct
 the $(2n+1)$-point Kronrod rule, then you need the $m \times m$ matrix $J_m$ where `m ≥ div(3n+3,2)` ($m \ge \lfloor (3n+3)/2 \rfloor$), and then obtain the points `x` and weights `w` (along with embedded Gauss weights `gw`) via `x, w, gw = kronrod(Jₘ, n, unitintegral)`.  Much of the time, you can simply look up formulas for the recurrence relations
 for weight functions of common interest.   Hopefully, this will be clearer with some examples below.
 
-### Gauss–Legendre quadrature
+### Gauss–Legendre quadrature via the Jacobi matrix
 
 The common case of integrals $I[f] = \int_{-1}^{+1} f(x) dx$, corresponding to the weight function $w(x) = 1$ over
-the interval $(-1,1)$, leads to the [Legendre polynomials](https://en.wikipedia.org/wiki/Legendre_polynomials)
+the interval $(-1,1)$, leads to the [Legendre polynomials](https://en.wikipedia.org/wiki/Legendre_polynomials):
 ```math
 p_0(x) = 1, \; p_1(x) = x, \; p_2(x) = (3x^2 - 1)/2, \; \ldots
 ```
@@ -180,7 +180,7 @@ julia> x, w, gw = kronrod(Jhollow(9), 5, 2); [x w]
   0.0       0.282987
 ```
 
-### Gauss–Jacobi quadrature
+### Gauss–Jacobi quadrature via the Jacobi matrix
 
 ## Arbitrary weight functions
 
