@@ -10,7 +10,7 @@ a **weighted** integral:
 ```math
 \int_a^b w(x) f(x) dx \approx \sum_{i=1}^n w_i f(x_i) \, ,
 ```
-where the effect of **weight function** $w(x)$ (usually required to be $≥ 0$ in $(a,b)) is
+where the effect of **weight function** $w(x)$ (usually required to be $≥ 0$ in ``(a,b)``) is
 included in the quadrature weights $w_i$ and points $x_i$.  The main motivation
 for weighted quadrature rules is to handle *poorly behaved* integrands — singular, discontinuous, highly oscillatory, and so on — where the "bad" behavior is *known*
 and can be *factored out* into $w(x)$.  By designing a quadrature rule with $w(x)$
