@@ -211,7 +211,7 @@ function gauss(::Type{T}, N::Integer) where T<:AbstractFloat
     end
     o = one(T)
     b = T[ n / sqrt(4n^2 - o) for n = 1:N-1 ]
-    return gauss(HollowSymTridiagonal(b))
+    return gauss(HollowSymTridiagonal(b), 2)
 end
 
 gauss(N::Integer) = gauss(Float64, N) # integration on the standard interval (-1,1)
@@ -227,13 +227,26 @@ function gauss(::Type{T}, N::Integer, a::Real, b::Real) where T<:AbstractFloat
 end
 
 # Gauss rules for an arbitrary Jacobi matrix J
-function gauss(J::AbstractSymTri{<:Real})
+function gauss(J::AbstractSymTri{<:Real}, unitintegral::Real=1)
     # Golub–Welch algorithm
     x = eignewt(J, size(J,1))
     v = Vector{promote_type(eltype(J),eltype(x))}(undef, size(J,1))
-    w = [ 2abs2(eigvec1!(v,J,x[i])[1]) for i = 1:size(J,1) ]
+    w = [ unitintegral * abs2(eigvec1!(v,J,x[i])[1]) for i = 1:size(J,1) ]
     return (x, w)
 end
+
+# as above but rescaled to an arbitrary interval and unit integral
+function gauss(J::AbstractSymTri{<:Real}, xrescale::Pair{<:Tuple{Real,Real}, <:Tuple{Real,Real}}, unitintegral::Real=1)
+    x, w = gauss(J, unitintegral)
+    T = eltype(x)
+    a0, b0 = xrescale.first
+    a, b = xrescale.second
+    xscale = (T(b) - T(a)) / (T(b0) - T(a0))
+    x .= (x .- a0) .* xscale .+ a
+    return x, w
+end
+gauss(J::AbstractSymTri{<:Real}, a::Real, b::Real, unitintegral::Real=1) =
+    gauss(J, (-1,1) => (a,b), unitintegral)
 
 """
     kronrod([T,] n)
@@ -270,7 +283,7 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
     for j = 1:div(3n+1,2)
         b[j] = j^2 / (4j^2 - o)
     end
-    x, w, v = _kronrod(HollowSymTridiagonal(b), b, Int(n))
+    x, w, v = _kronrod(HollowSymTridiagonal(b), b, Int(n), 2)
 
     # Get embedded Gauss rule from even-indexed points, using
     # the Golub–Welch method as described in Trefethen and Bau.
@@ -286,8 +299,8 @@ end
 kronrod(n::Integer) = kronrod(Float64, n)
 
 # as above, but generalized to an arbitrary Jacobi matrix
-function kronrod(J::AbstractSymTri{<:Real}, n::Integer)
-    x, w, v = _kronrod(J, _kronrod_b(J, n), Int(n))
+function kronrod(J::AbstractSymTri{<:Real}, n::Integer, unitintegral::Real=1)
+    x, w, v = _kronrod(J, _kronrod_b(J, n), Int(n), unitintegral)
 
     # Get embedded Gauss rule from even-indexed points
     Jsmall = if J isa SymTridiagonal
@@ -295,7 +308,7 @@ function kronrod(J::AbstractSymTri{<:Real}, n::Integer)
     else
         @views HollowSymTridiagonal(J.ev[1:n-1])
     end
-    @views gw = [ 2abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
+    @views gw = [ unitintegral*abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
 
     return x, w, gw
 end
@@ -307,26 +320,31 @@ function kronrod(n::Integer, a::Real, b::Real)
     x = [x; rmul!(reverse!(x[1:end-1]), -1)]
     w = [w; reverse!(w[1:end-1])]
     gw = [gw; reverse!(gw[1:end-isodd(n)])]
-    xscale = eltype(x)(b - a) / 2
+    T = eltype(x)
+    xscale = (T(b) - T(a)) / 2
     x .= (x .+ 1) .* xscale .+ a
     w .*= xscale
     gw .*= xscale
     return x, w, gw
 end
 
-function kronrod(J::AbstractSymTri{<:Real}, n::Integer, a::Real, b::Real, unitintegral::Real=1)
-    x, w, gw = kronrod(J, n)
+function kronrod(J::AbstractSymTri{<:Real}, n::Integer, xrescale::Pair{<:Tuple{Real,Real}, <:Tuple{Real,Real}}, unitintegral::Real=1)
+    x, w, gw = kronrod(J, n, unitintegral)
     if J isa HollowSymTridiagonal
         x = [x; rmul!(reverse!(x[1:end-1]), -1)]
         w = [w; reverse!(w[1:end-1])]
         gw = [gw; reverse!(gw[1:end-isodd(n)])]
     end
-    xscale = eltype(x)(b - a) / 2
-    x .= (x .+ 1) .* xscale .+ a
-    w .= (w .* unitintegral) ./ 2
-    gw .= (gw .* unitintegral) ./ 2
+    a0, b0 = xrescale.first
+    a, b = xrescale.second
+    T = eltype(x)
+    xscale = (T(b) - T(a)) / (T(b0) - T(a0))
+    x .= (x .- a0) .* xscale .+ a
     return x, w, gw
 end
+
+kronrod(J::AbstractSymTri{<:Real}, n::Integer, a::Real, b::Real, unitintegral::Real=1) =
+    kronrod(J, n, (-1,1) => (a, b), unitintegral)
 
 """
     kronrodjacobi(J::Union{SymTridiagonal, QuadGK.HollowSymTridiagonal}, n::Integer)
@@ -424,8 +442,8 @@ function _kronrodjacobi(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int)
     return J isa SymTridiagonal ? SymTridiagonal(a, b) : HollowSymTridiagonal(b)
 end
 
-# return the Kronrod weights and rule
-function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where {T<:AbstractFloat}
+# return the Kronrod weights and rule.  unitintegral should be the integral of the weight function
+function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int, unitintegral::Real=1) where {T<:AbstractFloat}
     # the Jacobi–Kronrod matrix:
     KJ = _kronrodjacobi(J, b, n)
 
@@ -437,7 +455,7 @@ function _kronrod(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where
     v = Vector{promote_type(eltype(b),eltype(x))}(undef, 2n+1)
 
     # get quadrature weights
-    w = T[ 2abs2(eigvec1!(v,KJ,λ)[1]) for λ in x ]
+    w = T[ unitintegral * abs2(eigvec1!(v,KJ,λ)[1]) for λ in x ]
 
     return (x, w, v)
 end

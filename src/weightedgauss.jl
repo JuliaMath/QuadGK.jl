@@ -62,9 +62,8 @@ function gauss(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), 
 
     # find the Jacobi matrix and apply the Golub–Welsh algorithm:
     J, xscale, wint = _jacobi(W, N, a, b, rtol, quad)
-    x, w = gauss(J)
+    x, w = gauss(J, wint)
     @. x = (x + 1) / xscale + a
-    w .*= wint * 0.5
     return (x, w)
 end
 
@@ -91,10 +90,8 @@ function kronrod(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a))))
 
     # find the Jacobi matrix and apply the Golub–Welsh algorithm:
     J, xscale, wint = _jacobi(W, div(3N+3,2), a, b, rtol, quad)
-    x, w, wg = kronrod(J, N)
+    x, w, wg = kronrod(J, N, wint)
     @. x = (x + 1) / xscale + a
-    w .*= wint * 0.5
-    wg .*= wint * 0.5
     return (x, w, wg)
 end
 
