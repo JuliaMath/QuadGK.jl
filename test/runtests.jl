@@ -206,6 +206,10 @@ end
     @test size(H) == (5,5)
     @test diag(H)::Vector{Int} == zeros(Int, 5)
     @test H == T
+    @test QuadGK.HollowSymTridiagonal(T)::QuadGK.HollowSymTridiagonal{Int} == T
+    @test QuadGK.HollowSymTridiagonal{Int8}(T)::QuadGK.HollowSymTridiagonal{Int8} == T
+    @test_throws ArgumentError QuadGK.HollowSymTridiagonal(SymTridiagonal(1:4, 1:3))
+    @test_throws ArgumentError QuadGK.HollowSymTridiagonal{Int8}(SymTridiagonal(1:4, 1:3))
     @test SymTridiagonal(H)::SymTridiagonal{Int, Vector{Int}} == T
     @test SymTridiagonal{Int8}(H)::SymTridiagonal{Int8, Vector{Int8}} == T
     @test Matrix(H)::Matrix{Int} == T == collect(H)

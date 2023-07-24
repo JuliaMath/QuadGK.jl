@@ -1,4 +1,4 @@
-# Function reference
+# API reference
 
 ## `quadgk`
 
@@ -33,6 +33,7 @@ polynomials associated with your weight function:
 ```@docs
 QuadGK.gauss(::AbstractMatrix, ::Real)
 QuadGK.kronrod(::AbstractMatrix, ::Integer, ::Real)
+QuadGK.HollowSymTridiagonal
 ```
 
 Most generally, if you know only the weight function $w(x)$ and the interval $(a,b)$, you

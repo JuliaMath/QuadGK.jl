@@ -10,7 +10,7 @@ makedocs(
         "Examples" => "quadgk-examples.md",
         "Quadrature rules" => "gauss-kronrod.md",
         "Weighted quadrature" => "weighted-gauss.md",
-        "Reference" => "functions.md",
+        "API reference" => "api.md",
     ],
 )
 

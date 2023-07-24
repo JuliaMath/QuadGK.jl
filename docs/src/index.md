@@ -53,7 +53,7 @@ is now of the form `f!(r, x)` and should write `f(x)` in-place into the result a
 
 ## API Reference
 
-See the [Function reference](@ref) chapter for a detailed description of the
+See the [API reference](@ref) chapter for a detailed description of the
 QuadGK programming interface.
 
 ## Other Julia quadrature packages

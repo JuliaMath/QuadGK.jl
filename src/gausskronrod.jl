@@ -35,10 +35,9 @@
 Construct a "hollow" symmetric tridiagonal matrix, whose diagonal entries are zero and
 whose first sub/super-diagonal is `ev`.
 
-The `HollowSymTridiagonal` type is used in `QuadGK` for Jacobi matrices of symmetric
-weight functions, which dispatch to specialized methods for [`gauss`](@ref) and
-[`kronrod`](@ref) that exploit this to generate symmetric quadrature rules more
-efficiently.
+The `HollowSymTridiagonal` type can be passed to [`gauss`](@ref) or [`kronrod`](@ref) for
+Jacobi matrices to dispatch to specialized methods that exploit the special "hollow" structure
+arising for symmetric weight functions, in order to generate symmetric quadrature rules more efficiently.
 """
 struct HollowSymTridiagonal{T, V<:AbstractVector{T}} <: AbstractMatrix{T}
     ev::V # superdiagonal
@@ -47,12 +46,20 @@ struct HollowSymTridiagonal{T, V<:AbstractVector{T}} <: AbstractMatrix{T}
         return new{T, V}(ev)
     end
 end
-HollowSymTridiagonal(ev::AbstractVector{T}) where {T<:Real} =
+HollowSymTridiagonal(ev::AbstractVector{T}) where {T} =
     HollowSymTridiagonal{T,typeof(ev)}(ev)
 Base.size(A::HollowSymTridiagonal) = (length(A.ev)+1,length(A.ev)+1)
 LinearAlgebra.diag(A::HollowSymTridiagonal) = zeros(eltype(A), size(A,1))
 LinearAlgebra.SymTridiagonal(A::HollowSymTridiagonal{T}) where {T} = SymTridiagonal{T}(A)
 LinearAlgebra.SymTridiagonal{T}(A::HollowSymTridiagonal) where {T} = SymTridiagonal(zeros(T, length(A.ev)+1), Vector{T}(A.ev))
+function HollowSymTridiagonal(A::SymTridiagonal)
+    iszero(A.dv) || throw(ArgumentError("expected zero diagonal"))
+    return HollowSymTridiagonal(A.ev)
+end
+function HollowSymTridiagonal{T}(A::SymTridiagonal) where {T}
+    iszero(A.dv) || throw(ArgumentError("expected zero diagonal"))
+    return HollowSymTridiagonal(AbstractVector{T}(A.ev))
+end
 Base.Matrix(A::HollowSymTridiagonal) = Matrix(SymTridiagonal(A))
 Base.Matrix{T}(A::HollowSymTridiagonal) where {T} = Matrix{T}(SymTridiagonal{T}(A))
 
