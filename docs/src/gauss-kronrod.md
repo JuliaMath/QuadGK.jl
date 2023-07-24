@@ -11,7 +11,7 @@ including for more complicated weighted integrals.
 ## Quadrature rules and Gaussian quadrature
 
 A **quadrature rule** is simply a way to approximate an integral by
-as sum:
+a sum:
 ```math
 \int_a^b f(x) dx \approx \sum_{i=1}^n w_i f(x_i)
 ```
@@ -26,8 +26,8 @@ for a given error tolerance.
 
 There are [many numerical-integration techniques](https://en.wikipedia.org/wiki/Numerical_integration) for designing quadrature rules.  For example,
 one could simply pick the points $x_i$ uniformly at random in $(a,b)$ and
-use a weight $w_i = 1/n$ to take the average: this is [Monte-Carlo integration](https://en.wikipedia.org/wiki/Monte_Carlo_method), which is
-simple but converges rather slowly (its error scales $\sim 1/\sqrt{n}$).
+use a weight $w_i = 1/n$ to take the average — this is [Monte-Carlo integration](https://en.wikipedia.org/wiki/Monte_Carlo_method), which is
+simple but converges rather slowly (its error scales as $\sim 1/\sqrt{n}$).
 
 A particularly efficient class of quadrature rules is known as
 [Gaussian quadrature](https://en.wikipedia.org/wiki/Gaussian_quadrature),
@@ -37,11 +37,11 @@ $2n-1$.  More importantly, the error goes to zero extremely rapidly
 even for non-polynomial $f(x)$, as long as $f(x)$ is sufficiently smooth.
 (They converge *exponentially* rapidly for [analytic functions](https://en.wikipedia.org/wiki/Analytic_function).)  There are many variants of
 Gaussian quadrature, as we will discuss further below, but the specific
-case of computing $\int_{-1}^{1} f(x) dx$ is known as [Gauss–Legendre quadratre](https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature), and $\int_a^b f(x) dx$ over other
+case of computing $\int_{-1}^{1} f(x) dx$ is known as [Gauss–Legendre quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature), and $\int_a^b f(x) dx$ over other
 intervals $(a,b)$ is equivalent to Gauss–Legendre under a simple
-change of variables.
+change of variables (given explicitly below).
 
-The QuadGK package can compute the points $x_i$ and weights $w_i$ of a Gauss–Legendre quadrature rule (optionally rescaled to an arbitrary interval $(a,b)$) for you via the [`gauss`](@ref) function.
+The QuadGK package can compute the points $x_i$ and weights $w_i$ of a Gauss–Legendre quadrature rule (optionally rescaled to an arbitrary interval ``(a,b)``) for you via the [`gauss`](@ref) function.
 For example, the $n=5$ point rule for integrating from $a=1$ to $b=3$
 is computed by:
 ```
@@ -202,9 +202,9 @@ julia> [x[2:2:end] gw] # embedded Gauss points ≤ 0 and weights
 Of course, you still have to evaluate $f(x)$ at all $2n+1$ points,
 but summing the results requires a bit less arithmetic
 and storing the rule takes less memory.  Note also that the $(-1,1)$ rule can be applied to any desired interval $(a,b)$ by a change of variables
-$$
+```math
 \int_a^b f(x) dx = \frac{b-a}{2} \int_{-1}^{+1} f\left( (u+1)\frac{b-a}{2} + a  \right) \, ,
-$$
+```
 so the $(-1,1)$ rule can be computed once (for a given order and precision) and re-used.  In consequence, `kronrod(n)` is `quadgk` uses internally.  The higher-level `kronrod(n, a, b)` function is more convenient for casual use, however.
 
 As with `gauss`, the `kronrod` function works with arbitrary precision,

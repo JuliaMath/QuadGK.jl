@@ -135,7 +135,7 @@ end
                 x,w,gw = kronrod(BigFloat, n)
             end
             @test (x,w) ≅ (x0,w0) atol=1e-49
-            #@test gw ≈ gw0 atol=1e-49
+            @test gw ≈ gw0 atol=1e-49
         end
     end
 
