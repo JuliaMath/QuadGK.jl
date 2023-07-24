@@ -149,7 +149,7 @@ julia> x, w, gw = kronrod(5); [x w]
   0.0       0.282987
 ```
 
-Notice that, in this case, our Jacobi matrix had zero diagonal entries $\alpha_k = 0$.  It turns out that this *always* happens for a weight function $w(x)$ that is *symmetric* in the integration interval $(a,b)$, in this case meaning $w(x)=w(-x)$.   This is called a "hollow" tridiagonal matrix, and its eigenvalues always come in $\pm x_j$ pairs: the quadrature rule is has *symmetric points and weights*.   In this case QuadGK can do its computations a bit more efficiently, and only compute the non-redundant $x_i \le 0$ half of of the quadrature rule, if you represent $J_n$ with a special type [`QuadGK.HollowSymTridiagonal`](@ref) whose constructor only requires you to supply the off-diagonal elements $\sqrt{\beta_k}$:
+Notice that, in this case, our Jacobi matrix had zero diagonal entries $\alpha_k = 0$.  It turns out that this *always* happens when the integration is centered around zero (``a=-b``) and the weight function $w(x)$ that is *symmetric* (``w(x)=w(-x)``).   This is called a "hollow" tridiagonal matrix, and its eigenvalues always come in $\pm x_j$ pairs: the quadrature rule is has *symmetric points and weights*.   In this case QuadGK can do its computations a bit more efficiently, and only compute the non-redundant $x_i \le 0$ half of of the quadrature rule, if you represent $J_n$ with a special type [`QuadGK.HollowSymTridiagonal`](@ref) whose constructor only requires you to supply the off-diagonal elements $\sqrt{\beta_k}$:
 ```
 julia> Jhollow(n) = QuadGK.HollowSymTridiagonal([sqrt(k^2/(4k^2-1)) for k=1:n-1])
 Jhollow (generic function with 1 method)
@@ -170,7 +170,7 @@ julia> x, w = gauss(Jhollow(5), 2); [x w]
   0.538469  0.478629
   0.90618   0.236927
 
-julia> x, w, gw = kronrod(Jhollow(9), 5, 2); [x w]
+julia> x, w, gw = kronrod(Jhollow(9), 5, 2); [x w] # only returns xᵢ ≤ 0 points:
 6×2 Matrix{Float64}:
  -0.984085  0.042582
  -0.90618   0.115233
@@ -179,6 +179,36 @@ julia> x, w, gw = kronrod(Jhollow(9), 5, 2); [x w]
  -0.27963   0.27285
   0.0       0.282987
 ```
+(The `gauss` function returns all the points, albeit computed more efficiently, while the `kronrod` function returns only the $x_i \le 0$ points for a `HollowSymTridiagonal` Jacobi matrix.)
+
+If you have the Jacobi matrix for one interval, but want QuadGK to rescale the quadrature points and weights to some other interval (rather than doing the change of variables yourself), you can use the method `gauss(J, (a,b) => (newa, newb), unitintegral)`, where
+`(newa,newb)` is the new interval and `unitintegral` is the integral of $f(x)=1$ over
+the new interval, and similarly for `kronrod`.  For example, to rescale the Legendre $w(x)=1$ rule from $(-1,+1)$ to the interval $(4,7)$, with unit integral $7-4 = 3$, we could do:
+```
+julia> x, w = gauss(Jhollow(5), (-1,1) => (4,7), 3); [x w]
+5×2 Matrix{Float64}:
+ 4.14073  0.35539
+ 4.6923   0.717943
+ 5.5      0.853333
+ 6.3077   0.717943
+ 6.85927  0.35539
+
+julia> x, w = kronrod(Jhollow(9), 5, (-1,1) => (4,7), 3); [x w]
+11×2 Matrix{Float64}:
+ 4.02387  0.0638731
+ 4.14073  0.17285
+ 4.36875  0.280201
+ 4.6923   0.361561
+ 5.08055  0.409275
+ 5.5      0.424481
+ 5.91945  0.409275
+ 6.3077   0.361561
+ 6.63125  0.280201
+ 6.85927  0.17285
+ 6.97613  0.0638731
+```
+(When the result is rescaled to a new interval, both functions return all of the points, but
+they are still computed more efficiently for a `HollowSymTridiagonal` Jacobi matrix.)
 
 ### Gauss–Jacobi quadrature via the Jacobi matrix
 
