@@ -119,7 +119,7 @@ end
                     x,w,gw = kronrod(J, n, 2)
                     @test kronrod(J, n, -1, 1, 2) ≅ (x,w,gw) atol=1e-55
                     @test kronrod(QuadGK.HollowSymTridiagonal(b), n, -1, 1, 2) ≅ (x,w,gw) atol=1e-55
-                    @test kronrod(n, -big"1.", big"1.") ≅ (x,w,gw) atol=1e-55
+                    @test kronrod(n, big"-1.", big"1.") ≅ (x,w,gw) atol=1e-55
                     # check symmetric rule & remove redundant points/weights
                     @test x[1:n] ≈ -reverse(x[n+2:end]) atol=1e-55
                     @test w[1:n] ≈ reverse(w[n+2:end]) atol=1e-55
@@ -136,6 +136,12 @@ end
             end
             @test (x,w) ≅ (x0,w0) atol=1e-49
             @test gw ≈ gw0 atol=1e-49
+
+            xg, wg = gauss(n, big"-1", big"+1")
+            nn = length(2:2:n+1)
+            nn0 = length(2:2:n)
+            @test wg[1:nn0] ≈ reverse(wg[nn+1:end]) atol=1e-55
+            @test wg[1:nn] ≈ gw0 atol=1e-49
         end
     end
 
