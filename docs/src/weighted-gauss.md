@@ -329,7 +329,7 @@ julia> I, _ = quadgk_count(x -> (1-x)^α * (1+x)^β * cos(2x), -1, 1, rtol=1e-9)
 julia> I - exact
 4.900435612853471e-11
 ```
-(This isn't too terrible! If we plotted the points where `quadgk` evaluates our integrand, we would see that it concentrates points mostly close to the singularities at the boundaries.)
+(This isn't too terrible! If we plotted the points where `quadgk` evaluates our integrand, we would see that it concentrates points mostly close to the singularities at the boundaries.  To get a similar error from unweighted Gauss–Legendre quadrature requires about $n=10^5$ points, which is too slow with the `gauss(n)` function — it's only practical with `x, w = FastGaussQuadrature.gausslegendre(10^5)`, which uses a fancy $O(n)$ algorithm.  Ordinary Gaussian quadrature very slowly converging for non-smooth functions.)
 In contrast, our 5-point Gauss–Jacobi quadrature rule from above gets about 6 digits:
 ```
 julia> I = sum(@. cos(2x) * w)
