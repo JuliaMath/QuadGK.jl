@@ -212,6 +212,193 @@ they are still computed more efficiently for a `HollowSymTridiagonal` Jacobi mat
 
 ### Gauss–Jacobi quadrature via the Jacobi matrix
 
+A typical application of weighted quadrature rules is to accelerate convergence for
+integrands that have power-law singularities at one or both of the endpoints.  Without
+loss of generality, we can rescale the interval to $(-1,+1)$, in which case such
+integrals are of the form:
+```math
+I[f] = \int_{-1}^{+1} \underbrace{(1-x)^\alpha (1+x)^\beta}_{w(x)} f(x) dx \, ,
+```
+where $\alpha > -1$ and $\beta > -1$ are the power laws at the two endpoints, which
+we have factored out into a weight function $w(x) = (1+x)^\alpha (1-x)^\beta$ multiplied by some (hopefully smooth) function $f(x)$.  For
+example, $\alpha = 0.5$ means that there is a square-root singularity at $x=+1$
+(where the integrand is finite, but its slope blows up).  Or if $\beta = -0.1$ then
+the integrand blows up at $x=-1$ but the integral is still finite (``1/x^{0.1}`` is an "integrable singularity").   This weight function is quite well known, in fact:
+it yields [Gauss–Jacobi quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Jacobi_quadrature), with the corresponding orthogonal polynomials
+being the [Jacobi polynomials](https://en.wikipedia.org/wiki/Jacobi_polynomials).
+
+Again, we can simply look up the 3-term recurrence for the Jacobi polynomials $p_n$
+corresponding to this weight function:
+```math
+2k (k + \alpha + \beta) (2k + \alpha + \beta - 2) p_k(x) = (2k+\alpha + \beta-1) \Big\{ (2k+\alpha + \beta)(2k+\alpha+\beta-2) x +  \alpha^2 - \beta^2 \Big\} p_{k-1}(x) - 2 (k+\alpha - 1) (k + \beta-1) (2k+\alpha + \beta) p_{k-2}(x),
+```
+giving $\alpha_k$ and $\beta_k$ by the earlier formulas, after a bit of algebra.
+We also will need the unit integral
+```math
+I[1] = \int_{-1}^{+1} (1+x)^\alpha (1-x)^\beta dx  = \frac{2^{\alpha + \beta + 1}}{\alpha + \beta + 1} \frac{\Gamma{\alpha+1}\Gamma{\beta+1}}{\Gamma{\alpha+\beta+1}} \, ,
+```
+where $\Gamma$ is the [Gamma function](https://en.wikipedia.org/wiki/Gamma_function), computed in Julia by [SpecialFunctions.jl](https://github.com/JuliaMath/SpecialFunctions.jl).  This is all rather tedious, but fortunately exactly these expressions have already been worked out for us by the [FastGaussQuadrature.jl](https://github.com/JuliaApproximation/FastGaussQuadrature.jl) package, in undocumented functions `FastGaussQuadrature.jacobi_jacobimatrix(n, α, β)` (which computes the Jacobi matrix $J_n$) and `FastGaussQuadrature.jacobimoment(α, β)` (which computes $I[1]$).
+
+We can use these to immediately compute the Gauss and Gauss–Kronrod points and weights for the Jacobi weight function, say for $\alpha = 0.5$, $\beta = -0.1$, and $n=5$:
+```
+julia> using FastGaussQuadrature, QuadGK
+
+julia> α, β, n = 0.5, -0.1, 5;
+
+julia> Jₙ = FastGaussQuadrature.jacobi_jacobimatrix(n, α, β)
+5×5 LinearAlgebra.SymTridiagonal{Float64, Vector{Float64}}:
+ -0.25       0.525105     ⋅            ⋅            ⋅
+  0.525105  -0.0227273   0.506534      ⋅            ⋅
+   ⋅         0.506534   -0.00852273   0.503003      ⋅
+   ⋅          ⋅          0.503003    -0.00446429   0.501725
+   ⋅          ⋅           ⋅           0.501725    -0.00274725
+
+julia> I₁ = FastGaussQuadrature.jacobimoment(α, β)
+2.012023098289125
+
+julia> x, w = gauss(Jₙ, I₁); [x w]
+5×2 Matrix{Float64}:
+ -0.923234   0.372265
+ -0.589357   0.610968
+ -0.0806012  0.574759
+  0.452539   0.349891
+  0.852191   0.10414
+```
+(Notice that this weight function is *not* symmetric, and so the Jacobi matrix
+is *not* hollow and the quadrature points and weights are asymmetrically distributed: the  points are denser near $x=-1$ where the weight function diverges.)
+These are the same as the Gauss points and weights returned by the `gaussjacobi`
+function in FastGaussQuadrature (which has fancy algorithms that scale better for
+large `n` than those in QuadGK):
+```
+julia> xf, wf = FastGaussQuadrature.gaussjacobi(n, α, β); [xf wf]
+5×2 Matrix{Float64}:
+ -0.923234   0.372265
+ -0.589357   0.610968
+ -0.0806012  0.574759
+  0.452539   0.349891
+  0.852191   0.10414
+
+julia> [x w] - [xf wf] # they are same points/weights to nearly machine precision
+5×2 Matrix{Float64}:
+  0.0           3.33067e-16
+  0.0           0.0
+ -1.38778e-17  -2.22045e-16
+  5.55112e-17  -2.77556e-16
+ -1.11022e-16   9.71445e-17
+```
+However, QuadGK can also return the 12-point Gauss–Kronrod rule, which embeds/
+extends the 5-point Gauss-Jacobi rule in order to give you an error estimate:
+```
+julia> J₁₂ = FastGaussQuadrature.jacobi_jacobimatrix(12, α, β);
+
+julia> kx, kw, gw = kronrod(J₁₂, n, I₁); [kx kw]
+11×2 Matrix{Float64}:
+ -0.988882   0.0723663
+ -0.923234   0.181321
+ -0.786958   0.264521
+ -0.589357   0.306879
+ -0.347734   0.311949
+ -0.0806012  0.286857
+  0.192962   0.238356
+  0.452539   0.175128
+  0.677987   0.109024
+  0.852191   0.0520297
+  0.962303   0.0135914
+
+julia> [ kx[2:2:end] gw ]  # embedded Gauss–Jacobi rule is a subset x₂ᵢ of the points
+5×2 Matrix{Float64}:
+ -0.923234   0.372265
+ -0.589357   0.610968
+ -0.0806012  0.574759
+  0.452539   0.349891
+  0.852191   0.10414
+```
+
+The whole point of this is to accelerate convergence for smooth $f(x)$.  For
+example, let's consider $f(x) = \cos(2x)$ with $\alpha = 0.5, \beta = -0.1$ as above.
+In this case, according to Mathematica, the correct integral to 100 decimal places is
+$I[\cos(2x)] \approx 0.9016684424525614794498545355301765224191593237834490575027527594933568786176710824696779907143025232764922385146156$, or about `0.9016684424525615` to machine precision.  If we use
+the default `quadgk` function, which uses adaptive Gauss–Kronod quadrature that doesn't
+have the singularity built-in, it takes about 1000 function evaluations to reach 9 digits of accuracy:
+```
+julia> exact = 0.9016684424525615;
+
+julia> I, _ = quadgk_count(x -> (1-x)^α * (1+x)^β * cos(2x), -1, 1, rtol=1e-9)
+(0.9016684425015659, 6.535590698106445e-10, 1125)
+
+julia> I - exact
+4.900435612853471e-11
+```
+(This isn't too terrible! If we plotted the points where `quadgk` evaluates our integrand, we would see that it concentrates points mostly close to the singularities at the boundaries.)
+In contrast, our 5-point Gauss–Jacobi quadrature rule from above gets about 6 digits:
+```
+julia> I = sum(@. cos(2x) * w)
+0.9016690323443182
+
+julia> I - exact
+5.898917566637962e-7
+```
+and gets 10 digits with only 7 points:
+```
+julia> x, w = gauss(FastGaussQuadrature.jacobi_jacobimatrix(7, α, β), I₁);
+
+julia> I = sum(@. cos(2x) * w)
+0.9016684424777912
+
+julia> I - exact
+2.522970721230422e-11
+```
+This is not unexpected, because the fact that $f(x)$ is smooth means that Gaussian
+quadrature converges exponentially fast, regardless of the weight function's endpoint singularities (which have been taken into account analytically by the quadrature rule).
+The Gauss–Kronrod rule also converges exponentially, and gives us an error estimate
+to give us added confidence in the result.  For example, with our 12-point Gauss–Kronrod rule we obtain the correct result to machine precision:
+```
+julia> Ik = sum(@. cos(2kx) * kw)
+0.9016684424525613
+
+julia> Ik - exact
+-2.220446049250313e-16
+```
+while a subset `kx[2:2:end]` of the points (for which we could re-use the integrand evaluations if we wanted) gives us an embedded Gauss rule and an error bound:
+```
+julia> Ig = sum(@. cos(2kx[2:2:end]) * gw)
+0.9016690323443182
+
+julia> abs(Ik - Ig) # conservative error estimate: Kronrod - Gauss
+5.898917568858408e-7
+```
+As usual, this error bound is quite conservative for smooth $f(x)$ where the quadrature rule is converging rapidly, since it is actually an error estimate for the 5-point `Ig` and not for the 12-point `Ik`.  But at least it gives you some indication as to whether you picked a sufficient number of points to integrate $f(x)$ sufficiently accurately.
+
+For fun, let's do the same calculation to 100 digits with $n=11$, using `BigFloat` arithmetic.  (We simple need to pass `big"0.5"` and `big"-0.1"` for `α` and `β` to FastGaussQuadrature and it will construct the Jacobi matrix in `BigFloat` precision, which QuadGK will then turn into `BigFloat` Gauss/Gauss–Kronrod points and weights.)
+```
+julia> setprecision(100, base=10)
+100
+
+julia> bigexact = big"0.9016684424525614794498545355301765224191593237834490575027527594933568786176710824696779907143025232764922385146156"
+0.901668442452561479449854535530176522419159323783449057502752759493356878617671082469677990714302523252
+
+julia> bigJ = FastGaussQuadrature.jacobi_jacobimatrix(18, big"0.5", big"-0.1");
+
+julia> bigI₁ = FastGaussQuadrature.jacobimoment(big"0.5", big"-0.1")
+2.01202309828912479732166203322245014347199888907111184953347045850828228938420405746115463698460502738
+
+julia> bigkx, bigkw, biggw = kronrod(bigJ, 11, bigI₁);
+
+julia> bigIk = sum(@. cos(2bigkx) * bigkw)
+0.901668442452561479449854535530176522419159355847389937592609530571246098597677208391320749304692456157
+
+julia> bigIk - bigexact
+3.20639408800898567710778892199800061259216427585903899329046633170508348176944450399650177573450664318e-44
+```
+so the 18-point Gauss–Kronrod rule is accurate to about 43 digits, while the conservative error estimate (= error of embedded 11-point Gauss rule) is about 20 digits:
+```
+julia> bigIg = sum(@. cos(2bigkx[2:2:end]) * biggw)
+0.901668442452561479451864506089616011729536201879100045019491743663463853013435135385929850010604582451
+
+julia> abs(bigIk - bigIg)
+2.00997055943948931037684603171010742688221309221775441575792699460910070591212629393581755915637917024e-21
+```
+
 ## Arbitrary weight functions
 
 If you are computing many similar integrals of smooth functions, you may not need an adaptive
