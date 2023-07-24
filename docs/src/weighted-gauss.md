@@ -8,29 +8,29 @@ this one!
 More generally, one can compute quadrature rules for
 a **weighted** integral:
 ```math
-\int_a^b w(x) f(x) dx \approx \sum_{i=1}^n w_i f(x_i) \, ,
+\int_a^b W(x) f(x) dx \approx \sum_{i=1}^n w_i f(x_i) \, ,
 ```
-where the effect of **weight function** $w(x)$ (usually required to be $≥ 0$ in ``(a,b)``) is
+where the effect of **weight function** $W(x)$ (usually required to be $≥ 0$ in ``(a,b)``) is
 included in the quadrature weights $w_i$ and points $x_i$.  The main motivation
 for weighted quadrature rules is to handle *poorly behaved* integrands — singular, discontinuous, highly oscillatory, and so on — where the "bad" behavior is *known*
-and can be *factored out* into $w(x)$.  By designing a quadrature rule with $w(x)$
+and can be *factored out* into $W(x)$.  By designing a quadrature rule with $W(x)$
 taken into account, one can obtain fast convergence as long as the remaining
-factor $f(x)$ is smooth, regardless of how "bad" $w(x)$ is.  Moreover, the rule
-can be re-used for many different $f(x)$ as long as $w(x)$ remains the same.
+factor $f(x)$ is smooth, regardless of how "bad" $W(x)$ is.  Moreover, the rule
+can be re-used for many different $f(x)$ as long as $W(x)$ remains the same.
 
 Gaussian quadrature is ideally suited to designing weighted quadrature rules, and QuadGK
 includes functions to construct the points $x_i$ and weights $w_i$ for nearly any desired weight
-function $w(x) \ge 0$, in principle, to any desired precision.   The case of Gauss–Kronrod rules (if you
+function $W(x) \ge 0$, in principle, to any desired precision.   The case of Gauss–Kronrod rules (if you
 want an error estimate) is a bit trickier: it turns out that Gauss–Kronrod rules may not exist
-for arbitrary weight functions \[see the review in [Notaris (2016)](https://etna.ricam.oeaw.ac.at/vol.45.2016/pp371-404.dir/pp371-404.pdf)\], but if a (real-valued) rule *does* exist then QuadGK can compute it for you (to arbitrary precision) using an algorithm by [Laurie (1997)](https://www.ams.org/journals/mcom/1997-66-219/S0025-5718-97-00861-2/S0025-5718-97-00861-2.pdf).  You can specify the weight function $w(x)$ and the interval $(a,b)$ in one of two
+for arbitrary weight functions \[see the review in [Notaris (2016)](https://etna.ricam.oeaw.ac.at/vol.45.2016/pp371-404.dir/pp371-404.pdf)\], but if a (real-valued) rule *does* exist then QuadGK can compute it for you (to arbitrary precision) using an algorithm by [Laurie (1997)](https://www.ams.org/journals/mcom/1997-66-219/S0025-5718-97-00861-2/S0025-5718-97-00861-2.pdf).  You can specify the weight function $W(x)$ and the interval $(a,b)$ in one of two
 ways:
 
 * Via the [Jacobi matrix](https://en.wikipedia.org/wiki/Jacobi_operator) of the [orthogonal polynomials](https://en.wikipedia.org/wiki/Orthogonal_polynomials) associated with this weighted integral.  That may sound complicated, but it turns out that these are tabulated for many important weighted integrals.  For example, all of the weighted integrals in the [FastGaussQuadrature.jl](https://github.com/JuliaApproximation/FastGaussQuadrature.jl) package are based on well-known recurrences that you can look up easily.
-* By explicitly providing the weight function $w(x)$, in which case QuadGK can perform a sequence of numerical integrals of $w(x)$ against polynomials (using `quadgk`) to numerically construct the Jacobi matrix and hence the Gauss or Gauss–Kronrod quadrature rule.  (This can be computationally expensive, especially to attain high accuracy, but it can still be worthwhile if you re-use the quadrature rule for many different $f(x)$ and/or $f(x)$ is extremely computationally expensive.)
+* By explicitly providing the weight function $W(x)$, in which case QuadGK can perform a sequence of numerical integrals of $W(x)$ against polynomials (using `quadgk`) to numerically construct the Jacobi matrix and hence the Gauss or Gauss–Kronrod quadrature rule.  (This can be computationally expensive, especially to attain high accuracy, but it can still be worthwhile if you re-use the quadrature rule for many different $f(x)$ and/or $f(x)$ is extremely computationally expensive.)
 
 ## Weight functions and Jacobi matrices
 
-For any weighted integral $I[f] = \int_a^b w(x) f(x)$ with non-negative $w(x)$, there is an associated set of [orthogonal polynomials](https://en.wikipedia.org/wiki/Orthogonal_polynomials) $p_k(x)$ of degrees $k = 0,1,\ldots$, such that $I[p_j p_k] = 0$ for $j \ne k$.   Amazingly,
+For any weighted integral $I[f] = \int_a^b W(x) f(x)$ with non-negative $W(x)$, there is an associated set of [orthogonal polynomials](https://en.wikipedia.org/wiki/Orthogonal_polynomials) $p_k(x)$ of degrees $k = 0,1,\ldots$, such that $I[p_j p_k] = 0$ for $j \ne k$.   Amazingly,
 the $n$-point Gaussian quadrature points $x_i$ are simply the roots of $p_n(x)$, and in general there is a
 deep relationship between quadrature and the theory of orthogonal polynomials.   A key part of this theory
 ends up being the [Jacobi matrix](https://en.wikipedia.org/wiki/Jacobi_operator) describing the three-term
@@ -67,7 +67,7 @@ for weight functions of common interest.   Hopefully, this will be clearer with 
 
 ### Gauss–Legendre quadrature via the Jacobi matrix
 
-The common case of integrals $I[f] = \int_{-1}^{+1} f(x) dx$, corresponding to the weight function $w(x) = 1$ over
+The common case of integrals $I[f] = \int_{-1}^{+1} f(x) dx$, corresponding to the weight function $W(x) = 1$ over
 the interval $(-1,1)$, leads to the [Legendre polynomials](https://en.wikipedia.org/wiki/Legendre_polynomials):
 ```math
 p_0(x) = 1, \; p_1(x) = x, \; p_2(x) = (3x^2 - 1)/2, \; \ldots
@@ -149,12 +149,12 @@ julia> x, w, gw = kronrod(5); [x w]
   0.0       0.282987
 ```
 
-Notice that, in this case, our Jacobi matrix had zero diagonal entries $\alpha_k = 0$.  It turns out that this *always* happens when the integration is centered around zero (``a=-b``) and the weight function $w(x)$ that is *symmetric* (``w(x)=w(-x)``).   This is called a "hollow" tridiagonal matrix, and its eigenvalues always come in $\pm x_j$ pairs: the quadrature rule is has *symmetric points and weights*.   In this case QuadGK can do its computations a bit more efficiently, and only compute the non-redundant $x_i \le 0$ half of of the quadrature rule, if you represent $J_n$ with a special type [`QuadGK.HollowSymTridiagonal`](@ref) whose constructor only requires you to supply the off-diagonal elements $\sqrt{\beta_k}$:
+Notice that, in this case, our Jacobi matrix had zero diagonal entries $\alpha_k = 0$.  It turns out that this *always* happens when the integration is centered around zero (``a=-b``) and the weight function $W(x)$ that is *symmetric* (``W(x)=W(-x)``).   This is called a "hollow" tridiagonal matrix, and its eigenvalues always come in $\pm x_j$ pairs: the quadrature rule is has *symmetric points and weights*.   In this case QuadGK can do its computations a bit more efficiently, and only compute the non-redundant $x_i \le 0$ half of of the quadrature rule, if you represent $J_n$ with a special type [`QuadGK.HollowSymTridiagonal`](@ref) whose constructor only requires you to supply the off-diagonal elements $\sqrt{\beta_k}$:
 ```
-julia> Jhollow(n) = QuadGK.HollowSymTridiagonal([sqrt(k^2/(4k^2-1)) for k=1:n-1])
+julia> JholloW(n) = QuadGK.HollowSymTridiagonal([sqrt(k^2/(4k^2-1)) for k=1:n-1])
 Jhollow (generic function with 1 method)
 
-julia> Jhollow(5)
+julia> JholloW(5)
 5×5 QuadGK.HollowSymTridiagonal{Float64, Vector{Float64}}:
   ⋅       0.57735    ⋅         ⋅         ⋅
  0.57735   ⋅        0.516398   ⋅         ⋅
@@ -162,7 +162,7 @@ julia> Jhollow(5)
   ⋅        ⋅        0.507093   ⋅        0.503953
   ⋅        ⋅         ⋅        0.503953   ⋅
 
-julia> x, w = gauss(Jhollow(5), 2); [x w]
+julia> x, w = gauss(JholloW(5), 2); [x w]
 5×2 Matrix{Float64}:
  -0.90618   0.236927
  -0.538469  0.478629
@@ -170,7 +170,7 @@ julia> x, w = gauss(Jhollow(5), 2); [x w]
   0.538469  0.478629
   0.90618   0.236927
 
-julia> x, w, gw = kronrod(Jhollow(9), 5, 2); [x w] # only returns xᵢ ≤ 0 points:
+julia> x, w, gw = kronrod(JholloW(9), 5, 2); [x w] # only returns xᵢ ≤ 0 points:
 6×2 Matrix{Float64}:
  -0.984085  0.042582
  -0.90618   0.115233
@@ -183,9 +183,9 @@ julia> x, w, gw = kronrod(Jhollow(9), 5, 2); [x w] # only returns xᵢ ≤ 0 poi
 
 If you have the Jacobi matrix for one interval, but want QuadGK to rescale the quadrature points and weights to some other interval (rather than doing the change of variables yourself), you can use the method `gauss(J, (a,b) => (newa, newb), unitintegral)`, where
 `(newa,newb)` is the new interval and `unitintegral` is the integral of $f(x)=1$ over
-the new interval, and similarly for `kronrod`.  For example, to rescale the Legendre $w(x)=1$ rule from $(-1,+1)$ to the interval $(4,7)$, with unit integral $7-4 = 3$, we could do:
+the new interval, and similarly for `kronrod`.  For example, to rescale the Legendre $W(x)=1$ rule from $(-1,+1)$ to the interval $(4,7)$, with unit integral $7-4 = 3$, we could do:
 ```
-julia> x, w = gauss(Jhollow(5), (-1,1) => (4,7), 3); [x w]
+julia> x, w = gauss(JholloW(5), (-1,1) => (4,7), 3); [x w]
 5×2 Matrix{Float64}:
  4.14073  0.35539
  4.6923   0.717943
@@ -193,7 +193,7 @@ julia> x, w = gauss(Jhollow(5), (-1,1) => (4,7), 3); [x w]
  6.3077   0.717943
  6.85927  0.35539
 
-julia> x, w = kronrod(Jhollow(9), 5, (-1,1) => (4,7), 3); [x w]
+julia> x, w = kronrod(JholloW(9), 5, (-1,1) => (4,7), 3); [x w]
 11×2 Matrix{Float64}:
  4.02387  0.0638731
  4.14073  0.17285
@@ -217,10 +217,10 @@ integrands that have power-law singularities at one or both of the endpoints.  W
 loss of generality, we can rescale the interval to $(-1,+1)$, in which case such
 integrals are of the form:
 ```math
-I[f] = \int_{-1}^{+1} \underbrace{(1-x)^\alpha (1+x)^\beta}_{w(x)} f(x) dx \, ,
+I[f] = \int_{-1}^{+1} \underbrace{(1-x)^\alpha (1+x)^\beta}_{W(x)} f(x) dx \, ,
 ```
 where $\alpha > -1$ and $\beta > -1$ are the power laws at the two endpoints, which
-we have factored out into a weight function $w(x) = (1+x)^\alpha (1-x)^\beta$ multiplied by some (hopefully smooth) function $f(x)$.  For
+we have factored out into a weight function $W(x) = (1+x)^\alpha (1-x)^\beta$ multiplied by some (hopefully smooth) function $f(x)$.  For
 example, $\alpha = 0.5$ means that there is a square-root singularity at $x=+1$
 (where the integrand is finite, but its slope blows up).  Or if $\beta = -0.1$ then
 the integrand blows up at $x=-1$ but the integral is still finite (``1/x^{0.1}`` is an "integrable singularity").   This weight function is quite well known, in fact:
@@ -401,25 +401,38 @@ julia> abs(bigIk - bigIg)
 
 ## Arbitrary weight functions
 
-If you are computing many similar integrals of smooth functions, you may not need an adaptive
-integration — with a little experimentation, you may be able to decide on an appropriate number
-`N` of integration points in advance, and re-use this for all of your integrals.    In this case
-you can use `x, w = gauss(N, a, b)` to find the quadrature points `x` and weights `w`, so that
-`sum(f.(x) .* w)` is an `N`-point approximation to `∫f(x)dx` from `a` to `b`.
+Although analytical formulas for 3-term recurrences and Jacobi matrices are known for many common types of singularities that appear in integrals, this is certainly not universally true.   As a fallback, you can simply supply an arbitrary weight function $W(x)$ and let QuadGK compute everything for you numerically (essentially by a form of [Gram–Schmidt process](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) in which a basis of polynomials is orthonormalized with respect to $w$, using a sequence of $O(n)$ numerical integrals).   This is much more time consuming, especially if you want high accuracy (i.e. you specify a low tolerance for the numerical integrals), but can be worth it if your $f(x)$ is expensive and/or you need many integrals of a similar form:  the numerical integrals are againt cheap polynomial functions, and are only done once for all $f(x)$ with the same weight function.
 
-For computing many integrands of similar functions with *singularities*,
-`x, w = gauss(W, N, a, b)` function allows you to pass a *weight function* `W(x)` as the first argument,
-so that `sum(f.(x) .* w)` is an `N`-point approximation to `∫W(x)f(x)dx` from `a` to `b`.   In this way,
-you can put all of the singularities etcetera into `W` and precompute an accurate quadrature rule as
-long as the remaining `f(x)` terms are smooth.   For example,
+For example:
 ```jl
 using QuadGK
 x, w = gauss(x -> exp(-x) / sqrt(x), 10, 0, -log(1e-10), rtol=1e-9)
 ```
 computes the points and weights for performing `∫exp(-x)f(x)/√x dx` integrals from `0` to `-log(1e-10) ≈ 23`, so that there is a `1/√x` singularity in the integrand at `x=0` and a rapid decay for increasing `x`.  (The `gauss` function currently does not support infinite integration intervals, but for a rapidly decaying weight function you can approximate an infinite interval to any desired accuracy by a sufficiently broad interval, with a tradeoff in computational expense.)  For example, with `f(x) = sin(x)`, the exact answer is `0.570370556005742…`.  Using the points and weights above with `sum(sin.(x) .* w)`, we obtain `0.5703706212868831`, which is correct to 6–7 digits using only 10 `f(x)` evaluations.  Obtaining similar
 accuracy for the same integral from `quadgk` requires nearly 300 function evaluations.   However, the
-`gauss` function itself computes many (`2N`) numerical integrals of your weight function (multiplied
+`gauss` function itself computes many (``2n``) numerical integrals of your weight function (multiplied
 by polynomials), so this is only more efficient if your `f(x)` is very expensive or if you need
-to compute a large number of integrals with the same `W`.
+to compute a large number of integrals with the same `W`.  See the [`gauss`](@ref) documentation for more information.
 
-See the [`gauss`](@ref) documentation for more information.  See also our example using a [weight function interpolated from tabulated data](https://nbviewer.jupyter.org/urls/math.mit.edu/~stevenj/Solar-Quadrature.ipynb).
+Similarly, one can use the `kronrod(W, n, a, b, rtol=rtol)` function to construct Gauss–Kronrod rules
+for arbitrary weight functions.   Unfortunately, it turns out that a Gauss–Kronrod rule does not exist for the weight function above, and the `kronrod` function consequently throws an error — probably because it is very similar to [Gauss–Laguerre quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Laguerre_quadrature) and Gauss–Kronrod rules are known to not exist for the Gauss–Laguerre problem [(Kahaner & Monegato, 1978)](https://doi.org/10.1007/BF01590820).   However, we can for example reproduce the points and weights from the Gauss–Jacobi weight function of the previous section, now computed completely numerically without supplying the analytical Jacobi matrix:
+```
+julia> kx, kw, gw = kronrod(x -> (1-x)^0.5 * (1+x)^-0.1, 5, -1, 1, rtol=1e-9); [kx kw]
+11×2 Matrix{Float64}:
+ -0.988882   0.0723663
+ -0.923234   0.181321
+ -0.786958   0.264521
+ -0.589357   0.306879
+ -0.347734   0.311949
+ -0.0806012  0.286857
+  0.192962   0.238356
+  0.452539   0.175128
+  0.677987   0.109024
+  0.852191   0.0520297
+  0.962303   0.0135914
+  ```
+  (If you compare these more quantitatively to those in the previous section, you'll see that they
+  are accurate to about 10 digits, consistent with the `rtol=1e-9` that we passed as a tolerance
+  for the numerical integrals used in constructing the Jacobi matrix numerically.)
+
+For a more practical example that can *only* be done numerically, see our tutorial using a [weight function interpolated from tabulated solar-spectrum data](https://nbviewer.jupyter.org/urls/math.mit.edu/~stevenj/Solar-Quadrature.ipynb), also described in [Johnson (2019)](https://arxiv.org/abs/1912.06870).
