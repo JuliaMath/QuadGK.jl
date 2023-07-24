@@ -116,9 +116,9 @@ end
                     # test generic Kronrod algorithm that doesn't
                     # assume a Jacobi matrix with zero diagonals
                     J = SymTridiagonal(zeros(BigFloat, m), b)
-                    x,w,gw = kronrod(J, n, 2)
-                    @test kronrod(J, n, -1, 1, 2) ≅ (x,w,gw) atol=1e-55
-                    @test kronrod(QuadGK.HollowSymTridiagonal(b), n, -1, 1, 2) ≅ (x,w,gw) atol=1e-55
+                    x,w,gw = kronrod(Matrix(J), n, 2)
+                    @test kronrod(Matrix(J), n, 2, (-1,1)=>(-1,1)) ≅ (x,w,gw) atol=1e-55
+                    @test kronrod(QuadGK.HollowSymTridiagonal(b), n, 2, (-1,1)=>(-1,1)) ≅ (x,w,gw) atol=1e-55
                     @test kronrod(n, big"-1.", big"1.") ≅ (x,w,gw) atol=1e-55
                     # check symmetric rule & remove redundant points/weights
                     @test x[1:n] ≈ -reverse(x[n+2:end]) atol=1e-55
@@ -186,11 +186,16 @@ end
         x0 = [-0.9864058663156023, -0.9165946746181465, -0.7905606636553969, -0.6160030510532921, -0.40362885238758006, -0.16646844386286386, 0.08092631663971639, 0.3233754136167141, 0.5460022311541176, 0.7351464193955097, 0.8792021083194245, 0.9693300504217204]
         w0 = [0.1332843914263806, 0.22507385576322209, 0.27777923749595884, 0.3009074312028019, 0.2983522399648924, 0.2741818901904956, 0.23357001605691405, 0.1827277942958943, 0.12846478443650275, 0.07758611879734549, 0.036243907354385235, 0.00933245021077474]
 
-        x, w = gauss(J, 0, 1, wint)
+        x, w = gauss(Matrix(J), wint, (-1,1) => (0,1))
         @test (x .* 2 .- 1, w) ≅ (x0, w0) atol=2e-14
 
         x, w, wg = kronrod(J, 7)
         @test (x, w) ≅ gauss(QuadGK.kronrodjacobi(J, 7)) atol=1e-14
+    end
+
+    # check that non-symtridiagonal matrices throw error
+    for A in ((1:3) * (1:3)', (1:3) * (4:7)', Tridiagonal(1:2, 3:5, 6:7))
+        @test_throws ArgumentError gauss(A)
     end
 end
 

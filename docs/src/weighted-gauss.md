@@ -181,11 +181,11 @@ julia> x, w, gw = kronrod(JholloW(9), 5, 2); [x w] # only returns xᵢ ≤ 0 poi
 ```
 (The `gauss` function returns all the points, albeit computed more efficiently, while the `kronrod` function returns only the $x_i \le 0$ points for a `HollowSymTridiagonal` Jacobi matrix.)
 
-If you have the Jacobi matrix for one interval, but want QuadGK to rescale the quadrature points and weights to some other interval (rather than doing the change of variables yourself), you can use the method `gauss(J, (a,b) => (newa, newb), unitintegral)`, where
+If you have the Jacobi matrix for one interval, but want QuadGK to rescale the quadrature points and weights to some other interval (rather than doing the change of variables yourself), you can use the method `gauss(J, unitintegral,  (a,b) => (newa, newb))`, where
 `(newa,newb)` is the new interval and `unitintegral` is the integral of $f(x)=1$ over
 the new interval, and similarly for `kronrod`.  For example, to rescale the Legendre $W(x)=1$ rule from $(-1,+1)$ to the interval $(4,7)$, with unit integral $7-4 = 3$, we could do:
 ```
-julia> x, w = gauss(JholloW(5), (-1,1) => (4,7), 3); [x w]
+julia> x, w = gauss(JholloW(5), 3, (-1,1) => (4,7)); [x w]
 5×2 Matrix{Float64}:
  4.14073  0.35539
  4.6923   0.717943
@@ -193,7 +193,7 @@ julia> x, w = gauss(JholloW(5), (-1,1) => (4,7), 3); [x w]
  6.3077   0.717943
  6.85927  0.35539
 
-julia> x, w = kronrod(JholloW(9), 5, (-1,1) => (4,7), 3); [x w]
+julia> x, w = kronrod(JholloW(9), 5, 3, (-1,1) => (4,7)); [x w]
 11×2 Matrix{Float64}:
  4.02387  0.0638731
  4.14073  0.17285

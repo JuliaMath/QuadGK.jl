@@ -194,16 +194,21 @@ end
 # Gauss–Kronrod rules for the unit weight function:
 
 """
-    gauss([T,] n, a=-1, b=1)
+    gauss([T,] n)
+    gauss([T,] n, a, b)
 
 Return a pair `(x, w)` of `n` quadrature points `x[i]` and weights `w[i]` to
-integrate functions on the interval `(a, b)`,  i.e. `sum(w .* f.(x))`
-approximates the integral.  Uses the method described in Trefethen &
+integrate functions on the interval ``(a, b)``, which defaults to ``(-1,1)``,  i.e. `sum(w .* f.(x))`
+approximates the integral ``\\int_a^b f(x) dx``.
+
+Uses the Golub–Welch method described in Trefethen &
 Bau, Numerical Linear Algebra, to find the `n`-point Gaussian quadrature
-in O(`n`²) operations.
+rule in O(`n`²) operations.
 
 `T` is an optional parameter specifying the floating-point type, defaulting
-to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
+to `Float64`. Arbitrary precision (`BigFloat`) is also supported.  If `T` is not supplied,
+ but the interval `(a, b)` is passed, then the floating-point type is determined
+ from the types of `a` and `b`.
 """
 function gauss(::Type{T}, N::Integer) where T<:AbstractFloat
     if N < 1
@@ -226,7 +231,32 @@ function gauss(::Type{T}, N::Integer, a::Real, b::Real) where T<:AbstractFloat
     return (x, w)
 end
 
+function symtri(A::AbstractMatrix)
+    J = SymTridiagonal(A) # may silently discard off-diagonal elements
+    J == A || throw(ArgumentError("Jacobi matrix must be symmetric tridiagonal"))
+    return J
+end
+
 # Gauss rules for an arbitrary Jacobi matrix J
+"""
+    gauss(J::AbstractMatrix, unitintegral::Real=1, [ (a₀,b₀) => (a,b) ])
+
+Construct the ``n``-point Gaussian quadrature rule for ``I[f] = \\int_a^b w(x) f(x) dx``
+from the ``n \\times n``
+symmetric tridiagonal Jacobi matrix `J` corresponding to the orthogonal
+polynomials for that weighted integral.  The value of `unitintegral` should
+be ``I[1]``, the integral of the weight function.
+
+An optional argument `(a₀,b₀) => (a,b)` allows you to specify that `J` was originally
+defined for a different interval ``(a_0, b_0)``, which you want to rescale to
+a given ``(a, b)``.  (`gauss` will rescale the points and weights for you.)
+
+Returns a pair `(x, w)` of ``n`` quadrature points `x[i]` and weights `w[i]` to
+integrate functions, i.e. `sum(w .* f.(x))` approximates the integral ``I[f]``.
+"""
+gauss(A::AbstractMatrix{<:Real}, unitintegral::Real=1) =
+    gauss(symtri(A), unitintegral)
+
 function gauss(J::AbstractSymTri{<:Real}, unitintegral::Real=1)
     # Golub–Welch algorithm
     x = eignewt(J, size(J,1))
@@ -236,7 +266,7 @@ function gauss(J::AbstractSymTri{<:Real}, unitintegral::Real=1)
 end
 
 # as above but rescaled to an arbitrary interval and unit integral
-function gauss(J::AbstractSymTri{<:Real}, xrescale::Pair{<:Tuple{Real,Real}, <:Tuple{Real,Real}}, unitintegral::Real=1)
+function gauss(J::AbstractMatrix{<:Real}, unitintegral::Real, xrescale::Pair{<:Tuple{Real,Real}, <:Tuple{Real,Real}})
     x, w = gauss(J, unitintegral)
     T = eltype(x)
     a0, b0 = xrescale.first
@@ -245,18 +275,21 @@ function gauss(J::AbstractSymTri{<:Real}, xrescale::Pair{<:Tuple{Real,Real}, <:T
     x .= (x .- a0) .* xscale .+ a
     return x, w
 end
-gauss(J::AbstractSymTri{<:Real}, a::Real, b::Real, unitintegral::Real=1) =
-    gauss(J, (-1,1) => (a,b), unitintegral)
 
 """
     kronrod([T,] n)
+    kronrod([T,] n, a, b)
 
-Compute `2n+1` Kronrod points `x` and weights `w` based on the description in
-Laurie (1997), appendix A, simplified for `a=0`, for integrating on `[-1,1]`.
-Since the rule is symmetric, this only returns the `n+1` points with `x <= 0`.
+Compute ``2n+1`` Kronrod points `x[i]` and weights `w[i]` based on the description in
+Laurie (1997), appendix A, for integrating on the interval ``(a,b)`` (defaulting to ``[-1,1]``).
+
+If `a` and `b` are not passed, since the rule is symmetric,
+this only returns the `n+1` points with `x <= 0`.
 The function Also computes the embedded `n`-point Gauss quadrature weights `gw`
-(again for `x <= 0`), corresponding to the points `x[2:2:end]`. Returns `(x,w,wg)`
-in O(`n`²) operations.
+(again for `x <= 0` if `a` and `b` are not passed), corresponding to the points `x[2:2:end]`.
+Returns `(x,w,wg)` in O(`n`²) operations.
+
+The optional arguments `a, b` specify th
 
 `T` is an optional parameter specifying the floating-point type, defaulting
 to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
@@ -298,21 +331,6 @@ end
 
 kronrod(n::Integer) = kronrod(Float64, n)
 
-# as above, but generalized to an arbitrary Jacobi matrix
-function kronrod(J::AbstractSymTri{<:Real}, n::Integer, unitintegral::Real=1)
-    x, w, v = _kronrod(J, _kronrod_b(J, n), Int(n), unitintegral)
-
-    # Get embedded Gauss rule from even-indexed points
-    Jsmall = if J isa SymTridiagonal
-        @views SymTridiagonal(J.dv[1:n], J.ev[1:n-1])
-    else
-        @views HollowSymTridiagonal(J.ev[1:n-1])
-    end
-    @views gw = [ unitintegral*abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
-
-    return x, w, gw
-end
-
 # as above but allow you to pass the interval [a,b],
 # and returns all the points not just half
 function kronrod(n::Integer, a::Real, b::Real)
@@ -328,7 +346,43 @@ function kronrod(n::Integer, a::Real, b::Real)
     return x, w, gw
 end
 
-function kronrod(J::AbstractSymTri{<:Real}, n::Integer, xrescale::Pair{<:Tuple{Real,Real}, <:Tuple{Real,Real}}, unitintegral::Real=1)
+# as above, but generalized to an arbitrary Jacobi matrix
+"""
+    kronrod(J::AbstractMatrix, n::Integer, unitintegral::Real=1, [ (a₀,b₀) => (a,b) ])
+
+Construct the ``2n+1``-point Gauss–Kronrod quadrature rule for ``I[f] = \\int_a^b w(x) f(x) dx``
+from the ``m \\times m``
+symmetric tridiagonal Jacobi matrix `J` corresponding to the orthogonal
+polynomials for that weighted integral, where `m ≥ (3n+3)÷2`.  The value of `unitintegral` should
+be ``I[1]``, the integral of the weight function.
+
+An optional argument `(a₀,b₀) => (a,b)` allows you to specify that `J` was originally
+defined for a different interval ``(a_0, b_0)``, which you want to rescale to
+a given ``(a, b)``.  (`gauss` will rescale the points and weights for you.)
+
+Returns a tuple `(x, w, gw)` of ``n`` quadrature points `x[i]` and weights `w[i]` to
+integrate functions, i.e. `sum(w .* f.(x))` approximates the integral ``I[f]``.  `gw`
+are the weights of the embedded Gauss rule corresponding to the points `x[2:2:end]`,
+which can be used for error estimation.
+"""
+kronrod(A::AbstractMatrix{<:Real}, n::Integer, unitintegral::Real=1) =
+    kronrod(symtri(A), n, unitintegral)
+
+function kronrod(J::AbstractSymTri{<:Real}, n::Integer, unitintegral::Real=1)
+    x, w, v = _kronrod(J, _kronrod_b(J, n), Int(n), unitintegral)
+
+    # Get embedded Gauss rule from even-indexed points
+    Jsmall = if J isa SymTridiagonal
+        @views SymTridiagonal(J.dv[1:n], J.ev[1:n-1])
+    else
+        @views HollowSymTridiagonal(J.ev[1:n-1])
+    end
+    @views gw = [ unitintegral*abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
+
+    return x, w, gw
+end
+
+function kronrod(J::AbstractMatrix{<:Real}, n::Integer, unitintegral::Real, xrescale::Pair{<:Tuple{Real,Real}, <:Tuple{Real,Real}})
     x, w, gw = kronrod(J, n, unitintegral)
     if J isa HollowSymTridiagonal
         x = [x; rmul!(reverse!(x[1:end-1]), -1)]
@@ -343,14 +397,11 @@ function kronrod(J::AbstractSymTri{<:Real}, n::Integer, xrescale::Pair{<:Tuple{R
     return x, w, gw
 end
 
-kronrod(J::AbstractSymTri{<:Real}, n::Integer, a::Real, b::Real, unitintegral::Real=1) =
-    kronrod(J, n, (-1,1) => (a, b), unitintegral)
-
 """
     kronrodjacobi(J::Union{SymTridiagonal, QuadGK.HollowSymTridiagonal}, n::Integer)
 
 Given a real-symmetric tridiagonal matrix `J`, return the symmetric tridiagonal
-"Kronrod–Jacobi" matrix whose eigenvalues and eigenvectors yield the Gauss–Kronrod
+"Kronrod–Jacobi" matrix, whose eigenvalues and eigenvectors yield the Gauss–Kronrod
 rule of order `n`, e.g. by calling `x, w = gauss(kronrodjacobi(n))`.
 
 See also the [`kronrod`](@ref) function, which returns the Kronrod points and

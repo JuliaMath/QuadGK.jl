@@ -57,7 +57,7 @@ via the `quad` keyword argument, which should accept arguments `quad(f,a,b,rtol=
 similar to `quadgk`.  (This is useful if your weight function has discontinuities, in which
 case you might want to break up the integration interval at the discontinuities.)
 """
-function gauss(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
+function gauss(W, N::Integer, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
     (isfinite(a) && isfinite(b)) || throw(ArgumentError("a finite interval is required"))
 
     # find the Jacobi matrix and apply the Golub–Welsh algorithm:
@@ -85,7 +85,7 @@ using the integration function `quad` (defaults to `quadgk`) with relative toler
 (which defaults to half of the precision `eps` of the endpoints).
 This is followed by an O(N²) calculations. So, using a large order `N` is expensive.
 """
-function kronrod(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
+function kronrod(W, N::Integer, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
     (isfinite(a) && isfinite(b)) || throw(ArgumentError("a finite interval is required"))
 
     # find the Jacobi matrix and apply the Golub–Welsh algorithm:
