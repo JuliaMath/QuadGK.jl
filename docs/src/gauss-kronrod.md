@@ -56,7 +56,7 @@ julia> [x w] # show points and weights as a 2-column matrix
  2.0      0.568889
  2.53847  0.478629
  2.90618  0.236927
- ```
+```
 We can see that there are 5 points $a < x_i < b$.  They are *not* equally spaced or equally weighted, nor do they quite reach the endpoints.  We can now approximate integrals by evaluating the integrand $f(x)$ at these points, multiplying by the weights, and summing.  For example, $f(x)=\cos(x)$ can be integrated via:
 ```
 julia> sum(w .* cos.(x)) # evaluate ∑ᵢ wᵢ f(xᵢ)
