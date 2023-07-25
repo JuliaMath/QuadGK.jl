@@ -133,7 +133,7 @@ like sharp peaks or discontinuities, because it will progressively
 add more points mostly in these "bad" regions.)
 
 You can use the [`kronrod`](@ref) function to compute a Gauss–Kronrod
-rule to any desired order (and to any precision).  For example, we can extend our 5-point Gaussian-quadrature rule for $\int_1^3$ from the previous section to an 11-point ($2n'+1$) Gauss-Kronrod rule:
+rule to any desired order (and to any precision).  For example, we can extend our 5-point Gaussian-quadrature rule for $\int_1^3$ from the previous section to an 11-point (`2n+1`) Gauss-Kronrod rule:
 ```
 julia> x, w, gw = kronrod(n, a, b); [ x w ] # points and weights
 11×2 Matrix{Float64}:
