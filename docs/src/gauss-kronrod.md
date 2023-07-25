@@ -96,7 +96,7 @@ a conservative upper bound on the error.)
 \underbrace{\sum_{j=1}^{n'} w_j' f(x_j')}_{\text{second rule}}
 \Big|
 ```
-Naively, this requirs us to evaluate our integrand $f(x)$ an extra
+Naively, this requires us to evaluate our integrand $f(x)$ an extra
 $n'$ times to get the error estimate from the second rule.  However,
 we can do better: if the points $\{ x_j' \}$ of the second ($n'$-point) rule
 are a *subset* of the points $\{ x_i \}$ of the points from the first
