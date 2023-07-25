@@ -91,7 +91,7 @@ fewer points $n' < n$, and use their *difference* as an error
 estimate.  (If the error is rapidly converging with $n$, this is usually
 a conservative upper bound on the error.)
 ```math
-\mbox{error estimate} \lesssim \left|
+\mbox{error estimate} = \left|
 \underbrace{\sum_{i=1}^n w_i f(x_i)}_\mbox{first rule} -
 \underbrace{\sum_{j=1}^{n'} w_j' f(x_j')}_\mbox{second rule}
 \right|
@@ -198,7 +198,7 @@ julia> [x[2:2:end] gw] # embedded Gauss points ≤ 0 and weights
  -0.90618   0.236927
  -0.538469  0.478629
   0.0       0.568889
-  ```
+```
 Of course, you still have to evaluate $f(x)$ at all $2n+1$ points,
 but summing the results requires a bit less arithmetic
 and storing the rule takes less memory.  Note also that the $(-1,1)$ rule can be applied to any desired interval $(a,b)$ by a change of variables
