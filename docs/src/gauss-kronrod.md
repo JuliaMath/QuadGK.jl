@@ -91,10 +91,10 @@ fewer points $n' < n$, and use their *difference* as an error
 estimate.  (If the error is rapidly converging with $n$, this is usually
 a conservative upper bound on the error.)
 ```math
-\mbox{error estimate} = \left|
-\underbrace{\sum_{i=1}^n w_i f(x_i)}_\mbox{first rule} -
-\underbrace{\sum_{j=1}^{n'} w_j' f(x_j')}_\mbox{second rule}
-\right|
+\mbox{error estimate} = \Big|
+\underbrace{\sum_{i=1}^n w_i f(x_i)}_{\mbox{first rule}} -
+\underbrace{\sum_{j=1}^{n'} w_j' f(x_j')}_{\mbox{second rule}}
+\Big|
 ```
 Naively, this requirs us to evaluate our integrand $f(x)$ an extra
 $n'$ times to get the error estimate from the second rule.  However,
