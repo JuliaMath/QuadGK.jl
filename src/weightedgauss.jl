@@ -57,7 +57,7 @@ via the `quad` keyword argument, which should accept arguments `quad(f,a,b,rtol=
 similar to `quadgk`.  (This is useful if your weight function has discontinuities, in which
 case you might want to break up the integration interval at the discontinuities.)
 
-The precision of the calculations and return value are determined from the types of `a` and `b`.
+The precision of the calculations and return value is determined from the types of `a` and `b`.
 """
 function gauss(W, N::Integer, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
     (isfinite(a) && isfinite(b)) || throw(ArgumentError("a finite interval is required"))
