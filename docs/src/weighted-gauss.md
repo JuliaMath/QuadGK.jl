@@ -430,9 +430,9 @@ julia> kx, kw, gw = kronrod(x -> (1-x)^0.5 * (1+x)^-0.1, 5, -1, 1, rtol=1e-9); [
   0.677987   0.109024
   0.852191   0.0520297
   0.962303   0.0135914
-  ```
-  (If you compare these more quantitatively to those in the previous section, you'll see that they
-  are accurate to about 10 digits, consistent with the `rtol=1e-9` that we passed as a tolerance
-  for the numerical integrals used in constructing the Jacobi matrix numerically.)
+```
+(If you compare these more quantitatively to those in the previous section, you'll see that they
+are accurate to about 10 digits, consistent with the `rtol=1e-9` that we passed as a tolerance
+for the numerical integrals used in constructing the Jacobi matrix numerically.)
 
 For a more practical example that can *only* be done numerically, see our tutorial using a [weight function interpolated from tabulated solar-spectrum data](https://nbviewer.jupyter.org/urls/math.mit.edu/~stevenj/Solar-Quadrature.ipynb), also described in [Johnson (2019)](https://arxiv.org/abs/1912.06870).
