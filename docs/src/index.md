@@ -34,7 +34,14 @@ Notice that the result is a [tuple](https://docs.julialang.org/en/v1/manual/func
 of `-0.004366486486069925`, an estimated upper bound `error ≈ 2.55e-13`
 on the [truncation error](https://en.wikipedia.org/wiki/Truncation_error) in the computed integral (due to the finite number of points at which `quadgk` evaluates the integrand).
 
-For extremely [smooth functions](https://en.wikipedia.org/wiki/Smoothness) like $\cos(200x)$, even though it is highly oscillatory, `quadgk` often gives a very accurate result, even more accurate than the minimum accuracy you requested (defaulting to about 8 digits).  In this particular case, we know that the exact integral is $\sin(200)/200 \approx -0.004366486486069972908665092105754\ldots$, and `integral` matches this to about 14 [significant digits](https://en.wikipedia.org/wiki/Significant_figures).
+By default, `quadgk` evaluates the integrand at more and more points ("adaptive quadrature") until
+the relative error estimate is less than `sqrt(eps())`, corresponding to about 8 significant digits.  Often, however, you should change this by passing a relative tolerance (`rtol`) and/or an absolute tolerance (`atol`), e.g.:
+```
+julia> quadgk(x -> cos(200x), 0, 1, rtol=1e-3)
+(-0.004366486486069085, 2.569238200052031e-6)
+```
+
+For extremely [smooth functions](https://en.wikipedia.org/wiki/Smoothness) like $\cos(200x)$, even though it is highly oscillatory, `quadgk` often gives a very accurate result, even more accurate than the minimum accuracy you requested (defaulting to about 8 digits).  In this particular case, we know that the exact integral is $\sin(200)/200 \approx -0.004366486486069972908665092105754\ldots$, and `integral` matches this to about 14 [significant digits](https://en.wikipedia.org/wiki/Significant_figures) with the default tolerance and to about 13 digits even for `rtol=1e-3`.
 
 ## Tutorial examples
 
