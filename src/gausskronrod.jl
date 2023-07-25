@@ -558,8 +558,8 @@ const rulecache = Dict{Type,Dict}(
 const bigrulecache = Dict{Tuple{Int,Int}, NTuple{3,Vector{BigFloat}}}()
 
 function cachedrule(::Union{Type{BigFloat},Type{Complex{BigFloat}}}, n::Integer)
-    key = (n, precision(BigFloat))
-    haskey(bigrulecache, key) ? bigrulecache[key] : (bigrulecache[key] = kronrod(BigFloat, n))
+    key = (Int(n), precision(BigFloat))
+    haskey(bigrulecache, key) ? bigrulecache[key] : (bigrulecache[key] = kronrod(BigFloat, Int(n)))
 end
 
 # use a generated function to make this type-stable
