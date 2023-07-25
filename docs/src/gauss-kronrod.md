@@ -228,16 +228,16 @@ julia> setprecision(50, base=10); x, w, gw = kronrod(BigFloat, 5); x
 More generally, one can compute quadrature rules for a **weighted** integral:
 
 ```math
-\int_a^b w(x) f(x) dx \approx \sum_{i=1}^n w_i f(x_i)
+\int_a^b W(x) f(x) dx \approx \sum_{i=1}^n w_i f(x_i)
 ```
-where the effect of **weight function** $w(x)$ (usually required to be $≥ 0$ in ``(a,b)``) is
+where the effect of **weight function** $W(x)$ (usually required to be $≥ 0$ in ``(a,b)``) is
 included in the quadrature weights $w_i$ and points $x_i$.   The main motivation
 for weighted quadrature rules is to handle *poorly behaved* integrands — singular, discontinuous, highly oscillatory, and so on — where the "bad" behavior is *known*
-and can be *factored out* into $w(x)$.  By designing a quadrature rule with $w(x)$
+and can be *factored out* into $W(x)$.  By designing a quadrature rule with $W(x)$
 taken into account, one can obtain fast convergence as long as the remaining
-factor $f(x)$ is smooth, regardless of how "bad" $w(x)$ is.  Moreover, the rule
-can be re-used for many different $f(x)$ as long as $w(x)$ remains the same.
+factor $f(x)$ is smooth, regardless of how "bad" $W(x)$ is.  Moreover, the rule
+can be re-used for many different $f(x)$ as long as $W(x)$ remains the same.
 
 The QuadGK package can compute both Gauss and Gauss–Kronrod quadrature rules
-for arbitrary weight functions $w(x)$, to arbitrary precision, as described
+for arbitrary weight functions $W(x)$, to arbitrary precision, as described
 in the section: [Gaussian quadrature and arbitrary weight functions](@ref).

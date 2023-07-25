@@ -27,7 +27,7 @@ QuadGK.gauss(::Type{<:AbstractFloat}, ::Integer)
 QuadGK.kronrod(::Type{<:AbstractFloat}, ::Integer)
 ```
 
-More generally, to compute rules for $\int_a^b w(x) f(x) dx$ (weighted integrals, as described in [Gaussian quadrature and arbitrary weight functions](@ref)), use the following methods if you know the [Jacobi matrix](https://en.wikipedia.org/wiki/Jacobi_operator) for the orthogonal
+More generally, to compute rules for $\int_a^b W(x) f(x) dx$ (weighted integrals, as described in [Gaussian quadrature and arbitrary weight functions](@ref)), use the following methods if you know the [Jacobi matrix](https://en.wikipedia.org/wiki/Jacobi_operator) for the orthogonal
 polynomials associated with your weight function:
 
 ```@docs
@@ -36,7 +36,7 @@ QuadGK.kronrod(::AbstractMatrix{<:Real}, ::Integer, ::Real)
 QuadGK.HollowSymTridiagonal
 ```
 
-Most generally, if you know only the weight function $w(x)$ and the interval $(a,b)$, you
+Most generally, if you know only the weight function $W(x)$ and the interval $(a,b)$, you
 can construct Gauss and Gauss–Kronrod rules completely numerically using:
 
 ```@docs
