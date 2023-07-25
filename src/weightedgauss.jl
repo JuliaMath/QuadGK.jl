@@ -56,6 +56,8 @@ you may need to decrease `rtol`.   You can also pass in a specialized quadrature
 via the `quad` keyword argument, which should accept arguments `quad(f,a,b,rtol=_,atol=_)`
 similar to `quadgk`.  (This is useful if your weight function has discontinuities, in which
 case you might want to break up the integration interval at the discontinuities.)
+
+The precision of the calculations and return value are determined from the types of `a` and `b`.
 """
 function gauss(W, N::Integer, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
     (isfinite(a) && isfinite(b)) || throw(ArgumentError("a finite interval is required"))
@@ -100,7 +102,7 @@ function _jacobi(W, N, a, b, rtol, quad)
     # Numerical Linear Algebra, to find the Jacobi matrix
     # (the 3-term recurrence) for W using O(N) integrals,
     # applied to Chebyshev basis:
-    xscale = 2.0/(b-a) # scaling from (a,b) to (-1,1)
+    xscale = float(2/(b-a)) # scaling from (a,b) to (-1,1)
     T = typeof(xscale)
     α = zeros(T, N)
     β = zeros(T, N)
