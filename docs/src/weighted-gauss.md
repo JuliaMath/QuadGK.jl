@@ -235,7 +235,7 @@ corresponding to this weight function:
 giving $\alpha_k$ and $\beta_k$ by the earlier formulas, after a bit of algebra.
 We also will need the unit integral
 ```math
-I[1] = \int_{-1}^{+1} (1+x)^\alpha (1-x)^\beta dx  = \frac{2^{\alpha + \beta + 1}}{\alpha + \beta + 1} \frac{\Gamma{\alpha+1}\Gamma{\beta+1}}{\Gamma{\alpha+\beta+1}} \, ,
+I[1] = \int_{-1}^{+1} (1+x)^\alpha (1-x)^\beta dx  = \frac{2^{\alpha + \beta + 1}}{\alpha + \beta + 1} \frac{\Gamma(\alpha+1)\Gamma(\beta+1)}{\Gamma(\alpha+\beta+1)} \, ,
 ```
 where $\Gamma$ is the [Gamma function](https://en.wikipedia.org/wiki/Gamma_function), computed in Julia by [SpecialFunctions.jl](https://github.com/JuliaMath/SpecialFunctions.jl).  This is all rather tedious, but fortunately exactly these expressions have already been worked out for us by the [FastGaussQuadrature.jl](https://github.com/JuliaApproximation/FastGaussQuadrature.jl) package, in undocumented functions `FastGaussQuadrature.jacobi_jacobimatrix(n, α, β)` (which computes the Jacobi matrix $J_n$) and `FastGaussQuadrature.jacobimoment(α, β)` (which computes $I[1]$).
 
