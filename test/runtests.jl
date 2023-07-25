@@ -1,6 +1,8 @@
 # This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
 
-using QuadGK, Test
+using QuadGK, LinearAlgebra, Test
+
+≅(x::Tuple, y::Tuple; kws...) = all(a -> isapprox(a[1],a[2]; kws...), zip(x,y))
 
 @testset "quadgk" begin
     @test quadgk(cos, 0,0.7,1)[1] ≈ sin(1)
@@ -87,7 +89,142 @@ end
     @test all(isfinite, x) && all(isfinite, w)
 end
 
-≅(x::Tuple, y::Tuple) = all(a -> isapprox(a[1],a[2]), zip(x,y))
+# check some arbitrary precision (Maple) values from https://keisan.casio.com/exec/system/1289382036
+@testset "kronrod" begin
+    setprecision(200) do
+        for (n,x0,w0,gw0) in (
+            (1, [big"-0.77459666924148337703585307995647992216658434105832", big"0.0"],
+                [big"0.55555555555555555555555555555555555555555555555556", big"0.88888888888888888888888888888888888888888888888889"],
+                [big"2.0"]),
+            (2, [big"-0.92582009977255146156656677658399952252931490100834", big"-0.57735026918962576450914878050195745564760175127013",  big"0.0"],
+                [big"0.1979797979797979797979797979797979797979797979798", big"0.49090909090909090909090909090909090909090909090909", big"0.6222222222222222222222222222222222222222222222222"],
+                [big"1.0"]),
+            (3, [big"-0.96049126870802028342350709262907996266978223636529", big"-0.77459666924148337703585307995647992216658434105832", big"-0.43424374934680255800207150284462781728289855695503", big"0.0"],
+                [big"0.1046562260264672651938238571920730382422021606251", big"0.26848808986833344072856928066670962476104560001718", big"0.4013974147759622229050518186184318787274230022865", big"0.45091653865847414234511008704557091653865847414235"],
+                [big"0.55555555555555555555555555555555555555555555555556", big"0.88888888888888888888888888888888888888888888888889"]),
+            (4, [big"-0.97656025073757311153450535936991962683375905330236", big"-0.86113631159405257522394648889280950509572537962972", big"-0.64028621749630998240468902315749201835600980018698", big"-0.33998104358485626480266575910324468720057586977091", big"0.0"],
+                [big"0.06297737366547301476549248855281867632941703873821", big"0.1700536053357227268027388532962065872619470485872", big"0.266798340452284448032770628417855662476650377333", big"0.32694918960145162955845946561731918577437380049408", big"0.34644298189013636168107712823159977631522346969501"],
+                [big"0.3478548451374538573730639492219994072353486958339", big"0.65214515486254614262693605077800059276465130416611"]),
+            (5,[big"-0.98408536009484246449617293463613949958055282418847", big"-0.90617984593866399279762687829939296512565191076253", big"-0.75416672657084922044081716694611586638629980437148", big"-0.53846931010568309103631442070020880496728660690556", big"-0.27963041316178319341346652274897743624211881535617", big"0.0"],
+                [big"0.04258203675108183286450945084767009187528571052993", big"0.11523331662247339402462684588057353916959629218019", big"0.1868007965564926574678000268784859712873998237471", big"0.24104033922864758669994261122326211129607983509941", big"0.27284980191255892234099326448445551826261012746316", big"0.28298741785749121320425560137110553621805642196044"],
+                [big"0.23692688505618908751426404071991736264326000221241", big"0.47862867049936646804129151483563819291229555334314", big"0.56888888888888888888888888888888888888888888888889"]),
+            ), which in (1,2,3)
+            if which < 3
+                m = div(3n+3,2)
+                b = [ k / sqrt(4k^2 - big"1.0") for k = 1:m-1 ]
+                if which == 1
+                    # test generic Kronrod algorithm that doesn't
+                    # assume a Jacobi matrix with zero diagonals
+                    J = SymTridiagonal(zeros(BigFloat, m), b)
+                    x,w,gw = kronrod(Matrix(J), n, 2)
+                    @test kronrod(Matrix(J), n, 2, (-1,1)=>(-1,1)) ≅ (x,w,gw) atol=1e-55
+                    @test kronrod(QuadGK.HollowSymTridiagonal(b), n, 2, (-1,1)=>(-1,1)) ≅ (x,w,gw) atol=1e-55
+                    @test kronrod(n, big"-1.", big"1.") ≅ (x,w,gw) atol=1e-55
+                    # check symmetric rule & remove redundant points/weights
+                    @test x[1:n] ≈ -reverse(x[n+2:end]) atol=1e-55
+                    @test w[1:n] ≈ reverse(w[n+2:end]) atol=1e-55
+                    resize!(x, n+1)
+                    resize!(w, n+1)
+                    resize!(gw, length(2:2:n+1))
+                else
+                    # test generic HollowSymTridiagonal method
+                    J = QuadGK.HollowSymTridiagonal(b)
+                    x,w,gw = kronrod(J, n, 2)
+                end
+            else
+                x,w,gw = kronrod(BigFloat, n)
+            end
+            @test (x,w) ≅ (x0,w0) atol=1e-49
+            @test gw ≈ gw0 atol=1e-49
+
+            xg, wg = gauss(n, big"-1", big"+1")
+            nn = length(2:2:n+1)
+            nn0 = length(2:2:n)
+            @test wg[1:nn0] ≈ reverse(wg[nn+1:end]) atol=1e-55
+            @test wg[1:nn] ≈ gw0 atol=1e-49
+        end
+    end
+
+    # x -> 1 weight function:
+    let (x, w, wg) = kronrod(x -> 1, 7, -1, 1)
+        x0, w0, wg0 = kronrod(7)
+        @test x ≈ [x0; -reverse(x0[1:end-1])]
+        @test w ≈ [w0; reverse(w0[1:end-1])]
+        @test wg ≈ [wg0; reverse(wg0[1:end-1])]
+    end
+
+    # non-symmetric Gauss–Kronrod rule for an arbitrary weight function
+    let (x, w, wg) = kronrod(x -> 1+x^2, 7, 0, 1)
+        # integral of 1 should be 4/3:
+        @test sum(w) ≈ 4/3
+        @test sum(wg) ≈ 4/3
+        # should hold for well-behaved weights:
+        @test all(>(0), w)
+        @test all(>(0), wg)
+        @test all(x -> 0 ≤ x ≤ 1, x)
+
+        xg, wg2 = gauss(x -> 1+x^2, 7, 0, 1)
+        @test xg ≈ x[2:2:end]
+        @test wg2 ≈ wg
+
+        # test against results of Laurie implementatation by Gautschi
+        # in Matlab (from the OPQ suite https://www.cs.purdue.edu/archives/2002/wxg/codes/OPQ.html),
+        # for the same Jacobi matrix:
+        x0 = [0.00438238617866954, 0.02614951914104513, 0.06952432823447702, 0.1331034150629803, 0.2132620595793294, 0.306005657934478, 0.4072933420568336, 0.5125123454997229, 0.6164666827040001, 0.7142807062929434, 0.8021670261548075, 0.8770965454790314, 0.9359980967418293, 0.9759635237163186, 0.9959709148947024]
+        w0 = [0.01177172100204654, 0.03248033795172398, 0.05424896760483217, 0.07382275351146311, 0.0910708306136658, 0.1068683178722224, 0.1213569758811105, 0.1331660440143274, 0.1402336045988007, 0.1410339077741439, 0.1345976965140659, 0.1193309881617451, 0.09351598256107904, 0.05828394027207477, 0.02155126500003199]
+        @test (x,w) ≅ (x0,w0) atol=1e-14
+    end
+
+    # Gauss–Jacobi quadrature for α=0.5, β=-0.2:
+    let
+        # from FastGaussQuadrature.jacobi_jacobimatrix(12, 0.5, -0.2):
+        dv = [-0.30434782608695654, -0.021233569261880688, -0.007751937984496124, -0.004016064257028112, -0.0024564276523570006, -0.0016575893914278945, -0.0011939280231963157, -0.0009009395512462996, -0.000704012873378256, -0.0005652911249293386, -0.0004638936137312509, -0.00038753252505120965]
+        ev = [0.524367555787415, 0.5060015044290427, 0.5027136949904828, 0.5015465849161829, 0.5009991342001523, 0.5006986460562385, 0.5005159945713471, 0.5003966898762826, 0.5003144745319204, 0.5002554183632608, 0.5002115697583008]
+        J = SymTridiagonal(dv, ev)
+        wint = 2.1775041171955682 # FastGaussQuadrature.jacobimoment(0.5, -0.2)
+        # from FastGaussQuadrature.gaussjacobi(12, 0.5, -0.2):
+        x0 = [-0.9864058663156023, -0.9165946746181465, -0.7905606636553969, -0.6160030510532921, -0.40362885238758006, -0.16646844386286386, 0.08092631663971639, 0.3233754136167141, 0.5460022311541176, 0.7351464193955097, 0.8792021083194245, 0.9693300504217204]
+        w0 = [0.1332843914263806, 0.22507385576322209, 0.27777923749595884, 0.3009074312028019, 0.2983522399648924, 0.2741818901904956, 0.23357001605691405, 0.1827277942958943, 0.12846478443650275, 0.07758611879734549, 0.036243907354385235, 0.00933245021077474]
+
+        x, w = gauss(Matrix(J), wint, (-1,1) => (0,1))
+        @test (x .* 2 .- 1, w) ≅ (x0, w0) atol=2e-14
+
+        x, w, wg = kronrod(J, 7)
+        @test (x, w) ≅ gauss(QuadGK.kronrodjacobi(J, 7)) atol=1e-14
+    end
+
+    # check that non-symtridiagonal matrices throw error
+    for A in ((1:3) * (1:3)', (1:3) * (4:7)', Tridiagonal(1:2, 3:5, 6:7))
+        @test_throws ArgumentError gauss(A)
+    end
+end
+
+@testset "HollowSymTridiagonal" begin
+    H = QuadGK.HollowSymTridiagonal(1:4)
+    T = SymTridiagonal(zeros(Int, 5), [1:4;])
+    @test H isa QuadGK.HollowSymTridiagonal{Int}
+    @test size(H) == (5,5)
+    @test diag(H)::Vector{Int} == zeros(Int, 5)
+    @test H == T
+    @test QuadGK.HollowSymTridiagonal(T)::QuadGK.HollowSymTridiagonal{Int} == T
+    @test QuadGK.HollowSymTridiagonal{Int8}(T)::QuadGK.HollowSymTridiagonal{Int8} == T
+    @test_throws ArgumentError QuadGK.HollowSymTridiagonal(SymTridiagonal(1:4, 1:3))
+    @test_throws ArgumentError QuadGK.HollowSymTridiagonal{Int8}(SymTridiagonal(1:4, 1:3))
+    @test SymTridiagonal(H)::SymTridiagonal{Int, Vector{Int}} == T
+    @test SymTridiagonal{Int8}(H)::SymTridiagonal{Int8, Vector{Int8}} == T
+    @test Matrix(H)::Matrix{Int} == T == collect(H)
+    @test Matrix{Int8}(H)::Matrix{Int8} == T
+    @test replace(repr("text/plain", H), ",U"=>", U") == "5×5 QuadGK.HollowSymTridiagonal{$Int, UnitRange{$Int}}:\n ⋅  1  ⋅  ⋅  ⋅\n 1  ⋅  2  ⋅  ⋅\n ⋅  2  ⋅  3  ⋅\n ⋅  ⋅  3  ⋅  4\n ⋅  ⋅  ⋅  4  ⋅"
+
+    λ = [-5.16351661076931, -1.8270457603216725, 0, 1.8270457603216728, 5.16351661076931]
+    v1 = [0.03655465066022525, -0.18875054588494244, 0.469030964154226, -0.681449360868536, 0.5278955504450348]
+    for A in (H, T)
+        @test A*v1 ≈ λ[1]*v1
+        @test eigvals(Hermitian(Matrix(A))) ≈ λ ≈ QuadGK.eignewt(A, 5)
+        @test QuadGK.eigvec1!(zeros(5), A, λ[1]) ≈ v1
+    end
+    @test QuadGK.eigvec1(1:4, λ[1]) ≈ v1
+end
 
 @testset "inplace" begin
     I = [0., 0.]

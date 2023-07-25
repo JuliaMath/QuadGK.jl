@@ -57,15 +57,49 @@ via the `quad` keyword argument, which should accept arguments `quad(f,a,b,rtol=
 similar to `quadgk`.  (This is useful if your weight function has discontinuities, in which
 case you might want to break up the integration interval at the discontinuities.)
 """
-function gauss(W, N, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
+function gauss(W, N::Integer, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
     (isfinite(a) && isfinite(b)) || throw(ArgumentError("a finite interval is required"))
-    return _gauss(W, N, a, b, rtol, quad)
+
+    # find the Jacobi matrix and apply the Golub–Welsh algorithm:
+    J, xscale, wint = _jacobi(W, N, a, b, rtol, quad)
+    x, w = gauss(J, wint)
+    @. x = (x + 1) / xscale + a
+    return (x, w)
 end
 
-function _gauss(W, N, a, b, rtol, quad)
+"""
+    kronrod(W, N, a, b; rtol=sqrt(eps), quad=quadgk)
+
+Return a tuple `(x, w, wg)` of `N` quadrature points `x[i]` and weights `w[i]` to
+integrate functions on the interval `(a, b)` multiplied by the weight function
+`W(x)`, along with the weights `wg` of an embedded Gauss rule corresponding to `x[2:2:end]`,
+similar to the `gauss(W, N, a, b)` function and analogous to `kronrod(N)` (which only
+returns the `x ≤ 0` points for a constant weight function).
+
+That is, `I = sum(w .* f.(x))` approximates the integral `∫ W(x)f(x)dx`
+from `a` to `b`.  And an error estimate is `abs(I - Ig)`, where `Ig` is
+the result `Ig = sum(wg .* f.(x[2:2:end]))` of the embedded Gauss rule.
+
+This function performs `≈ 3N+3` numerical integrals of polynomials against `W(x)`
+using the integration function `quad` (defaults to `quadgk`) with relative tolerance `rtol`
+(which defaults to half of the precision `eps` of the endpoints).
+This is followed by an O(N²) calculations. So, using a large order `N` is expensive.
+"""
+function kronrod(W, N::Integer, a::Real,b::Real; rtol::Real=sqrt(eps(typeof(float(b-a)))), quad=quadgk)
+    (isfinite(a) && isfinite(b)) || throw(ArgumentError("a finite interval is required"))
+
+    # find the Jacobi matrix and apply the Golub–Welsh algorithm:
+    J, xscale, wint = _jacobi(W, div(3N+3,2), a, b, rtol, quad)
+    x, w, wg = kronrod(J, N, wint)
+    @. x = (x + 1) / xscale + a
+    return (x, w, wg)
+end
+
+function _jacobi(W, N, a, b, rtol, quad)
     # Uses the Lanczos recurrence described in Trefethen & Bau,
-    # Numerical Linear Algebra, to find the `N`-point Gaussian quadrature
-    # using O(N) integrals and O(N²) operations, applied to Chebyshev basis:
+    # Numerical Linear Algebra, to find the Jacobi matrix
+    # (the 3-term recurrence) for W using O(N) integrals,
+    # applied to Chebyshev basis:
     xscale = 2.0/(b-a) # scaling from (a,b) to (-1,1)
     T = typeof(xscale)
     α = zeros(T, N)
@@ -93,11 +127,5 @@ function _gauss(W, N, a, b, rtol, quad)
         q₀,q₁,v = q₁,v,q₀
     end
 
-    # TODO: handle BigFloat etcetera — requires us to update eignewt() to
-    #       support nonzero diagonal entries.
-    E = eigen(SymTridiagonal(α, β[2:N]))
-
-    w = E.vectors[1,:]
-    w .= wint .* abs2.(w)
-    return ((E.values .+ 1) ./ xscale .+ a, w)
+    return SymTridiagonal(α, β[2:N]), xscale, wint
 end
