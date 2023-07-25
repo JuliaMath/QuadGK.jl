@@ -110,7 +110,7 @@ Gaussian quadrature points are *not* a subset of the $n$-point Gaussian
 quadrature points for *any* $n' < n$.   Fortunately, there is a slightly
 modified scheme that works, called [Gauss–Kronrod quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Kronrod_quadrature_formula): if you start with an $n'-point$ Gaussian-quadrature scheme, you can extend it with
 $n'+1$ additional points to obtain a quadrature scheme with $n=2n'+1$
-points that exactly integrates polynomials up to degree $3N'+1$.
+points that exactly integrates polynomials up to degree $3n'+1$.
 Although this is slightly worse than an $n$-point Gaussian quadrature
 scheme, it is still quite accurate, still converges very fast
 for smooth functions, and gives you a built-in error estimate that
