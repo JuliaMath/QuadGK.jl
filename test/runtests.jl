@@ -84,6 +84,12 @@ end
     @test x ≈ x′
     @test w ≈ w′
 
+    xf,wf = gauss(20, 2.0f0, 3.0f0)
+    xf′,wf′ = gauss(x->1, 20, 2.0f0, 3.0f0, rtol=1e-5)
+    @test eltype(xf′) == eltype(wf′) == eltype(xf) == eltype(wf) == Float32
+    @test xf ≈ xf′
+    @test wf ≈ wf′
+
     # check for underflow bug: https://discourse.julialang.org/t/nan-returned-by-gauss/68260
     x,w = gauss(1093)
     @test all(isfinite, x) && all(isfinite, w)
