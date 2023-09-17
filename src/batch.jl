@@ -194,6 +194,6 @@ simultaneously. In particular, there are two differences from `quadgk`
 """
 function quadgk(f::BatchIntegrand{F,Y,<:AbstractVector{Nothing}}, segs::T...; kws...) where {F,Y,T}
     FT = float(T) # the gk points are floating-point
-    g = BatchIntegrand(f.f!, f.y, similar(f.x, FT), f.max_batch)
+    g = BatchIntegrand(f.f!, f.y, similar(f.x, FT), max_batch=f.max_batch)
     return quadgk(g, segs...; kws...)
 end
