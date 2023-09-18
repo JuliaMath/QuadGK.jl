@@ -1,4 +1,5 @@
 """
+    BatchIntegrand(f!, y::AbstractVector, x::AbstractVector, max_batch::Integer)
     BatchIntegrand(f!, y::AbstractVector, [x::AbstractVector]; max_batch=typemax(Int))
     BatchIntegrand{Y,X}(f!; max_batch=typemax(Int)) where {Y,X}
     BatchIntegrand{Y}(f!; max_batch=typemax(Int)) where {Y}
@@ -13,27 +14,23 @@ type parameters to the constructor. The `max_batch` keyword roughly limits the n
 nodes passed to the integrand, though at least `4*order+2` nodes will be used by the GK
 rule.
 """
-struct BatchIntegrand{Y,X,F}
+struct BatchIntegrand{Y,X,Ty,Tx,F}
     # in-place function f!(y, x) that takes an array of x values and outputs an array of results in-place
     f!::F
-    y::Y
-    x::X
+    y::Ty
+    x::Tx
     max_batch::Int # maximum number of x to supply in parallel
-    function BatchIntegrand{Y,X,F}(f!::F, y::Y, x::X, max_batch::Integer) where {Y<:AbstractVector,X<:AbstractVector,F}
+    function BatchIntegrand(f!::F, y::Ty, x::Tx, max_batch::Integer) where {Y,X,Ty<:AbstractVector{Y},Tx<:AbstractVector{X},F}
         max_batch > 0 || throw(ArgumentError("max_batch must be positive"))
-        return new{Y,X,F}(f!, y, x, max_batch)
+        return new{Y,X,Ty,Tx,F}(f!, y, x, max_batch)
     end
 end
 
 function BatchIntegrand(f!, y::AbstractVector, x::AbstractVector=similar(y, Nothing); max_batch::Integer=typemax(Int))
-    return BatchIntegrand{typeof(y),typeof(x),typeof(f!)}(f!, y, x, max_batch)
+    return BatchIntegrand(f!, y, x, max_batch)
 end
-function BatchIntegrand{Y,X}(f!::F; max_batch::Integer=typemax(Int)) where {Y,X,F}
-    return BatchIntegrand{Vector{Y},Vector{X},F}(f!, Y[], X[], max_batch)
-end
-function BatchIntegrand{Y}(f!::F; max_batch::Integer=typemax(Int)) where {Y,F}
-    return BatchIntegrand{Vector{Y},Vector{Nothing},F}(f!, Y[], Nothing[], max_batch)
-end
+BatchIntegrand{Y,X}(f!; kws...) where {Y,X} = BatchIntegrand(f!, Y[], X[]; kws...)
+BatchIntegrand{Y}(f!; kws...) where {Y} = BatchIntegrand{Y,Nothing}(f!; kws...)
 
 function evalrule(fx::AbstractVector{T}, a,b, x,w,gw, nrm) where {T}
     l = length(x)
@@ -151,19 +148,19 @@ function handle_infinities(workfunc, f::BatchIntegrand, s)
             ybuf = similar(ytmp, typeof(oneunit(eltype(f.y))*oneunit(s1)))
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
                 return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
-                                            f.f!(ytmp, xtmp .= oneunit(s1) .* t ./ (1 .- t .* t)); v .= ytmp .* (1 .+ t .* t) .* oneunit(s1) ./ (1 .- t .* t) .^ 2; end, ybuf, xbuf, max_batch=f.max_batch),
+                                            f.f!(ytmp, xtmp .= oneunit(s1) .* t ./ (1 .- t .* t)); v .= ytmp .* (1 .+ t .* t) .* oneunit(s1) ./ (1 .- t .* t) .^ 2; end, ybuf, xbuf, f.max_batch),
                                 map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
                                 t -> oneunit(s1) * t / (1 - t^2))
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < zero(si) # x = s0 - t/(1-t)
                     return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
-                                            f.f!(ytmp, xtmp .= s0 .- oneunit(s1) .* t ./ (1 .- t)); v .= ytmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, ybuf, xbuf, max_batch=f.max_batch),
+                                            f.f!(ytmp, xtmp .= s0 .- oneunit(s1) .* t ./ (1 .- t)); v .= ytmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, ybuf, xbuf, f.max_batch),
                                     reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
                                     t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
                     return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
-                                            f.f!(ytmp, xtmp .= s0 .+ oneunit(s1) .* t ./ (1 .- t)); v .= ytmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, ybuf, xbuf, max_batch=f.max_batch),
+                                            f.f!(ytmp, xtmp .= s0 .+ oneunit(s1) .* t ./ (1 .- t)); v .= ytmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, ybuf, xbuf, f.max_batch),
                                     map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
                                     t -> s0 + oneunit(s1)*t/(1-t))
                 end
@@ -190,8 +187,8 @@ simultaneously. In particular, there are two differences from `quadgk`
    together, which can produce slightly different results and sometimes require more
    integrand evaluations when using relative tolerances.
 """
-function quadgk(f::BatchIntegrand{Y,<:AbstractVector{Nothing}}, segs::T...; kws...) where {Y,T}
+function quadgk(f::BatchIntegrand{Y,Nothing}, segs::T...; kws...) where {Y,T}
     FT = float(T) # the gk points are floating-point
-    g = BatchIntegrand(f.f!, f.y, similar(f.x, FT), max_batch=f.max_batch)
+    g = BatchIntegrand(f.f!, f.y, similar(f.x, FT), f.max_batch)
     return quadgk(g, segs...; kws...)
 end
