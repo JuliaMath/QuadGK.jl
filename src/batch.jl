@@ -13,24 +13,26 @@ type parameters to the constructor. The `max_batch` keyword roughly limits the n
 nodes passed to the integrand, though at least `4*order+2` nodes will be used by the GK
 rule.
 """
-struct BatchIntegrand{F,Y,X}
+struct BatchIntegrand{Y,X,F}
     # in-place function f!(y, x) that takes an array of x values and outputs an array of results in-place
     f!::F
     y::Y
     x::X
     max_batch::Int # maximum number of x to supply in parallel
-    function BatchIntegrand(f!, y::AbstractVector, x::AbstractVector=similar(y, Nothing); max_batch::Integer=typemax(Int))
+    function BatchIntegrand{Y,X,F}(f!::F, y::Y, x::X, max_batch::Integer) where {Y<:AbstractVector,X<:AbstractVector,F}
         max_batch > 0 || throw(ArgumentError("max_batch must be positive"))
-        return new{typeof(f!),typeof(y),typeof(x)}(f!, y, x, max_batch)
+        return new{Y,X,F}(f!, y, x, max_batch)
     end
-    function BatchIntegrand{Y,X}(f!::F; max_batch::Integer=typemax(Int)) where {Y,X,F}
-        max_batch > 0 || throw(ArgumentError("max_batch must be positive"))
-        return new{F,Vector{Y},Vector{X}}(f!, Y[], X[], max_batch)
-    end
-    function BatchIntegrand{Y}(f!::F; max_batch::Integer=typemax(Int)) where {Y,F}
-        max_batch > 0 || throw(ArgumentError("max_batch must be positive"))
-        return new{F,Vector{Y},Vector{Nothing}}(f!, Y[], Nothing[], max_batch)
-    end
+end
+
+function BatchIntegrand(f!, y::AbstractVector, x::AbstractVector=similar(y, Nothing); max_batch::Integer=typemax(Int))
+    return BatchIntegrand{typeof(y),typeof(x),typeof(f!)}(f!, y, x, max_batch)
+end
+function BatchIntegrand{Y,X}(f!::F; max_batch::Integer=typemax(Int)) where {Y,X,F}
+    return BatchIntegrand{Vector{Y},Vector{X},F}(f!, Y[], X[], max_batch)
+end
+function BatchIntegrand{Y}(f!::F; max_batch::Integer=typemax(Int)) where {Y,F}
+    return BatchIntegrand{Vector{Y},Vector{Nothing},F}(f!, Y[], Nothing[], max_batch)
 end
 
 function evalrule(fx::AbstractVector{T}, a,b, x,w,gw, nrm) where {T}
@@ -60,7 +62,7 @@ function evalrule(fx::AbstractVector{T}, a,b, x,w,gw, nrm) where {T}
     return Segment(oftype(s, a), oftype(s, b), Ik_s, E)
 end
 
-function evalrules(f::BatchIntegrand{F}, s::NTuple{N}, x,w,gw, nrm) where {F,N}
+function evalrules(f::BatchIntegrand, s::NTuple{N}, x,w,gw, nrm) where {N}
     l = length(x)
     m = 2l-1    # evaluations per segment
     n = (N-1)*m # total evaluations
@@ -83,7 +85,7 @@ function evalrules(f::BatchIntegrand{F}, s::NTuple{N}, x,w,gw, nrm) where {F,N}
 end
 
 # we refine as many segments as we can fit into the buffer
-function refine(f::BatchIntegrand{F}, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
+function refine(f::BatchIntegrand, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {T}
     tol = max(atol, rtol*nrm(I))
     nsegs = 0
     len = length(segs)
@@ -188,7 +190,7 @@ simultaneously. In particular, there are two differences from `quadgk`
    together, which can produce slightly different results and sometimes require more
    integrand evaluations when using relative tolerances.
 """
-function quadgk(f::BatchIntegrand{F,Y,<:AbstractVector{Nothing}}, segs::T...; kws...) where {F,Y,T}
+function quadgk(f::BatchIntegrand{Y,<:AbstractVector{Nothing}}, segs::T...; kws...) where {Y,T}
     FT = float(T) # the gk points are floating-point
     g = BatchIntegrand(f.f!, f.y, similar(f.x, FT), max_batch=f.max_batch)
     return quadgk(g, segs...; kws...)

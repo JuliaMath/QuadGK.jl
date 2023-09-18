@@ -307,6 +307,19 @@ end
             @test gcnt[] == 2 + 1 + (max_batch < 8*order+4) # check if calls were batched
         end
     end
+
+    # test constructors
+    ref = BatchIntegrand{Vector{Float64},Vector{Nothing},typeof(f!)}(f!, Float64[], Nothing[], typemax(Int))
+    for b in (
+        BatchIntegrand(f!, Float64[]),
+        BatchIntegrand(f!, Float64[], Nothing[]),
+        BatchIntegrand{Float64}(f!),
+        BatchIntegrand{Float64,Nothing}(f!),
+    )
+        for name in (:f!, :y, :x, :max_batch)
+            @test getproperty(ref, name) == getproperty(b, name)
+        end
+    end
 end
 
 @testset "batch Inf" begin
