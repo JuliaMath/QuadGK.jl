@@ -301,7 +301,7 @@ end
     for order=1:7
         for max_batch in (4*order+2, 8*order+4)
             gcnt[] = 0
-            g = QuadGK.BatchIntegrand(f!, Float64, max_batch=max_batch)
+            g = QuadGK.BatchIntegrand{Float64}(f!, max_batch=max_batch)
             I′,E′ = quadgk(g, -2, 2, order=order)
             @test quadgk(f, -2, 2, order=order) == (I′,E′)
             @test gcnt[] == 2 + 1 + (max_batch < 8*order+4) # check if calls were batched
@@ -311,7 +311,7 @@ end
 
 @testset "batch Inf" begin
     f!(v, x) = v .= exp.(-1 .* x .^ 2)
-    g = QuadGK.BatchIntegrand(f!, Float64, Float64)
+    g = QuadGK.BatchIntegrand{Float64, Float64}(f!)
     @test quadgk(g, 1., Inf)[1] ≈ quadgk(x -> exp(-x^2), 1., Inf)[1]
     @test quadgk(g, -Inf, 1.)[1] ≈ quadgk(x -> exp(-x^2), -Inf, 1.)[1]
     @test quadgk(g, -Inf, Inf)[1] ≈ quadgk(x -> exp(-x^2), -Inf, Inf)[1]
