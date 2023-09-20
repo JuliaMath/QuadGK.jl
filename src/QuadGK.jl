@@ -24,6 +24,7 @@ and returns the approximate `integral = 0.746824132812427` and error estimate
 module QuadGK
 
 export quadgk, quadgk!, gauss, kronrod, alloc_segbuf, quadgk_count, quadgk_print
+export BatchIntegrand
 
 using DataStructures, LinearAlgebra
 import Base.Order.Reverse
@@ -52,5 +53,6 @@ include("gausskronrod.jl")
 include("evalrule.jl")
 include("adapt.jl")
 include("weightedgauss.jl")
+include("batch.jl")
 
 end # module QuadGK

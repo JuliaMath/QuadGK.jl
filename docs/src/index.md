@@ -20,6 +20,7 @@ Features of the QuadGK package include:
 * [Contour integrals](https://en.wikipedia.org/wiki/Contour_integration): You can specify a sequence of points in the complex plane to perform a contour integral along a piecewise-linear contour.
 * Arbitrary-order and custom quadrature rules: Any polynomial `order` of the Gauss–Kronrod quadrature rule can be specified, as well as generating quadrature rules and weights directly; see [Gauss and Gauss–Kronrod quadrature rules](@ref).  Custom Gaussian-quadrature rules can also be constructed for arbitrary weight functions; see [Gaussian quadrature and arbitrary weight functions](@ref).
 * In-place integration: For memory efficiency, integrand functions that write in-place into a pre-allocated buffer (e.g. for vector-valued integrands) can be used with the [`quadgk!`](@ref) function, along with pre-allocated buffers using [`alloc_segbuf`](@ref).
+* Batched integrand evaluation: Providing an integrand that can evaluate multiple points simultaneously allows for user-controlled parallelization (e.g. using threads, the GPU, or distributed memory).
 
 ## Quick start
 
@@ -45,7 +46,7 @@ For extremely [smooth functions](https://en.wikipedia.org/wiki/Smoothness) like 
 
 ## Tutorial examples
 
-The [`quadgk` examples](@ref) chapter of this manual presents several other examples, including improper integrals, vector-valued integrands, improper integrals, singular or near-singular integrands, and Cauchy principal values.
+The [`quadgk` examples](@ref) chapter of this manual presents several other examples, including improper integrals, vector-valued integrands, batched integrand evaluation, improper integrals, singular or near-singular integrands, and Cauchy principal values.
 
 ## In-place operations for array-valued integrands
 

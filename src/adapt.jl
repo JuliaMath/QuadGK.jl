@@ -7,7 +7,11 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     x,w,gw = cachedrule(T,n)
 
     @assert N ≥ 2
-    segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+    if f isa BatchIntegrand
+        segs = evalrules(f, s, x,w,gw, nrm)
+    else
+        segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+    end
     if f isa InplaceIntegrand
         I = f.I .= segs[1].I
         for i = 2:length(segs)
@@ -34,7 +38,7 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
 
     segheap = segbuf === nothing ? collect(segs) : (resize!(segbuf, N-1) .= segs)
     heapify!(segheap, Reverse)
-    return adapt(f, segheap, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm)
+    return resum(f, adapt(f, segheap, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm))
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
@@ -42,32 +46,44 @@ function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxe
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
     while E > atol && E > rtol * nrm(I) && numevals < maxevals
-        s = heappop!(segs, Reverse)
-        mid = (s.a + s.b) / 2
-        s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
-        s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
-        if f isa InplaceIntegrand
-            I .= (I .- s.I) .+ s1.I .+ s2.I
-        else
-            I = (I - s.I) + s1.I + s2.I
-        end
-        E = (E - s.E) + s1.E + s2.E
-        numevals += 4n+2
+        next = refine(f, segs, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
+        next isa Vector && return next # handle type-unstable functions
+        I, E, numevals = next
+    end
+    return segs
+end
 
-        # handle type-unstable functions by converting to a wider type if needed
-        Tj = promote_type(typeof(s1), promote_type(typeof(s2), T))
-        if Tj !== T
-            return adapt(f, heappush!(heappush!(Vector{Tj}(segs), s1, Reverse), s2, Reverse),
-                         I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
-        end
+# internal routine to refine the segment with largest error
+function refine(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
+    s = heappop!(segs, Reverse)
+    mid = (s.a + s.b) / 2
+    s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
+    s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
+    if f isa InplaceIntegrand
+        I .= (I .- s.I) .+ s1.I .+ s2.I
+    else
+        I = (I - s.I) + s1.I + s2.I
+    end
+    E = (E - s.E) + s1.E + s2.E
+    numevals += 4n+2
 
-        heappush!(segs, s1, Reverse)
-        heappush!(segs, s2, Reverse)
+    # handle type-unstable functions by converting to a wider type if needed
+    Tj = promote_type(typeof(s1), promote_type(typeof(s2), T))
+    if Tj !== T
+        return adapt(f, heappush!(heappush!(Vector{Tj}(segs), s1, Reverse), s2, Reverse),
+                     I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
     end
 
-    # re-sum (paranoia about accumulated roundoff)
+    heappush!(segs, s1, Reverse)
+    heappush!(segs, s2, Reverse)
+
+    return I, E, numevals
+end
+
+# re-sum (paranoia about accumulated roundoff)
+function resum(f, segs)
     if f isa InplaceIntegrand
-        I .= segs[1].I
+        I = f.I .= segs[1].I
         E = segs[1].E
         for i in 2:length(segs)
             I .+= segs[i].I
