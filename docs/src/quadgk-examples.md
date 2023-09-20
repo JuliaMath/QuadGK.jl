@@ -245,7 +245,7 @@ julia> function f!(y, x)
        end
 f! (generic function with 1 method)
 
-julia> quadgk(BatchIntegrand(f!, Float64), 0, 1)
+julia> quadgk(BatchIntegrand{Float64}(f!), 0, 1)
 (0.0013768112771231598, 8.493080824940099e-12)
 ```
 

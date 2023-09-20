@@ -1,5 +1,4 @@
 """
-    BatchIntegrand(f!, y::AbstractVector, x::AbstractVector, max_batch::Integer)
     BatchIntegrand(f!, y::AbstractVector, [x::AbstractVector]; max_batch=typemax(Int))
     BatchIntegrand{Y,X}(f!; max_batch=typemax(Int)) where {Y,X}
     BatchIntegrand{Y}(f!; max_batch=typemax(Int)) where {Y}
@@ -13,24 +12,27 @@ Alternatively, the element types of those buffers, `Y` and optionally `X`, may b
 type parameters to the constructor. The `max_batch` keyword roughly limits the number of
 nodes passed to the integrand, though at least `4*order+2` nodes will be used by the GK
 rule.
+
+## Internal allocations
+
+If `x` or `X` are not specified, `quadgk` internally creates a new `BatchIntegrand` with the
+user-supplied `y` buffer and a freshly-allocated `x` buffer based on the domain types. So,
+if you want to reuse the `x` buffer between calls, supply `{Y,X}` or pass `y,x` explicitly.
 """
-struct BatchIntegrand{Y,X,Ty,Tx,F}
+struct BatchIntegrand{Y,X,Ty<:AbstractVector{Y},Tx<:AbstractVector{X},F}
     # in-place function f!(y, x) that takes an array of x values and outputs an array of results in-place
     f!::F
     y::Ty
     x::Tx
     max_batch::Int # maximum number of x to supply in parallel
-    function BatchIntegrand(f!::F, y::Ty, x::Tx, max_batch::Integer) where {Y,X,Ty<:AbstractVector{Y},Tx<:AbstractVector{X},F}
-        max_batch > 0 || throw(ArgumentError("max_batch must be positive"))
-        return new{Y,X,Ty,Tx,F}(f!, y, x, max_batch)
-    end
 end
 
 function BatchIntegrand(f!, y::AbstractVector, x::AbstractVector=similar(y, Nothing); max_batch::Integer=typemax(Int))
+    max_batch > 0 || throw(ArgumentError("max_batch must be positive"))
     return BatchIntegrand(f!, y, x, max_batch)
 end
 BatchIntegrand{Y,X}(f!; kws...) where {Y,X} = BatchIntegrand(f!, Y[], X[]; kws...)
-BatchIntegrand{Y}(f!; kws...) where {Y} = BatchIntegrand{Y,Nothing}(f!; kws...)
+BatchIntegrand{Y}(f!; kws...) where {Y} = BatchIntegrand(f!, Y[]; kws...)
 
 function evalrule(fx::AbstractVector{T}, a,b, x,w,gw, nrm) where {T}
     l = length(x)

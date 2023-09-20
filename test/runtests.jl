@@ -324,7 +324,7 @@ end
 
 @testset "batch Inf" begin
     f!(v, x) = v .= exp.(-1 .* x .^ 2)
-    g = QuadGK.BatchIntegrand{Float64, Float64}(f!)
+    g = QuadGK.BatchIntegrand{Float64}(f!)
     @test quadgk(g, 1., Inf)[1] ≈ quadgk(x -> exp(-x^2), 1., Inf)[1]
     @test quadgk(g, -Inf, 1.)[1] ≈ quadgk(x -> exp(-x^2), -Inf, 1.)[1]
     @test quadgk(g, -Inf, Inf)[1] ≈ quadgk(x -> exp(-x^2), -Inf, Inf)[1]
