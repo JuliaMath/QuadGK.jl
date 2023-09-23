@@ -15,9 +15,6 @@ Base.isless(i::Segment, j::Segment) = isless(i.E, j.E)
 function evalrule(f::F, a,b, x,w,gw, nrm) where {F}
     # Ik and Ig are integrals via Kronrod and Gauss rules, respectively
     s = convert(eltype(x), 0.5) * (b-a)
-
-    (a == a + (1+x[1])*s || b == a + (1-x[1])*s) && return nothing  # check for endpoint roundoff
-
     n1 = 1 - (length(x) & 1) # 0 if even order, 1 if odd order
     if n1 == 0 # even: Gauss rule does not include x == 0
         Ik = f(a + s) * w[end]
@@ -54,9 +51,6 @@ end
 function evalrule(f::InplaceIntegrand{F}, a,b, x,w,gw, nrm) where {F}
     # Ik and Ig are integrals via Kronrod and Gauss rules, respectively
     s = convert(eltype(x), 0.5) * (b-a)
-
-    (a == a + (1+x[1])*s || b == a + (1-x[1])*s) && return nothing  # check for endpoint roundoff
-
     n1 = 1 - (length(x) & 1) # 0 if even order, 1 if odd order
     fg, fk, Ig, Ik = f.fg, f.fk, f.Ig, f.Ik # pre-allocated temporary arrays
     f.f!(f.fx, a + s)

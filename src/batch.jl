@@ -69,12 +69,13 @@ function evalrules(f::BatchIntegrand, s::NTuple{N}, x,w,gw, nrm) where {N}
     resize!(f.y, n)
     for i in 1:(N-1)    # fill buffer with evaluation points
         a = s[i]; b = s[i+1]
+        check_endpoint_roundoff(a, b, x, throw_error=true)
         c = convert(eltype(x), 0.5) * (b-a)
         o = (i-1)*m
         f.x[l+o] = a + c
         for j in 1:l-1
-            (f.x[j+o] = a + (1 + x[j]) * c) == a && throw(DomainError(a, "roundoff error detected near endpoint of the initial interval ($a, $b)"))
-            (f.x[m+1-j+o] = a + (1 - x[j]) * c) == b && throw(DomainError(b, "roundoff error detected near endpoint of the initial interval ($a, $b)"))
+            f.x[j+o] = a + (1 + x[j]) * c
+            f.x[m+1-j+o] = a + (1 - x[j]) * c
         end
     end
     f.f!(f.y, f.x)  # evaluate integrand
@@ -110,12 +111,14 @@ function refine(f::BatchIntegrand, segs::Vector{T}, I, E, numevals, x,w,gw,n, at
         s = segs[len-i+1]
         mid = (s.a+s.b)/2
         for (j,a,b) in ((2,s.a,mid), (1,mid,s.b))
+            check_endpoint_roundoff(a, b, x) && return segs
             c = convert(eltype(x), 0.5) * (b-a)
             o = (2i-j)*m
             f.x[l+o] = a + c
             for k in 1:l-1
-                (f.x[k+o] = a + (1 + x[k]) * c) == a && return segs # early return if integrand evaluated at endpoints
-                (f.x[m+1-k+o] = a + (1 - x[k]) * c) == b && return segs
+                # early return if integrand evaluated at endpoints
+                f.x[k+o] = a + (1 + x[k]) * c
+                f.x[m+1-k+o] = a + (1 - x[k]) * c
             end
         end
     end
