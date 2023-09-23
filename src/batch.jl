@@ -34,7 +34,7 @@ end
 BatchIntegrand{Y,X}(f!; kws...) where {Y,X} = BatchIntegrand(f!, Y[], X[]; kws...)
 BatchIntegrand{Y}(f!; kws...) where {Y} = BatchIntegrand(f!, Y[]; kws...)
 
-function _evalrule(fx::AbstractVector{T}, a,b, x,w,gw, nrm) where {T}
+function batchevalrule(fx::AbstractVector{T}, a,b, x,w,gw, nrm) where {T}
     l = length(x)
     n = 2l - 1 # number of Kronrod points
     n1 = 1 - (l & 1) # 0 if even order, 1 if odd order
@@ -79,7 +79,7 @@ function evalrules(f::BatchIntegrand, s::NTuple{N}, x,w,gw, nrm) where {N}
     end
     f.f!(f.y, f.x)  # evaluate integrand
     return ntuple(Val(N-1)) do i
-        return _evalrule(view(f.y, (1+(i-1)*m):(i*m)), s[i], s[i+1], x,w,gw, nrm)
+        return batchevalrule(view(f.y, (1+(i-1)*m):(i*m)), s[i], s[i+1], x,w,gw, nrm)
     end
 end
 
@@ -125,8 +125,8 @@ function refine(f::BatchIntegrand, segs::Vector{T}, I, E, numevals, x,w,gw,n, at
     for i in 1:nsegs    # evaluate segments and update estimates & heap
         s = segs[len-i+1]
         mid = (s.a + s.b)/2
-        s1 = _evalrule(view(f.y, 1+2(i-1)*m:(2i-1)*m), s.a,mid, x,w,gw, nrm)
-        s2 = _evalrule(view(f.y, 1+(2i-1)*m:2i*m), mid,s.b, x,w,gw, nrm)
+        s1 = batchevalrule(view(f.y, 1+2(i-1)*m:(2i-1)*m), s.a,mid, x,w,gw, nrm)
+        s2 = batchevalrule(view(f.y, 1+(2i-1)*m:2i*m), mid,s.b, x,w,gw, nrm)
         I = (I - s.I) + s1.I + s2.I
         E = (E - s.E) + s1.E + s2.E
         segs[len-i+1] = s1
