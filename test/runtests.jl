@@ -338,3 +338,17 @@ end
     A = Test89()
     @test quadgk(A, 0, 10) == (50, 0)
 end
+
+# issue 86: nodes roundoff to endpoints
+@testset "issue 86" begin
+    I, = quadgk(y->10*y^9/(y^10)^1.1,1,Inf)[1]
+    @test quadgk(x->1/x^1.1,1,Inf)[1] ≈ I rtol=0.05
+    @test quadgk!((y,x)-> y .= 1/x^1.1,[0.0],1,Inf)[1][1] ≈ I rtol=0.05
+    @test quadgk(BatchIntegrand{Float64}((y,x)-> @.(y = 1/x^1.1)),1,Inf)[1] ≈ I rtol=0.05
+
+    # if order < 85, there is also a DomainError, but due to overflow of the change of variables
+    errmsg = "integrand evaluated at an endpoint"
+    @test_throws errmsg quadgk(x -> x, Float16(1), Float16(Inf), order=85)
+    @test_throws errmsg quadgk!((y,x) -> x, Float16[1], Float16(1), Float16(Inf), order=85)
+    @test_throws errmsg quadgk(BatchIntegrand{Float16}((y,x) -> y .= x), Float16(1), Float16(Inf), order=85)
+end

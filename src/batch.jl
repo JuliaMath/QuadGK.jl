@@ -73,8 +73,8 @@ function evalrules(f::BatchIntegrand, s::NTuple{N}, x,w,gw, nrm) where {N}
         o = (i-1)*m
         f.x[l+o] = a + c
         for j in 1:l-1
-            f.x[j+o] = a + (1 + x[j]) * c
-            f.x[m+1-j+o] = a + (1 - x[j]) * c
+            (f.x[j+o] = a + (1 + x[j]) * c) == a && throw(DomainError(a, "integrand evaluated at an endpoint of the initial interval ($a, $b)"))
+            (f.x[m+1-j+o] = a + (1 - x[j]) * c) == b && throw(DomainError(b, "integrand evaluated at an endpoint of the initial interval ($a, $b)"))
         end
     end
     f.f!(f.y, f.x)  # evaluate integrand
@@ -114,8 +114,8 @@ function refine(f::BatchIntegrand, segs::Vector{T}, I, E, numevals, x,w,gw,n, at
             o = (2i-j)*m
             f.x[l+o] = a + c
             for k in 1:l-1
-                f.x[k+o] = a + (1 + x[k]) * c
-                f.x[m+1-k+o] = a + (1 - x[k]) * c
+                (f.x[k+o] = a + (1 + x[k]) * c) == a && return segs # early return if integrand evaluated at endpoints
+                (f.x[m+1-k+o] = a + (1 - x[k]) * c) == b && return segs
             end
         end
     end

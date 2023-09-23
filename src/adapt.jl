@@ -10,7 +10,10 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     if f isa BatchIntegrand
         segs = evalrules(f, s, x,w,gw, nrm)
     else
-        segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+        segs = ntuple(Val{N-1}()) do i
+            seg = evalrule(f, s[i],s[i+1], x,w,gw, nrm)
+            seg === nothing ? throw(DomainError((s[i] + s[i+1])/2, "integrand evaluated at an endpoint of the initial interval ($(s[i]), $(s[i+1]))")) : seg
+        end
     end
     if f isa InplaceIntegrand
         I = f.I .= segs[1].I
@@ -58,7 +61,10 @@ function refine(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, max
     s = heappop!(segs, Reverse)
     mid = (s.a + s.b) / 2
     s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
+    s1 === nothing && (heappush!(segs, s, Reverse); return segs)    # early return if integrand evaluated at endpoints
     s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
+    s2 === nothing && (heappush!(segs, s, Reverse); return segs)
+
     if f isa InplaceIntegrand
         I .= (I .- s.I) .+ s1.I .+ s2.I
     else
