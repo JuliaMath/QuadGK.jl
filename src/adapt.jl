@@ -12,7 +12,7 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     else
         segs = ntuple(Val{N-1}()) do i
             seg = evalrule(f, s[i],s[i+1], x,w,gw, nrm)
-            seg === nothing ? throw(DomainError((s[i] + s[i+1])/2, "integrand evaluated at an endpoint of the initial interval ($(s[i]), $(s[i+1]))")) : seg
+            seg === nothing ? throw(DomainError((s[i] + s[i+1])/2, "roundoff error detected near endpoint of the initial interval ($(s[i]), $(s[i+1]))")) : seg
         end
     end
     if f isa InplaceIntegrand

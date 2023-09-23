@@ -347,7 +347,7 @@ end
     @test quadgk(BatchIntegrand{Float64}((y,x)-> @.(y = 1/x^1.1)),1,Inf)[1] ≈ I rtol=0.05
 
     # if order < 85, there is also a DomainError, but due to overflow of the change of variables
-    errmsg = "integrand evaluated at an endpoint"
+    errmsg = "roundoff error detected near endpoint of the initial interval"
     @test_throws errmsg quadgk(x -> x, Float16(1), Float16(Inf), order=85)
     @test_throws errmsg quadgk!((y,x) -> x, Float16[1], Float16(1), Float16(Inf), order=85)
     @test_throws errmsg quadgk(BatchIntegrand{Float16}((y,x) -> y .= x), Float16(1), Float16(Inf), order=85)

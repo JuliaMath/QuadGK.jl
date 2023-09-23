@@ -73,8 +73,8 @@ function evalrules(f::BatchIntegrand, s::NTuple{N}, x,w,gw, nrm) where {N}
         o = (i-1)*m
         f.x[l+o] = a + c
         for j in 1:l-1
-            (f.x[j+o] = a + (1 + x[j]) * c) == a && throw(DomainError(a, "integrand evaluated at an endpoint of the initial interval ($a, $b)"))
-            (f.x[m+1-j+o] = a + (1 - x[j]) * c) == b && throw(DomainError(b, "integrand evaluated at an endpoint of the initial interval ($a, $b)"))
+            (f.x[j+o] = a + (1 + x[j]) * c) == a && throw(DomainError(a, "roundoff error detected near endpoint of the initial interval ($a, $b)"))
+            (f.x[m+1-j+o] = a + (1 - x[j]) * c) == b && throw(DomainError(b, "roundoff error detected near endpoint of the initial interval ($a, $b)"))
         end
     end
     f.f!(f.y, f.x)  # evaluate integrand
