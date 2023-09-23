@@ -329,3 +329,12 @@ end
     @test quadgk(g, -Inf, 1.)[1] ≈ quadgk(x -> exp(-x^2), -Inf, 1.)[1]
     @test quadgk(g, -Inf, Inf)[1] ≈ quadgk(x -> exp(-x^2), -Inf, Inf)[1]
 end
+
+# issue 89: callable objects that are also arrays
+struct Test89 <: AbstractVector{Float64}
+end
+(::Test89)(x::Real) = float(x)
+@testset "issue 89" begin
+    A = Test89()
+    @test quadgk(A, 0, 10) == (50, 0)
+end
