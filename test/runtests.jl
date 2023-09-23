@@ -348,7 +348,19 @@ end
 
     # if order < 85, there is also a DomainError, but due to overflow of the change of variables
     errmsg = "roundoff error detected near endpoint of the initial interval"
-    @test_throws errmsg quadgk(x -> x, Float16(1), Float16(Inf), order=90)
-    @test_throws errmsg quadgk!((y,x) -> x, Float16[1], Float16(1), Float16(Inf), order=90)
-    @test_throws errmsg quadgk(BatchIntegrand{Float16}((y,x) -> y .= x), Float16(1), Float16(Inf), order=90)
+    a = Float16(1)
+    b = Float16(Inf)
+    for (routine, args) in (
+        (quadgk,  (x -> x,)),
+        (quadgk!, ((y,x) -> x, Float16[1])),
+        (quadgk,  (BatchIntegrand{Float16}((y,x) -> y .= x),)),
+    )
+        # need Julia 1.8 for @test_throws with the error message
+        try
+            routine(args..., a, b; order=85)
+            error()
+        catch e
+            @test startswith(e.msg, errmsg)
+        end
+    end
 end
