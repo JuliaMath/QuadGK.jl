@@ -296,8 +296,6 @@ The function Also computes the embedded `n`-point Gauss quadrature weights `gw`
 (again for `x <= 0` if `a` and `b` are not passed), corresponding to the points `x[2:2:end]`.
 Returns `(x,w,wg)` in O(`n`²) operations.
 
-The optional arguments `a, b` specify th
-
 `T` is an optional parameter specifying the floating-point type, defaulting
 to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
 
