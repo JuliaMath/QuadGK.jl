@@ -214,6 +214,11 @@ end
     for A in ((1:3) * (1:3)', (1:3) * (4:7)', Tridiagonal(1:2, 3:5, 6:7))
         @test_throws ArgumentError gauss(A)
     end
+
+    # issue 93: underflow for large n
+    let (x, w, wg) = kronrod(550)
+        @test all(isfinite, [x; w; wg])
+    end
 end
 
 @testset "HollowSymTridiagonal" begin
