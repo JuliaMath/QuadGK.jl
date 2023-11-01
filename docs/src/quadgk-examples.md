@@ -125,8 +125,15 @@ interpolating the integrand with polynomials over segments of the domain,
 and polynomials are bad at representing [non-analytic functions](https://en.wikipedia.org/wiki/Analytic_function) like $1/\sqrt{x}$.
 
 The good news is that `quadgk` **never evaluates functions exactly at the endpoints**,
-so it is okay if your function blows up or errors at those points.   However,
-this means that if you function blows up in the *interior* of the integration domain,
+so it is okay if your function blows up or errors at those points.   (However, you may have
+to relax your error tolerance because of the slow convergence, and floating-point limitations
+may prevent `quadgk` from reaching very low error tolerances for singular integrands.)   Of
+course, it is always better to remove the singularity by some analytical transformation if you
+can.  For example, if you need $\int_0^a f(x)/\sqrt{x} dx$, you can do a change of variables $x = y^2$
+to obtain an equivalent integral $\int_0^\sqrt{a} f(y^2) 2 dy$ that has no singularity and will
+therefore converge *much* more quickly.
+
+If your integrand blows up (or has *any* singularity or discontinuity) in the *interior* of the integration domain,
 you should *add an extra "endpoint"* at that point to make sure we never evaluate it.
 (Also, `quadgk` can often converge more quickly if you tell it where your singularities
 are via the endpoints.)  For example, suppose we are integrating
