@@ -123,21 +123,21 @@ function handle_infinities(workfunc, f, s)
         inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
-                return workfunc(t -> begin t2 = t*t; den = 1 / (1 - t2);
-                                            f(oneunit(s1)*t*den) * (1+t2)*den*den*oneunit(s1); end,
-                                map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
+                return workfunc(u -> begin t = u/oneunit(u); t2 = t*t; den = 1 / (1 - t2);
+                                            f(u*den) * (1+t2)*den*den; end,
+                                map(x -> isinf(x) ? (signbit(x) ? -oneunit(x) : oneunit(x)) : 2x / (one(x)+hypot(one(x),2x/oneunit(x))), s),
                                 t -> oneunit(s1) * t / (1 - t^2))
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < zero(si) # x = s0 - t/(1-t)
-                    return workfunc(t -> begin den = 1 / (1 - t);
-                                                f(s0 - oneunit(s1)*t*den) * den*den*oneunit(s1); end,
-                                    reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
+                    return workfunc(u -> begin t = u/oneunit(u); den = 1 / (1 - t);
+                                                f(s0 - u*den) * den*den; end,
+                                    reverse(map(x -> oneunit(x) / (1 + oneunit(x) / (s0 - x)), s)),
                                     t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
-                    return workfunc(t -> begin den = 1 / (1 - t);
-                                                f(s0 + oneunit(s1)*t*den) * den*den*oneunit(s1); end,
-                                    map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
+                    return workfunc(u -> begin t = u/oneunit(u); den = 1 / (1 - t);
+                                                f(s0 + u*den) * den*den; end,
+                                    map(x -> oneunit(x) / (1 + oneunit(x) / (x - s0)), s),
                                     t -> s0 + oneunit(s1)*t/(1-t))
                 end
             end
@@ -151,23 +151,23 @@ function handle_infinities(workfunc, f::InplaceIntegrand, s)
     if realone(s1) && realone(s2) # check for infinite or semi-infinite intervals
         inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
-            ftmp = f.fx # original integrand may have different units
+            ftmp = f.fx # original integrand may have different type
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
-                return workfunc(InplaceIntegrand((v, t) -> begin t2 = t*t; den = 1 / (1 - t2);
-                                            f.f!(ftmp, oneunit(s1)*t*den); v .= ftmp .* ((1+t2)*den*den*oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
-                                map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
+                return workfunc(InplaceIntegrand((v, u) -> begin t = u/oneunit(u); t2 = t*t; den = 1 / (1 - t2);
+                                            f.f!(ftmp, u*den); v .= ftmp .* ((1+t2)*den*den); end, f.I, f.fx * float(one(s1))),
+                                map(x -> isinf(x) ? (signbit(x) ? -oneunit(x) : oneunit(x)) : 2x / (one(x)+hypot(one(x),2x/oneunit(x))), s),
                                 t -> oneunit(s1) * t / (1 - t^2))
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < zero(si) # x = s0 - t/(1-t)
-                    return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
-                                            f.f!(ftmp, s0 - oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
-                                    reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
+                    return workfunc(InplaceIntegrand((v, u) -> begin t = u/oneunit(u); den = 1 / (1 - t);
+                                            f.f!(ftmp, s0 - u*den); v .= ftmp .* (den * den); end, f.I, f.fx  * float(one(s1))),
+                                    reverse(map(x -> oneunit(x) / (1 + oneunit(x) / (s0 - x)), s)),
                                     t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
-                    return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
-                                            f.f!(ftmp, s0 + oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
-                                    map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
+                    return workfunc(InplaceIntegrand((v, u) -> begin t = u/oneunit(u); den = 1 / (1 - t);
+                                            f.f!(ftmp, s0 + u*den); v .= ftmp .* (den * den); end, f.I, f.fx * float(one(s1))),
+                                    map(x -> oneunit(x) / (1 + oneunit(x) / (x - s0)), s),
                                     t -> s0 + oneunit(s1)*t/(1-t))
                 end
             end

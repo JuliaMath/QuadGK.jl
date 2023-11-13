@@ -147,26 +147,26 @@ function handle_infinities(workfunc, f::BatchIntegrand, s)
     if realone(s1) && realone(s2) # check for infinite or semi-infinite intervals
         inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
-            xtmp = f.x # buffer to store evaluation points
-            ytmp = f.y # original integrand may have different units
-            xbuf = similar(xtmp, typeof(one(eltype(f.x))))
-            ybuf = similar(ytmp, typeof(oneunit(eltype(f.y))*oneunit(s1)))
+            xbuf = f.x # buffer to store evaluation points
+            ytmp = f.y # original integrand may have different type
+            xtmp = similar(xbuf, typeof(one(eltype(f.x))))
+            ybuf = similar(ytmp, typeof(oneunit(eltype(f.y))*float(one(s1))))
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
-                return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
-                                            f.f!(ytmp, xtmp .= oneunit(s1) .* t ./ (1 .- t .* t)); v .= ytmp .* (1 .+ t .* t) .* oneunit(s1) ./ (1 .- t .* t) .^ 2; end, ybuf, xbuf, f.max_batch),
-                                map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
+                return workfunc(BatchIntegrand((v, u) -> begin resize!(xtmp, length(u)); resize!(ytmp, length(v)); t = xtmp .= u ./ oneunit(s1);
+                                            f.f!(ytmp, u .= oneunit(s1) .* t ./ (1 .- t .* t)); v .= ytmp .* (1 .+ t .* t) ./ (1 .- t .* t) .^ 2; end, ybuf, xbuf, f.max_batch),
+                                map(x -> isinf(x) ? (signbit(x) ? -oneunit(x) : oneunit(x)) : 2x / (one(x)+hypot(one(x),2x/oneunit(x))), s),
                                 t -> oneunit(s1) * t / (1 - t^2))
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < zero(si) # x = s0 - t/(1-t)
-                    return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
-                                            f.f!(ytmp, xtmp .= s0 .- oneunit(s1) .* t ./ (1 .- t)); v .= ytmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, ybuf, xbuf, f.max_batch),
-                                    reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
+                    return workfunc(BatchIntegrand((v, u) -> begin resize!(xtmp, length(u)); resize!(ytmp, length(v)); t = xtmp .= u ./ oneunit(s1);
+                                            f.f!(ytmp, u .= s0 .- oneunit(s1) .* t ./ (1 .- t)); v .= ytmp ./ (1 .- t) .^ 2; end, ybuf, xbuf, f.max_batch),
+                                    reverse(map(x -> oneunit(x) / (1 + oneunit(x) / (s0 - x)), s)),
                                     t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
-                    return workfunc(BatchIntegrand((v, t) -> begin resize!(xtmp, length(t)); resize!(ytmp, length(v));
-                                            f.f!(ytmp, xtmp .= s0 .+ oneunit(s1) .* t ./ (1 .- t)); v .= ytmp .* oneunit(s1) ./ (1 .- t) .^ 2; end, ybuf, xbuf, f.max_batch),
-                                    map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
+                    return workfunc(BatchIntegrand((v, u) -> begin resize!(xtmp, length(u)); resize!(ytmp, length(v)); t = xtmp .= u ./ oneunit(s1);
+                                            f.f!(ytmp, u .= s0 .+ oneunit(s1) .* t ./ (1 .- t)); v .= ytmp ./ (1 .- t) .^ 2; end, ybuf, xbuf, f.max_batch),
+                                    map(x -> oneunit(x) / (1 + oneunit(x) / (x - s0)), s),
                                     t -> s0 + oneunit(s1)*t/(1-t))
                 end
             end
