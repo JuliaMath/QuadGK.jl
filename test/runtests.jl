@@ -79,8 +79,8 @@ module Test19626
         ## inplace
         fiip = (y, x) -> y[] = 1/(1+(x/oneunit(x))^2)
         ibuf = QuadGK.alloc_segbuf(MockQuantity, Array{MockQuantity,0}, MockQuantity)
-        @test QuadGK.quadgk!(fiip, fill(MockQuantity(0.0)), lb, ub, atol=MockQuantity(0.0), norm=abs∘only)[1][] ≈
-                QuadGK.quadgk!(fiip, fill(MockQuantity(0.0)), lb, ub, atol=MockQuantity(0.0), norm=abs∘only, segbuf=ibuf)[1][]
+        @test QuadGK.quadgk!(fiip, fill(MockQuantity(0.0)), lb, ub, atol=MockQuantity(0.0), norm=abs∘getindex)[1][] ≈
+                QuadGK.quadgk!(fiip, fill(MockQuantity(0.0)), lb, ub, atol=MockQuantity(0.0), norm=abs∘getindex, segbuf=ibuf)[1][]
         ## batch
         fbatch = BatchIntegrand{Float64}((y, x) -> y .= 1 ./ (1 .+ (x ./ oneunit.(x)) .^ 2))
         @test QuadGK.quadgk(fbatch, lb, ub, atol=MockQuantity(0.0))[1] ≈
