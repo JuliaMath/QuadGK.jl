@@ -41,15 +41,23 @@ module Test19626
     end
 
     # Following definitions needed for quadgk to work with MockQuantity
-    import Base: +, -, *, abs, isnan, isinf, isless, float
+    import Base: +, -, *, /, abs, isnan, isinf, isless, float, one, real, signbit
     +(a::MockQuantity, b::MockQuantity) = MockQuantity(a.val+b.val)
     -(a::MockQuantity, b::MockQuantity) = MockQuantity(a.val-b.val)
+    -(a::MockQuantity) = MockQuantity(-a.val)
     *(a::MockQuantity, b::Number) = MockQuantity(a.val*b)
+    *(a::Number, b::MockQuantity) = MockQuantity(a*b.val)
+    /(a::MockQuantity, b::Number) = MockQuantity(a.val/b)
+    /(a::MockQuantity, b::MockQuantity) = a.val/b.val
     abs(a::MockQuantity) = MockQuantity(abs(a.val))
     float(a::MockQuantity) = a
     isnan(a::MockQuantity) = isnan(a.val)
     isinf(a::MockQuantity) = isinf(a.val)
     isless(a::MockQuantity, b::MockQuantity) = isless(a.val, b.val)
+    one(::Type{MockQuantity}) = one(fieldtype(MockQuantity, :val))
+    one(a::MockQuantity) = one(a.val)
+    real(a::MockQuantity) = MockQuantity(real(a.val))
+    signbit(a::MockQuantity) = signbit(a.val)
 
     # isapprox only needed for test purposes
     Base.isapprox(a::MockQuantity, b::MockQuantity) = isapprox(a.val, b.val)
@@ -57,6 +65,27 @@ module Test19626
     # Test physical quantity-valued functions
     @test QuadGK.quadgk(x->MockQuantity(x), 0.0, 1.0, atol=MockQuantity(0.0))[1] ≈
         MockQuantity(0.5)
+
+    # Test that quantities work with infinity transformations and segbufs
+    # for all quadgk interfaces
+    lims = [(-1.0, 1.0), (-Inf, 0.0), (0.0, Inf), (-Inf, Inf)]
+    ulims = map(x -> map(MockQuantity, x), lims)
+    for (lb, ub) in ulims
+        ## function
+        f = x -> 1/(1+(x/oneunit(x))^2)
+        buf = QuadGK.alloc_segbuf(MockQuantity, MockQuantity, MockQuantity)
+        @test QuadGK.quadgk(f, lb, ub, atol=MockQuantity(0.0))[1] ≈
+                QuadGK.quadgk(f, lb, ub, atol=MockQuantity(0.0), segbuf=buf)[1]
+        ## inplace
+        fiip = (y, x) -> y[] = 1/(1+(x/oneunit(x))^2)
+        ibuf = QuadGK.alloc_segbuf(MockQuantity, Array{MockQuantity,0}, MockQuantity)
+        @test QuadGK.quadgk!(fiip, fill(MockQuantity(0.0)), lb, ub, atol=MockQuantity(0.0), norm=abs∘only)[1][] ≈
+                QuadGK.quadgk!(fiip, fill(MockQuantity(0.0)), lb, ub, atol=MockQuantity(0.0), norm=abs∘only, segbuf=ibuf)[1][]
+        ## batch
+        fbatch = BatchIntegrand{Float64}((y, x) -> y .= 1 ./ (1 .+ (x ./ oneunit.(x)) .^ 2))
+        @test QuadGK.quadgk(fbatch, lb, ub, atol=MockQuantity(0.0))[1] ≈
+                QuadGK.quadgk(fbatch, lb, ub, atol=MockQuantity(0.0), segbuf=buf)[1]
+    end
 end
 
 @testset "inference" begin
