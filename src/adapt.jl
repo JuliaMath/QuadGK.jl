@@ -270,7 +270,9 @@ starting with the given `size`. The buffer can then be reused across multiple
 compatible calls to `quadgk(...)` to avoid repeated allocation.
 """
 function alloc_segbuf(domain_type=Float64, range_type=Float64, error_type=Float64; size=1)
-    Vector{Segment{domain_type, range_type, error_type}}(undef, size)
+    x = float(real(one(domain_type)))   # quadrature point type
+    err = oneunit(error_type)/oneunit(domain_type)  # error has units of the integral
+    Vector{Segment{typeof(x), range_type, typeof(err)}}(undef, size)
 end
 
 """
