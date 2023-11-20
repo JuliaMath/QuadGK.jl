@@ -10,7 +10,11 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     if f isa BatchIntegrand
         segs = evalrules(f, s, x,w,gw, nrm)
     else
-        segs = ntuple(i -> evalrule(f, s[i],s[i+1], x,w,gw, nrm), Val{N-1}())
+        segs = ntuple(Val{N-1}()) do i
+            a, b = s[i], s[i+1]
+            check_endpoint_roundoff(a, b, x, throw_error=true)
+            evalrule(f, a,b, x,w,gw, nrm)
+        end
     end
     if f isa InplaceIntegrand
         I = f.I .= segs[1].I
@@ -57,8 +61,16 @@ end
 function refine(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
     s = heappop!(segs, Reverse)
     mid = (s.a + s.b) / 2
+
+    # early return if integrand evaluated at endpoints
+    if check_endpoint_roundoff(s.a, mid, x) || check_endpoint_roundoff(mid, s.b, x)
+        heappush!(segs, s, Reverse)
+        return segs
+    end
+
     s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
     s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
+
     if f isa InplaceIntegrand
         I .= (I .- s.I) .+ s1.I .+ s2.I
     else
@@ -162,6 +174,16 @@ function handle_infinities(workfunc, f::InplaceIntegrand, s)
         end
     end
     return workfunc(f, s, identity)
+end
+
+function check_endpoint_roundoff(a, b, x; throw_error::Bool=false)
+    c = convert(eltype(x), 0.5) * (b-a)
+    (eval_at_a = a == a + (1+x[1])*c) && throw_error && throw_endpoint_error(a, a, b)
+    (eval_at_b = b == a + (1-x[1])*c) && throw_error && throw_endpoint_error(b, a, b)
+    eval_at_a || eval_at_b
+end
+function throw_endpoint_error(x, a, b)
+    throw(DomainError(x, "roundoff error detected near endpoint of the initial interval ($a, $b)"))
 end
 
 # Gauss-Kronrod quadrature of f from a to b to c...

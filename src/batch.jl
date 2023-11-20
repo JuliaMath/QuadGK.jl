@@ -69,6 +69,7 @@ function evalrules(f::BatchIntegrand, s::NTuple{N}, x,w,gw, nrm) where {N}
     resize!(f.y, n)
     for i in 1:(N-1)    # fill buffer with evaluation points
         a = s[i]; b = s[i+1]
+        check_endpoint_roundoff(a, b, x, throw_error=true)
         c = convert(eltype(x), 0.5) * (b-a)
         o = (i-1)*m
         f.x[l+o] = a + c
@@ -110,10 +111,12 @@ function refine(f::BatchIntegrand, segs::Vector{T}, I, E, numevals, x,w,gw,n, at
         s = segs[len-i+1]
         mid = (s.a+s.b)/2
         for (j,a,b) in ((2,s.a,mid), (1,mid,s.b))
+            check_endpoint_roundoff(a, b, x) && return segs
             c = convert(eltype(x), 0.5) * (b-a)
             o = (2i-j)*m
             f.x[l+o] = a + c
             for k in 1:l-1
+                # early return if integrand evaluated at endpoints
                 f.x[k+o] = a + (1 + x[k]) * c
                 f.x[m+1-k+o] = a + (1 - x[k]) * c
             end

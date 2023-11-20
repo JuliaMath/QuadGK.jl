@@ -338,3 +338,29 @@ end
     A = Test89()
     @test quadgk(A, 0, 10) == (50, 0)
 end
+
+# issue 86: nodes roundoff to endpoints
+@testset "issue 86" begin
+    I, = quadgk(y->10*y^9/(y^10)^1.1,1,Inf)[1]
+    @test quadgk(x->1/x^1.1,1,Inf)[1] ≈ I rtol=0.05
+    @test quadgk!((y,x)-> y .= 1/x^1.1,[0.0],1,Inf)[1][1] ≈ I rtol=0.05
+    @test quadgk(BatchIntegrand{Float64}((y,x)-> @.(y = 1/x^1.1)),1,Inf)[1] ≈ I rtol=0.05
+
+    # if order < 85, there is also a DomainError, but due to overflow of the change of variables
+    errmsg = "roundoff error detected near endpoint of the initial interval"
+    a = Float16(1)
+    b = Float16(Inf)
+    for (routine, args) in (
+        (quadgk,  (x -> x,)),
+        (quadgk!, ((y,x) -> x, Float16[1])),
+        (quadgk,  (BatchIntegrand{Float16}((y,x) -> y .= x),)),
+    )
+        # need Julia 1.8 for @test_throws with the error message
+        try
+            routine(args..., a, b; order=85)
+            error()
+        catch e
+            @test startswith(e.msg, errmsg)
+        end
+    end
+end
