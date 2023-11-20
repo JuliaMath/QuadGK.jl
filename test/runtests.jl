@@ -341,7 +341,7 @@ end
     end
 
     # test constructors
-    ref = BatchIntegrand(f!, Float64[], Nothing[], typemax(Int))
+    ref = BatchIntegrand(f!, Float64[], Nothing[], nothing, typemax(Int))
     for b in (
         BatchIntegrand(f!, Float64[]),
         BatchIntegrand(f!, Float64[], Nothing[]),
