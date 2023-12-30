@@ -95,7 +95,7 @@ end
 # re-sum (paranoia about accumulated roundoff)
 function resum(f, segs)
     if f isa InplaceIntegrand
-        I = f.Ik .= segs[1].I
+        I = f.I .= segs[1].I
         E = segs[1].E
         for i in 2:length(segs)
             I .+= segs[i].I
