@@ -72,17 +72,17 @@ module Test19626
     ulims = map(x -> map(MockQuantity, x), lims)
     for (lb, ub) in ulims
         ## function
-        f = x -> 1/(1+(x/oneunit(x))^2)
+        f = x -> 1/(1+(x/MockQuantity(1.0))^2)
         buf = QuadGK.alloc_segbuf(MockQuantity, Float64, MockQuantity)
         @test QuadGK.quadgk(f, lb, ub, atol=MockQuantity(0.0))[1] ≈
                 QuadGK.quadgk(f, lb, ub, atol=MockQuantity(0.0), segbuf=buf)[1]
         ## inplace
-        fiip = (y, x) -> y[1] = 1/(1+(x/oneunit(x))^2)
+        fiip = (y, x) -> y[1] = 1/(1+(x/MockQuantity(1.0))^2)
         ibuf = QuadGK.alloc_segbuf(MockQuantity, Array{Float64,1}, MockQuantity)
         @test QuadGK.quadgk!(fiip, [MockQuantity(0.0)], lb, ub, atol=MockQuantity(0.0), norm=abs∘first)[1][] ≈
                 QuadGK.quadgk!(fiip, [MockQuantity(0.0)], lb, ub, atol=MockQuantity(0.0), norm=abs∘getindex, segbuf=ibuf)[1][]
         ## batch
-        fbatch = BatchIntegrand{Float64}((y, x) -> y .= 1 ./ (1 .+ (x ./ oneunit.(x)) .^ 2))
+        fbatch = BatchIntegrand{Float64}((y, x) -> y .= 1 ./ (1 .+ (x ./ MockQuantity(1.0)) .^ 2))
         @test QuadGK.quadgk(fbatch, lb, ub, atol=MockQuantity(0.0))[1] ≈
                 QuadGK.quadgk(fbatch, lb, ub, atol=MockQuantity(0.0), segbuf=buf)[1]
     end

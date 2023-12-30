@@ -147,7 +147,7 @@ function handle_infinities(workfunc, f, s)
             end
         end
     end
-    I, E = workfunc(f, map(x -> x/oneunit(x), s), identity)
+    I, E = workfunc(t -> f(t*u), map(x -> x/oneunit(x), s), identity)
     return u * I, u * E
 end
 
@@ -185,7 +185,7 @@ function handle_infinities(workfunc, f::InplaceIntegrand, s)
             end
         end
     end
-    I, E = workfunc(InplaceIntegrand(f.f!, f.fg, f.fk, f.Ig, f.Ik, f.fx, f.Idiff, similar(f.fx)),
+    I, E = workfunc(InplaceIntegrand((y,t) -> f.f!(y, t*u), f.fg, f.fk, f.Ig, f.Ik, f.fx, f.Idiff, similar(f.fx)),
                     map(x -> x/oneunit(x), s),
                     identity)
     result .= u .* I
