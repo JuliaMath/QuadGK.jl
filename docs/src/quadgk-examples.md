@@ -133,8 +133,6 @@ can.  For example, if you need $\int_0^a f(x) x^{-1/2} dx$, you can do a change 
 to obtain an equivalent integral $\int_0^\sqrt{a} f(y^2) 2 dy$ that has no singularity and will
 therefore converge *much* more quickly.
 
-(If you *know* that you have a $1/\sqrt{x}$ singularity at $x=0$, it is even better to completely eliminate the singularity with a change of variables.  In particular, if we let $y=\sqrt{x}$, then the identity $\int_0^a \frac{g(x)}{\sqrt{x}} dx = 2 \int_0^\sqrt{a} g(y^2) dy$ gives an equivalent non-singular integral!)
-
 If your integrand blows up (or has *any* singularity or discontinuity) in the *interior* of the integration domain,
 you should *add an extra "endpoint"* at that point to make sure we never evaluate it.
 (Also, `quadgk` can often converge more quickly if you tell it where your singularities
