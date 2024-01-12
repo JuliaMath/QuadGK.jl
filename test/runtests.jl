@@ -26,6 +26,9 @@ using QuadGK, LinearAlgebra, Test
 
     # order=1 (issue #66)
     @test quadgk_count(x -> 1, 0, 1, order=1) == (1.0, 0.0, 3)
+
+    # empty intervals (issue #97)
+    @test quadgk(x -> 1, 0,0) == quadgk(x -> 1, 0,0,0) == (0.0,0.0)
 end
 
 module Test19626
