@@ -177,6 +177,7 @@ function handle_infinities(workfunc, f::InplaceIntegrand, s)
 end
 
 function check_endpoint_roundoff(a, b, x; throw_error::Bool=false)
+    throw_error && a == b && return false # don't throw on empty intervals
     c = convert(eltype(x), 0.5) * (b-a)
     (eval_at_a = a == a + (1+x[1])*c) && throw_error && throw_endpoint_error(a, a, b)
     (eval_at_b = b == a + (1-x[1])*c) && throw_error && throw_endpoint_error(b, a, b)
