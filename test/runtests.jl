@@ -27,8 +27,9 @@ using QuadGK, LinearAlgebra, Test
     # order=1 (issue #66)
     @test quadgk_count(x -> 1, 0, 1, order=1) == (1.0, 0.0, 3)
 
-    # empty intervals (issue #97)
+    # empty or nearly empty intervals (issue #97)
     @test quadgk(x -> 1, 0,0) == quadgk(x -> 1, 0,0,0) == (0.0,0.0)
+    @test quadgk(x -> 1, 1,nextfloat(1.0)) == (eps(),0.0)
 end
 
 module Test19626
@@ -348,22 +349,4 @@ end
     @test quadgk(x->1/x^1.1,1,Inf)[1] ≈ I rtol=0.05
     @test quadgk!((y,x)-> y .= 1/x^1.1,[0.0],1,Inf)[1][1] ≈ I rtol=0.05
     @test quadgk(BatchIntegrand{Float64}((y,x)-> @.(y = 1/x^1.1)),1,Inf)[1] ≈ I rtol=0.05
-
-    # if order < 85, there is also a DomainError, but due to overflow of the change of variables
-    errmsg = "roundoff error detected near endpoint of the initial interval"
-    a = Float16(1)
-    b = Float16(Inf)
-    for (routine, args) in (
-        (quadgk,  (x -> x,)),
-        (quadgk!, ((y,x) -> x, Float16[1])),
-        (quadgk,  (BatchIntegrand{Float16}((y,x) -> y .= x),)),
-    )
-        # need Julia 1.8 for @test_throws with the error message
-        try
-            routine(args..., a, b; order=85)
-            error()
-        catch e
-            @test startswith(e.msg, errmsg)
-        end
-    end
 end

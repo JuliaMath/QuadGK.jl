@@ -12,7 +12,6 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     else
         segs = ntuple(Val{N-1}()) do i
             a, b = s[i], s[i+1]
-            check_endpoint_roundoff(a, b, x, throw_error=true)
             evalrule(f, a,b, x,w,gw, nrm)
         end
     end
@@ -176,15 +175,11 @@ function handle_infinities(workfunc, f::InplaceIntegrand, s)
     return workfunc(f, s, identity)
 end
 
-function check_endpoint_roundoff(a, b, x; throw_error::Bool=false)
-    throw_error && a == b && return false # don't throw on empty intervals
+function check_endpoint_roundoff(a, b, x)
     c = convert(eltype(x), 0.5) * (b-a)
-    (eval_at_a = a == a + (1+x[1])*c) && throw_error && throw_endpoint_error(a, a, b)
-    (eval_at_b = b == a + (1-x[1])*c) && throw_error && throw_endpoint_error(b, a, b)
-    eval_at_a || eval_at_b
-end
-function throw_endpoint_error(x, a, b)
-    throw(DomainError(x, "roundoff error detected near endpoint of the initial interval ($a, $b)"))
+    eval_at_a = a == a + (1+x[1])*c
+    eval_at_b = b == a + (1-x[1])*c
+    return eval_at_a || eval_at_b
 end
 
 # Gauss-Kronrod quadrature of f from a to b to c...
