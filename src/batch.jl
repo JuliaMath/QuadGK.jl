@@ -69,7 +69,6 @@ function evalrules(f::BatchIntegrand, s::NTuple{N}, x,w,gw, nrm) where {N}
     resize!(f.y, n)
     for i in 1:(N-1)    # fill buffer with evaluation points
         a = s[i]; b = s[i+1]
-        check_endpoint_roundoff(a, b, x, throw_error=true)
         c = convert(eltype(x), 0.5) * (b-a)
         o = (i-1)*m
         f.x[l+o] = a + c
