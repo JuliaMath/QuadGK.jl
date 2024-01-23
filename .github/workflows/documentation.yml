@@ -7,13 +7,21 @@ on:
     tags: '*'
   pull_request:
 
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: always.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     permissions:
       contents: write
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: julia-actions/cache@v1
       - uses: julia-actions/setup-julia@v1
         with:
           version: '1.6'
