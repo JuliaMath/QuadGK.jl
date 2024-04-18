@@ -25,7 +25,7 @@ Features of the QuadGK package include:
 ## Quick start
 
 The following code computes $\int_0^1 \cos(200x) dx$ numerically, to the default accuracy (a [relative error](https://en.wikipedia.org/wiki/Approximation_error) $\lesssim 10^{-8}$), using [`quadgk`](@ref):
-```
+```julia-repl
 julia> using QuadGK
 
 julia> integral, error = quadgk(x -> cos(200x), 0, 1)
@@ -37,7 +37,7 @@ on the [truncation error](https://en.wikipedia.org/wiki/Truncation_error) in the
 
 By default, `quadgk` evaluates the integrand at more and more points ("adaptive quadrature") until
 the relative error estimate is less than `sqrt(eps())`, corresponding to about 8 significant digits.  Often, however, you should change this by passing a relative tolerance (`rtol`) and/or an absolute tolerance (`atol`), e.g.:
-```
+```julia-repl
 julia> quadgk(x -> cos(200x), 0, 1, rtol=1e-3)
 (-0.004366486486069085, 2.569238200052031e-6)
 ```
@@ -67,7 +67,14 @@ QuadGK programming interface.
 ## Other Julia quadrature packages
 
 The [FastGaussQuadrature.jl](https://github.com/ajt60gaibb/FastGaussQuadrature.jl) package provides
-non-adaptive Gaussian quadrature variety of built-in weight functions — it is a good choice you need to go to very high orders $N$, e.g. to integrate rapidly oscillating functions, or use weight functions that incorporate some standard singularity in your integrand.  QuadGK, on the other hand, keeps the order $N$ of the quadrature rule fixed and improves accuracy by subdividing the integration domain, which can be better if fine resolution is required only in a part of your domain (e.g if your integrand has a sharp peak or singularity somewhere that is not known in advance).
+non-adaptive Gaussian quadrature variety of built-in weight functions — it is a
+good choice you need to go to very high orders $N$, e.g. to integrate rapidly
+oscillating functions, or use weight functions that incorporate some standard
+singularity in your integrand.  QuadGK, on the other hand, keeps the order $N$
+of the quadrature rule fixed and improves accuracy by subdividing the
+integration domain, which can be better if fine resolution is required only in a
+part of your domain (e.g if your integrand has a sharp peak or singularity
+somewhere that is not known in advance).
 
 For multidimensional integration, see also the [HCubature.jl](https://github.com/stevengj/HCubature.jl), [Cubature.jl](https://github.com/stevengj/Cubature.jl), and
 [Cuba.jl](https://github.com/giordano/Cuba.jl) packages.

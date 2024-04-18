@@ -44,7 +44,7 @@ change of variables (given explicitly below).
 The QuadGK package can compute the points $x_i$ and weights $w_i$ of a Gauss–Legendre quadrature rule (optionally rescaled to an arbitrary interval ``(a,b)``) for you via the [`gauss`](@ref) function.
 For example, the $n=5$ point rule for integrating from $a=1$ to $b=3$
 is computed by:
-```
+```julia-repl
 julia> a = 1; b = 3; n = 5;
 
 julia> x, w = gauss(n, a, b);
@@ -58,7 +58,7 @@ julia> [x w] # show points and weights as a 2-column matrix
  2.90618  0.236927
 ```
 We can see that there are 5 points $a < x_i < b$.  They are *not* equally spaced or equally weighted, nor do they quite reach the endpoints.  We can now approximate integrals by evaluating the integrand $f(x)$ at these points, multiplying by the weights, and summing.  For example, $f(x)=\cos(x)$ can be integrated via:
-```
+```julia-repl
 julia> sum(w .* cos.(x)) # evaluate ∑ᵢ wᵢ f(xᵢ)
 -0.7003509770773674
 
@@ -70,7 +70,7 @@ a smooth function as this to 8–9 significant digits!
 
 The `gauss` function allows you to compute Gaussian quadrature
 rules to any desired precision, even supporting [arbitrary-precision arithmetic](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) types such as `BigFloat`.  For example, we can compute the same rule as above to about 30 digits:
-```
+```julia-repl
 julia> setprecision(30, base=10);
 
 julia> x, w = gauss(BigFloat, n, a, b); @show x; @show w;
@@ -134,7 +134,7 @@ add more points mostly in these "bad" regions.)
 
 You can use the [`kronrod`](@ref) function to compute a Gauss–Kronrod
 rule to any desired order (and to any precision).  For example, we can extend our 5-point Gaussian-quadrature rule for $\int_1^3$ from the previous section to an 11-point (`2n+1`) Gauss-Kronrod rule:
-```
+```julia-repl
 julia> x, w, gw = kronrod(n, a, b); [ x w ] # points and weights
 11×2 Matrix{Float64}:
  1.01591  0.042582
@@ -155,7 +155,7 @@ and that they are unequally spaced (clustered more near the edges).
 The third return value, `gw`, gives the weights of the embedded 5-point
 Gaussian-quadrature rule, which corresponds to the *even-indexed* points
 `x[2:2:end]` of the 11-point Gauss–Kronrod rule:
-```
+```julia-repl
 julia> [ x[2:2:end] gw ] # embedded Gauss points and weights
 5×2 Matrix{Float64}:
  1.09382  0.236927
@@ -165,7 +165,7 @@ julia> [ x[2:2:end] gw ] # embedded Gauss points and weights
  2.90618  0.236927
 ```
 So, we can evaluate our integrand $f(x)$ at the 11 Gauss–Kronrod points, and then re-use 5 of these values to obtain an error estimate.  For example, with $f(x) = \cos(x)$, we obtain:
-```
+```julia-repl
 julia> fx = cos.(x); # evaluate f(xᵢ)
 
 julia> integral = sum(w .* fx) # ∑ᵢ wᵢ f(xᵢ)
@@ -183,7 +183,7 @@ is so good that it is actually limited by [floating-point roundoff error](https:
 
 You may notice that both the Gauss–Kronrod and the Gaussian quadrature
 rules are *symmetric* around the center $(a+b)/2$ of the integration interval.   In fact, we provide a lower-level function `kronrod(n)` that only computes roughly the first half of the points and weights for $\int_{-1}^{1}$ ($b = -a = 1$), corresponding to $x_i \le 0$.
-```
+```julia-repl
 julia> x, w, gw = kronrod(5); [x w] # points xᵢ ≤ 0 and weights
 6×2 Matrix{Float64}:
  -0.984085  0.042582
@@ -212,7 +212,7 @@ such as `BigFloat` numbers.  `kronrod(n, a, b)` uses the precision of
 the endpoints `(a,b)` (converted to floating point), while for
 `kronrod(n)` you can explicitly pass a floating-point type `T` as
 the first argument, e.g. for 50-digit precision:
-```
+```julia-repl
 julia> setprecision(50, base=10); x, w, gw = kronrod(BigFloat, 5); x
 6-element Vector{BigFloat}:
  -0.9840853600948424644961729346361394995805528241884714
