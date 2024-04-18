@@ -13,7 +13,7 @@ The package provides three functions: `quadgk`, `gauss`, and `kronrod`.
 * `kronrod` computes Kronrod points, weights, and embedded Gaussian quadrature weights for integrating over [-1, 1].
 
 Typical usage looks like:
-```
+```julia
 using QuadGK
 integral, err = quadgk(x -> exp(-x^2), 0, 1, rtol=1e-8)
 ```

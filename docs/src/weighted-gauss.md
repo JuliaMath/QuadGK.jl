@@ -87,7 +87,7 @@ J = \begin{pmatrix}
 \end{pmatrix} .
 ```
 which can be constructed in Julia by
-```
+```julia-repl
 julia> using LinearAlgebra # for SymTridiagonal
 
 julia> J(n) = SymTridiagonal(zeros(n), [sqrt(k^2/(4k^2-1)) for k=1:n-1]) # the n×n matrix Jₙ
@@ -102,7 +102,7 @@ julia> J(5)
   ⋅        ⋅         ⋅        0.503953  0.0
 ```
 The unit integral is simply $I[1] = \int_{-1}^{+1} dx = 2$, so we can construct our $n$-point Gauss rule with, for example:
-```
+```julia-repl
 julia> x, w = gauss(J(5), 2); [x w]
 5×2 Matrix{Float64}:
  -0.90618   0.236927
@@ -112,7 +112,7 @@ julia> x, w = gauss(J(5), 2); [x w]
   0.90618   0.236927
 ```
 This is, of course, the same as the "standard" Gaussian quadrature rule, returned by `gauss(n)`:
-```
+```julia-repl
 julia> x, w = gauss(5); [x w]
 5×2 Matrix{Float64}:
  -0.90618   0.236927
@@ -122,7 +122,7 @@ julia> x, w = gauss(5); [x w]
   0.90618   0.236927
 ```
 Similarly, the 5-point Gauss–Kronrod rule can be constructed from the $9\times 9$ Jacobi matrix ($9 = (3n+3)/2$):
-```
+```julia-repl
 julia> x, w, gw = kronrod(J(9), 5, 2); [x w]
 11×2 Matrix{Float64}:
  -0.984085  0.042582
@@ -138,7 +138,7 @@ julia> x, w, gw = kronrod(J(9), 5, 2); [x w]
   0.984085  0.042582
 ```
 which is the same as the "standard" Gauss–Kronrod rule returned by `kronrod(n)` (returning only the $x_i \le 0$ points) or `kronrod(n, -1, +1)` (returning all the points):
-```
+```julia-repl
 julia> x, w, gw = kronrod(5); [x w]
 6×2 Matrix{Float64}:
  -0.984085  0.042582
@@ -149,8 +149,16 @@ julia> x, w, gw = kronrod(5); [x w]
   0.0       0.282987
 ```
 
-Notice that, in this case, our Jacobi matrix had zero diagonal entries $\alpha_k = 0$.  It turns out that this *always* happens when the integration is centered around zero (``a=-b``) and the weight function $W(x)$ that is *symmetric* (``W(x)=W(-x)``).   This is called a "hollow" tridiagonal matrix, and its eigenvalues always come in $\pm x_j$ pairs: the quadrature rule is has *symmetric points and weights*.   In this case QuadGK can do its computations a bit more efficiently, and only compute the non-redundant $x_i \le 0$ half of of the quadrature rule, if you represent $J_n$ with a special type [`QuadGK.HollowSymTridiagonal`](@ref) whose constructor only requires you to supply the off-diagonal elements $\sqrt{\beta_k}$:
-```
+Notice that, in this case, our Jacobi matrix had zero diagonal entries $\alpha_k = 0$.
+It turns out that this *always* happens when the integration is centered around zero
+(``a=-b``) and the weight function $W(x)$ that is *symmetric* (``W(x)=W(-x)``).
+This is called a "hollow" tridiagonal matrix, and its eigenvalues always come in
+$\pm x_j$ pairs: the quadrature rule is has *symmetric points and weights*.
+In this case QuadGK can do its computations a bit more efficiently, and only
+compute the non-redundant $x_i \le 0$ half of of the quadrature rule, if you
+represent $J_n$ with a special type [`QuadGK.HollowSymTridiagonal`](@ref) whose
+constructor only requires you to supply the off-diagonal elements $\sqrt{\beta_k}$:
+```julia-repl
 julia> JholloW(n) = QuadGK.HollowSymTridiagonal([sqrt(k^2/(4k^2-1)) for k=1:n-1])
 Jhollow (generic function with 1 method)
 
@@ -179,12 +187,17 @@ julia> x, w, gw = kronrod(JholloW(9), 5, 2); [x w] # only returns xᵢ ≤ 0 poi
  -0.27963   0.27285
   0.0       0.282987
 ```
-(The `gauss` function returns all the points, albeit computed more efficiently, while the `kronrod` function returns only the $x_i \le 0$ points for a `HollowSymTridiagonal` Jacobi matrix.)
+(The `gauss` function returns all the points, albeit computed more efficiently,
+while the `kronrod` function returns only the $x_i \le 0$ points for a `HollowSymTridiagonal` Jacobi matrix.)
 
-If you have the Jacobi matrix for one interval, but want QuadGK to rescale the quadrature points and weights to some other interval (rather than doing the change of variables yourself), you can use the method `gauss(J, unitintegral,  (a,b) => (newa, newb))`, where
+If you have the Jacobi matrix for one interval, but want QuadGK to rescale the
+quadrature points and weights to some other interval (rather than doing the change
+of variables yourself), you can use the method `gauss(J, unitintegral,  (a,b) => (newa, newb))`, where
 `(newa,newb)` is the new interval and `unitintegral` is the integral of $f(x)=1$ over
-the new interval, and similarly for `kronrod`.  For example, to rescale the Legendre $W(x)=1$ rule from $(-1,+1)$ to the interval $(4,7)$, with unit integral $7-4 = 3$, we could do:
-```
+the new interval, and similarly for `kronrod`.  For example, to rescale the
+Legendre $W(x)=1$ rule from $(-1,+1)$ to the interval $(4,7)$, with unit
+integral $7-4 = 3$, we could do:
+```julia-repl
 julia> x, w = gauss(JholloW(5), 3, (-1,1) => (4,7)); [x w]
 5×2 Matrix{Float64}:
  4.14073  0.35539
@@ -220,12 +233,14 @@ integrals are of the form:
 I[f] = \int_{-1}^{+1} \underbrace{(1-x)^\alpha (1+x)^\beta}_{W(x)} f(x) dx \, ,
 ```
 where $\alpha > -1$ and $\beta > -1$ are the power laws at the two endpoints, which
-we have factored out into a weight function $W(x) = (1+x)^\alpha (1-x)^\beta$ multiplied by some (hopefully smooth) function $f(x)$.  For
-example, $\alpha = 0.5$ means that there is a square-root singularity at $x=+1$
-(where the integrand is finite, but its slope blows up).  Or if $\beta = -0.1$ then
-the integrand blows up at $x=-1$ but the integral is still finite (``1/x^{0.1}`` is an "integrable singularity").   This weight function is quite well known, in fact:
-it yields [Gauss–Jacobi quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Jacobi_quadrature), with the corresponding orthogonal polynomials
-being the [Jacobi polynomials](https://en.wikipedia.org/wiki/Jacobi_polynomials).
+we have factored out into a weight function $W(x) = (1+x)^\alpha (1-x)^\beta$ multiplied
+by some (hopefully smooth) function $f(x)$.  For example, $\alpha = 0.5$ means that
+there is a square-root singularity at $x=+1$ (where the integrand is finite,
+but its slope blows up).  Or if $\beta = -0.1$ then
+the integrand blows up at $x=-1$ but the integral is still finite (``1/x^{0.1}`` is an "integrable singularity").
+This weight function is quite well known, in fact:
+it yields [Gauss–Jacobi quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Jacobi_quadrature),
+with the corresponding orthogonal polynomials being the [Jacobi polynomials](https://en.wikipedia.org/wiki/Jacobi_polynomials).
 
 Again, we can simply look up the 3-term recurrence for the Jacobi polynomials $p_n$
 corresponding to this weight function:
@@ -237,10 +252,16 @@ We also will need the unit integral
 ```math
 I[1] = \int_{-1}^{+1} (1+x)^\alpha (1-x)^\beta dx  = \frac{2^{\alpha + \beta + 1}}{\alpha + \beta + 1} \frac{\Gamma(\alpha+1)\Gamma(\beta+1)}{\Gamma(\alpha+\beta+1)} \, ,
 ```
-where $\Gamma$ is the [Gamma function](https://en.wikipedia.org/wiki/Gamma_function), computed in Julia by [SpecialFunctions.jl](https://github.com/JuliaMath/SpecialFunctions.jl).  This is all rather tedious, but fortunately exactly these expressions have already been worked out for us by the [FastGaussQuadrature.jl](https://github.com/JuliaApproximation/FastGaussQuadrature.jl) package, in undocumented functions `FastGaussQuadrature.jacobi_jacobimatrix(n, α, β)` (which computes the Jacobi matrix $J_n$) and `FastGaussQuadrature.jacobimoment(α, β)` (which computes $I[1]$).
+where $\Gamma$ is the [Gamma function](https://en.wikipedia.org/wiki/Gamma_function),
+computed in Julia by [SpecialFunctions.jl](https://github.com/JuliaMath/SpecialFunctions.jl).
+This is all rather tedious, but fortunately exactly these expressions have already been worked out for
+us by the [FastGaussQuadrature.jl](https://github.com/JuliaApproximation/FastGaussQuadrature.jl) package,
+in undocumented functions `FastGaussQuadrature.jacobi_jacobimatrix(n, α, β)`
+(which computes the Jacobi matrix $J_n$) and `FastGaussQuadrature.jacobimoment(α, β)` (which computes $I[1]$).
 
-We can use these to immediately compute the Gauss and Gauss–Kronrod points and weights for the Jacobi weight function, say for $\alpha = 0.5$, $\beta = -0.1$, and $n=5$:
-```
+We can use these to immediately compute the Gauss and Gauss–Kronrod points and weights
+for the Jacobi weight function, say for $\alpha = 0.5$, $\beta = -0.1$, and $n=5$:
+```julia-repl
 julia> using FastGaussQuadrature, QuadGK
 
 julia> α, β, n = 0.5, -0.1, 5;
@@ -265,11 +286,12 @@ julia> x, w = gauss(Jₙ, I₁); [x w]
   0.852191   0.10414
 ```
 (Notice that this weight function is *not* symmetric, and so the Jacobi matrix
-is *not* hollow and the quadrature points and weights are asymmetrically distributed: the  points are denser near $x=-1$ where the weight function diverges.)
+is *not* hollow and the quadrature points and weights are asymmetrically
+distributed: the  points are denser near $x=-1$ where the weight function diverges.)
 These are the same as the Gauss points and weights returned by the `gaussjacobi`
 function in FastGaussQuadrature (which has fancy algorithms that scale better for
 large `n` than those in QuadGK):
-```
+```julia-repl
 julia> xf, wf = FastGaussQuadrature.gaussjacobi(n, α, β); [xf wf]
 5×2 Matrix{Float64}:
  -0.923234   0.372265
@@ -288,7 +310,7 @@ julia> [x w] - [xf wf] # they are same points/weights to nearly machine precisio
 ```
 However, QuadGK can also return the 12-point Gauss–Kronrod rule, which embeds/
 extends the 5-point Gauss-Jacobi rule in order to give you an error estimate:
-```
+```julia-repl
 julia> J₁₂ = FastGaussQuadrature.jacobi_jacobimatrix(12, α, β);
 
 julia> kx, kw, gw = kronrod(J₁₂, n, I₁); [kx kw]
@@ -320,7 +342,7 @@ In this case, according to Mathematica, the correct integral to 100 decimal plac
 $I[\cos(2x)] \approx 0.9016684424525614794498545355301765224191593237834490575027527594933568786176710824696779907143025232764922385146156$, or about `0.9016684424525615` to machine precision.  If we use
 the default `quadgk` function, which uses adaptive Gauss–Kronod quadrature that doesn't
 have the singularity built-in, it takes about 1000 function evaluations to reach 9 digits of accuracy:
-```
+```julia-repl
 julia> exact = 0.9016684424525615;
 
 julia> I, _ = quadgk_count(x -> (1-x)^α * (1+x)^β * cos(2x), -1, 1, rtol=1e-9)
@@ -329,9 +351,13 @@ julia> I, _ = quadgk_count(x -> (1-x)^α * (1+x)^β * cos(2x), -1, 1, rtol=1e-9)
 julia> I - exact
 4.900435612853471e-11
 ```
-(This isn't too terrible! If we plotted the points where `quadgk` evaluates our integrand, we would see that it concentrates points mostly close to the singularities at the boundaries.  To get a similar error from unweighted Gauss–Legendre quadrature requires about $n=10^5$ points, which is too slow with the `gauss(n)` function — it's only practical with `x, w = FastGaussQuadrature.gausslegendre(10^5)`, which uses a fancy $O(n)$ algorithm.  Ordinary Gaussian quadrature very slowly converging for non-smooth functions.)
+(This isn't too terrible! If we plotted the points where `quadgk` evaluates our integrand,
+we would see that it concentrates points mostly close to the singularities at the boundaries.
+To get a similar error from unweighted Gauss–Legendre quadrature requires about $n=10^5$ points,
+which is too slow with the `gauss(n)` function — it's only practical with `x, w = FastGaussQuadrature.gausslegendre(10^5)`,
+which uses a fancy $O(n)$ algorithm.  Ordinary Gaussian quadrature very slowly converging for non-smooth functions.)
 In contrast, our 5-point Gauss–Jacobi quadrature rule from above gets about 6 digits:
-```
+```julia-repl
 julia> I = sum(@. cos(2x) * w)
 0.9016690323443182
 
@@ -339,7 +365,7 @@ julia> I - exact
 5.898917566637962e-7
 ```
 and gets 10 digits with only 7 points:
-```
+```julia-repl
 julia> x, w = gauss(FastGaussQuadrature.jacobi_jacobimatrix(7, α, β), I₁);
 
 julia> I = sum(@. cos(2x) * w)
@@ -349,18 +375,22 @@ julia> I - exact
 2.522970721230422e-11
 ```
 This is not unexpected, because the fact that $f(x)$ is smooth means that Gaussian
-quadrature converges exponentially fast, regardless of the weight function's endpoint singularities (which have been taken into account analytically by the quadrature rule).
+quadrature converges exponentially fast, regardless of the weight function's endpoint
+singularities (which have been taken into account analytically by the quadrature rule).
 The Gauss–Kronrod rule also converges exponentially, and gives us an error estimate
-to give us added confidence in the result.  For example, with our 12-point Gauss–Kronrod rule we obtain the correct result to machine precision:
-```
+to give us added confidence in the result.  For example, with our 12-point
+Gauss–Kronrod rule we obtain the correct result to machine precision:
+```julia-repl
 julia> Ik = sum(@. cos(2kx) * kw)
 0.9016684424525613
 
 julia> Ik - exact
 -2.220446049250313e-16
 ```
-while a subset `kx[2:2:end]` of the points (for which we could re-use the integrand evaluations if we wanted) gives us an embedded Gauss rule and an error bound:
-```
+while a subset `kx[2:2:end]` of the points (for which we could re-use the
+integrand evaluations if we wanted) gives us an embedded Gauss rule and an
+error bound:
+```julia-repl
 julia> Ig = sum(@. cos(2kx[2:2:end]) * gw)
 0.9016690323443182
 
@@ -370,7 +400,7 @@ julia> abs(Ik - Ig) # conservative error estimate: Kronrod - Gauss
 As usual, this error bound is quite conservative for smooth $f(x)$ where the quadrature rule is converging rapidly, since it is actually an error estimate for the 5-point `Ig` and not for the 12-point `Ik`.  But at least it gives you some indication as to whether you picked a sufficient number of points to integrate $f(x)$ sufficiently accurately.
 
 For fun, let's do the same calculation to 100 digits with $n=11$, using `BigFloat` arithmetic.  (We simple need to pass `big"0.5"` and `big"-0.1"` for `α` and `β` to FastGaussQuadrature and it will construct the Jacobi matrix in `BigFloat` precision, which QuadGK will then turn into `BigFloat` Gauss/Gauss–Kronrod points and weights.)
-```
+```julia-repl
 julia> setprecision(100, base=10)
 100
 
@@ -391,7 +421,7 @@ julia> Float64(bigIk - bigexact)
 3.2063940880089856e-44
 ```
 so the 18-point Gauss–Kronrod rule is accurate to about 43 digits, while the conservative error estimate (= error of embedded 11-point Gauss rule) is about 20 digits:
-```
+```julia-repl
 julia> bigIg = sum(@. cos(2bigkx[2:2:end]) * biggw)
 0.901668442452561479451864506089616011729536201879100045019491743663463853013435135385929850010604582451
 
@@ -404,7 +434,7 @@ julia> Float64(abs(bigIk - bigIg))
 Although analytical formulas for 3-term recurrences and Jacobi matrices are known for many common types of singularities that appear in integrals, this is certainly not universally true.   As a fallback, you can simply supply an arbitrary weight function $W(x)$ and let QuadGK compute everything for you numerically (essentially by a form of [Gram–Schmidt process](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) in which a basis of polynomials is orthonormalized with respect to $w$, using a sequence of $O(n)$ numerical integrals).   This is much more time consuming, especially if you want high accuracy (i.e. you specify a low tolerance for the numerical integrals), but can be worth it if your $f(x)$ is expensive and/or you need many integrals of a similar form:  the numerical integrals are againt cheap polynomial functions, and are only done once for all $f(x)$ with the same weight function.
 
 For example:
-```jl
+```julia
 using QuadGK
 x, w = gauss(x -> exp(-x) / sqrt(x), 10, 0, -log(1e-10), rtol=1e-9)
 ```
@@ -416,7 +446,7 @@ to compute a large number of integrals with the same `W`.  See the [`gauss`](@re
 
 Similarly, one can use the `kronrod(W, n, a, b, rtol=rtol)` function to construct Gauss–Kronrod rules
 for arbitrary weight functions.   Unfortunately, it turns out that a Gauss–Kronrod rule does not exist for the weight function above, and the `kronrod` function consequently throws an error — probably because it is very similar to [Gauss–Laguerre quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Laguerre_quadrature) and Gauss–Kronrod rules are known to not exist for the Gauss–Laguerre problem [(Kahaner & Monegato, 1978)](https://doi.org/10.1007/BF01590820).   However, we can for example reproduce the points and weights from the Gauss–Jacobi weight function of the previous section, now computed completely numerically without supplying the analytical Jacobi matrix:
-```
+```julia-repl
 julia> kx, kw, gw = kronrod(x -> (1-x)^0.5 * (1+x)^-0.1, 5, -1, 1, rtol=1e-9); [kx kw]
 11×2 Matrix{Float64}:
  -0.988882   0.0723663

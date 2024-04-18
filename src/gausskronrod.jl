@@ -302,16 +302,18 @@ to `Float64`. Arbitrary precision (`BigFloat`) is also supported.
 Given these points and weights, the estimated integral `I` and error `E` can
 be computed for an integrand `f(x)` as follows:
 
-    x, w, wg = kronrod(n)
-    fx⁰ = f(x[end])                # f(0)
-    x⁻ = x[1:end-1]                # the x < 0 Kronrod points
-    fx = f.(x⁻) .+ f.((-).(x⁻))    # f(x < 0) + f(x > 0)
-    I = sum(fx .* w[1:end-1]) + fx⁰ * w[end]
-    if isodd(n)
-        E = abs(sum(fx[2:2:end] .* wg[1:end-1]) + fx⁰*wg[end] - I)
-    else
-        E = abs(sum(fx[2:2:end] .* wg[1:end])- I)
-    end
+```julia
+x, w, wg = kronrod(n)
+fx⁰ = f(x[end])                # f(0)
+x⁻ = x[1:end-1]                # the x < 0 Kronrod points
+fx = f.(x⁻) .+ f.((-).(x⁻))    # f(x < 0) + f(x > 0)
+I = sum(fx .* w[1:end-1]) + fx⁰ * w[end]
+if isodd(n)
+    E = abs(sum(fx[2:2:end] .* wg[1:end-1]) + fx⁰*wg[end] - I)
+else
+    E = abs(sum(fx[2:2:end] .* wg[1:end])- I)
+end
+```
 """
 function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
     n < 1 && throw(ArgumentError("Kronrod rules require positive order"))

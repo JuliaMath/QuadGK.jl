@@ -8,7 +8,7 @@ The following are several examples illustrating the usage of the main [`quadgk`]
 simply by passing `±Inf` for the endpoints.
 
 For example, $\int_0^\infty e^{-x} dx = 1$ is computed by:
-```
+```julia-repl
 julia> quadgk(x -> exp(-x), 0, Inf)
 (1.0, 4.507383379289404e-11)
 ```
@@ -17,7 +17,7 @@ the error estimate `≈ 4.5e-11` is pessimistic, as is often the case.
 
 The [Gaussian integral](https://en.wikipedia.org/wiki/Gaussian_integral)
 $\int_{-\infty}^{+\infty} e^{-x^2} dx = \sqrt{\pi} = 1.772453850905516027298167483341\ldots$ is computed by:
-```
+```julia-repl
 julia> quadgk(x -> exp(-x^2), -Inf, Inf)
 (1.7724538509055137, 6.4296367126505234e-9)
 ```
@@ -40,7 +40,7 @@ Important tip: This change-of-variables trick works best if your function decays
 If your decay length is much larger or shorter than that, it will perform poorly.  For example, with $f(x) = e^{-x/10^6}$ the
 decay is over a lengthscale $\sim 10^6$ and `quadgk` requires many more evaluations (705) than for $e^{-x}$ (135, as measured by [`quadgk_count`](@ref),
 described below):
-```
+```julia-repl
 julia> quadgk_count(x -> exp(-x), 0, Inf)
 (1.0, 4.507382674563286e-11, 135)
 
@@ -49,7 +49,7 @@ julia> quadgk_count(x -> exp(-x/1e6), 0, Inf)
 ```
 If your function decays over a lengthscale $\sim L$, it is a good idea to compute improper integrals using a change of variables
 $\int_a^b f(x)dx = \int_{a/L}^{b/L} f(uL) L \, du$, for example:
-```
+```julia-repl
 julia> L = 1e6 # decay lengthscale
 1.0e6
 
@@ -74,7 +74,7 @@ in pedagogy and debugging that we provide convenience functions [`quadgk_count`]
 and [`quadgk_print`](@ref) to automate this task.
 
 For example, in our $\int_0^\infty e^{-x} dx$ example from above, we could do:
-```
+```julia-repl
 julia> quadgk_count(x -> exp(-x), 0, Inf)
 (1.0, 4.507383379289404e-11, 135)
 ```
@@ -85,7 +85,7 @@ endpoint implicitly introduces a singularity (via the change of variables discus
 above).
 
 We can also print the evaluation points, setting a lower requested relative accuracy of `rtol=1e-2` so that we don't get so much output, by:
-```
+```julia-repl
 julia> quadgk_print(x -> exp(-x), 0, Inf, rtol=1e-2)
 f(1.0) = 0.36787944117144233
 f(0.655923922306948) = 0.5189623601162878
@@ -111,9 +111,11 @@ third element is the number of integrand evaluations.)
 
 ## Integrands with singularities and discontinuities
 
-The integral $\int_0^1 x^{-1/2} dx = \left. 2 \sqrt{x} \right|_0^1 = 2$ is perfectly finite even though the integrand $1/\sqrt{x}$ blows up at $x=0$.  This is an example
-of an *integrable singularity*, and `quadgk` can compute this integral:
-```
+The integral ``\int_0^1 x^{-1/2} dx = \left. 2 \sqrt{x} \right|_0^1 = 2`` is
+perfectly finite even though the integrand $1/\sqrt{x}$ blows up at $x=0$.
+This is an example of an *integrable singularity*, and `quadgk` can compute
+this integral:
+```julia-repl
 julia> quadgk_count(x -> 1/sqrt(x), 0, 1)
 (1.9999999845983916, 2.3762511924588765e-8, 1305)
 ```
@@ -140,14 +142,14 @@ are via the endpoints.)  For example, suppose we are integrating
 $\int_0^2 |x-1|^{-1/2} dx = 4$, which has an (integrable) singularity at $x=1$.
 If we don't tell `quadgk` about the singularity, it gets "unlucky" and evaluates
 the integrand exactly at $x=1$, which ends up throwing an error:
-```
+```julia-repl
 julia> quadgk_count(x -> 1/sqrt(abs(x-1)), 0, 2)
 ERROR: DomainError with 1.0:
 integrand produced NaN in the interval (0, 2)
 ...
 ```
 Instead, if we *tell* it to subdivide the integral at $x=1$, we get the correct answer(`≈ 4`):
-```
+```julia-repl
 julia> quadgk_count(x -> 1/sqrt(abs(x-1)), 0, 1, 2)
 (3.9999999643041515, 5.8392038954259235e-8, 2580)
 ```
@@ -159,7 +161,7 @@ the integrand $f(x)$ exactly at the endpoints $a, b, c, \ldots$.
 As another example, consider an integral $\int_0^3 H(x-1) = 2$ of the discontinuous
 [Heaviside step function](https://en.wikipedia.org/wiki/Heaviside_step_function)
 $H(x)$, which $=1$ when $x > 0$ and $=0$ when $x \le 0$:
-```
+```julia-repl
 julia> quadgk_count(x -> x > 1, 0, 3)
 (2.0000000043200235, 1.7916158219741817e-8, 705)
 ```
@@ -168,7 +170,7 @@ function evaluations to get about 8 digits), thanks to the discontinuity at $x=1
 (Note that `true` and `false` in Julia are equal to numeric `0` and `1`, which is
 why we could implement $H(x-1)$ as simply `x > 1`.)
 On the other hand, if we *tell it* the location of the discontinuity:
-```
+```julia-repl
 julia> quadgk_count(x -> x > 1, 0, 1, 3)
 (2.0, 0.0, 30)
 ```
@@ -177,7 +179,7 @@ then it gives the *exact* answer in only 30 evaluations.  The reason it takes
 rule, which uses 15 points to interpolate with a high-degree polynomial.  Once
 we subdivide the integral, we could actually get away with a lower-order rule
 by setting the `order` parameter, e.g.:
-```
+```julia-repl
 julia> quadgk_count(x -> x > 1, 0, 1, 3, order=1)
 (2.0, 0.0, 6)
 ```
@@ -188,7 +190,7 @@ The integrand `f(x)` can return not just real numbers, but also complex numbers,
 
 For example, we can integrate $1/\sqrt{x}$ from $x=-1$ to $x=1$, where we
 [tell the `sqrt` function to return a complex result](https://docs.julialang.org/en/v1/manual/faq/#faq-domain-errors) for negative arguments:
-```
+```julia-repl
 julia> quadgk(x -> 1/sqrt(complex(x)), -1, 0, 1)
 (1.9999999891094182 - 1.9999999845983916im, 4.056765398346683e-8)
 ```
@@ -197,14 +199,14 @@ endpoint at $x=0$ to tell `quadgk` about the singularity at that point,
 as described above.
 
 Or let's integrate the vector-valued function $f(x) = [1, x, x^2, x^3]$ for $x \in (0,1)$:
-```
+```julia-repl
 julia> quadgk(x -> [1,x,x^2,x^3], 0, 1)
 ([1.0, 0.5, 0.3333333333333333, 0.25], 6.206335383118183e-17)
 ```
 which correctly returns $\approx [1, \frac{1}{2}, \frac{1}{3}, \frac{1}{4}]$.  Note that the error estimate
 in this case is an approximate bound on the [norm](https://en.wikipedia.org/wiki/Norm_(mathematics)) of the error, as computed by the [`LinearAlgebra.norm`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.norm) function in Julia.  It defaults to the Euclidean (L2) norm, but you can change this with the `norm`
 argument:
-```
+```julia-repl
 julia> quadgk(x -> [1,x,x^2,x^3], 0, 1, norm=v->maximum(abs, v))
 ([1.0, 0.5, 0.3333333333333333, 0.25], 5.551115123125783e-17)
 ```
@@ -215,7 +217,7 @@ units or have unequal error tolerances).
 For integrands whose values are *small* arrays whose length is known at compile time,
 it is [usually most efficient](https://docs.julialang.org/en/v1/manual/performance-tips/#Consider-StaticArrays.jl-for-small-fixed-size-vector/matrix-operations) to modify your integrand to return
 an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl).  For the example above:
-```
+```julia-repl
 julia> using StaticArrays
 
 julia> integral, error = quadgk(x -> @SVector[1,x,x^2,x^3], 0, 1)
@@ -226,8 +228,12 @@ SVector{4, Float64} (alias for SArray{Tuple{4}, Float64, 1, 4})
 ```
 Note that the return value also gives the `integral` as an `SVector` (a [statically](https://en.wikipedia.org/wiki/Static_program_analysis) sized array).
 
-The QuadGK package did not need any code specific to StaticArrays, and was written long before that package even existed.  The
-fact that unrelated packages like this can be [composed](https://en.wikipedia.org/wiki/Composability) is part of the [beauty of multiple dispatch](https://www.youtube.com/watch?v=kc9HwsxE1OY) and [duck typing](https://en.wikipedia.org/wiki/Duck_typing) for [generic programming](https://en.wikipedia.org/wiki/Generic_programming).
+The QuadGK package did not need any code specific to StaticArrays, and was
+written long before that package even existed.  The fact that unrelated packages
+like this can be [composed](https://en.wikipedia.org/wiki/Composability) is part
+of the [beauty of multiple dispatch](https://www.youtube.com/watch?v=kc9HwsxE1OY)
+and [duck typing](https://en.wikipedia.org/wiki/Duck_typing) for
+[generic programming](https://en.wikipedia.org/wiki/Generic_programming).
 
 ## Batched integrand evaluation
 
@@ -240,7 +246,7 @@ dispatches on a [`BatchIntegrand`](@ref) type containing `f!` and buffers for
 
 For example, we can perform multi-threaded integration of a highly oscillatory
 function that needs to be refined globally:
-```
+```julia-repl
 julia> f(x) = sin(100x)
 f (generic function with 1 method)
 
@@ -268,7 +274,7 @@ upper bound on the size of the buffers allocated by `quadgk`.
 `quadgk` also supports [arbitrary-precision arithmetic](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) using Julia's [`BigFloat` type](https://docs.julialang.org/en/v1/base/numbers/#BigFloats-and-BigInts) to compute integrals to arbitrary accuracy (albeit at increased computational cost).
 
 For example, we can compute the [error function](https://en.wikipedia.org/wiki/Error_function) $\frac{\sqrt{\pi}}{2} \text{erf}(1) = \int_0^1 e^{-x^2} dx$ to 50 digits by:
-```
+```julia-repl
 julia> setprecision(60, base=10) # use 60-digit arithmetic
 60
 
@@ -284,7 +290,7 @@ answer.  Since this a smooth integrand, for high-accuracy calculations it is
 often advisable to increase the "order" of the quadrature algorithm (which
 is related to the degree of polynomials used for interpolation).  The default
 is `order=7`, but let's try tripling it to `order=21`:
-```
+```julia-repl
 julia> quadgk_count(x -> exp(-x^2), big"0.0", big"1.0", rtol=1e-50, order=21)
 (0.74682413281242702539946743613185300535449968681260632902765324, 2.1873898701681913100611385149037136705674736373054902472850425e-58, 129)
 ```
@@ -303,7 +309,7 @@ $z=0$, we should get exactly $2\pi i \cos(0) = 2\pi i$.
 One way to do this integral is to [parameterize a contour](https://en.wikipedia.org/wiki/Parametric_equation), say a
 circle $|z|=1$ parameterized by $z= e^{i\phi}$ (`= cis(ϕ)` in Julia), which gives $dz = i z\, d\phi$, to
 obtain an ordinary integral $\int_0^{2\pi} \frac{\cos(e^{i\phi})}{e^{i\phi}} ie^{i\phi} d\phi$ over the *real* parameter $\phi \in (0,2\pi)$:
-```
+```julia-repl
 julia> quadgk(ϕ -> cos(cis(ϕ)) * im, 0, 2π)
 (0.0 + 6.283185307179586im, 1.8649646913725044e-8)
 ```
@@ -313,7 +319,7 @@ As an alternative, however, you can directly supply a sequence of
 *complex "endpoints"* to `quadgk` and it will perform the contour
 integral along a sequence of line segments connecting these points.  For example, instead of integrating around a circular contour, we can integrate
 around the diamond (rotated square) connecting the corners $\pm 1$ and $\pm i$:
-```
+```julia-repl
 julia> quadgk(z -> cos(z)/z, 1, im, -1, -im, 1)
 (0.0 + 6.283185307179587im, 5.369976662961913e-9)
 ```
@@ -361,7 +367,7 @@ directly.  There are two tricks to help us a bit further:
 
 Putting it all together, here is a function `cauchy_quadgk(g, a, b)` that
 computes our Cauchy principal part $\text{p.v.}\int_a^b g(x)/x$:
-```
+```julia
 function cauchy_quadgk(g, a, b; kws...)
     a < 0 < b || throw(ArgumentError("domain must include 0"))
     g₀ = g(0)
@@ -374,7 +380,7 @@ For example, [Mathematica tells us](https://www.wolframalpha.com/input?i=Integra
 \text{p.v.} \int_{-1}^2 \frac{\cos(x^2-1)}{x} dx \approx 0.212451309942989788929352736695\ldots ,
 ```
 and we can reproduce this with `cauchy_quadgk`:
-```
+```julia-repl
 julia> cauchy_quadgk(x -> cos(x^2-1), -1, 2)
 (0.21245130994298977, 1.8366794196644776e-11, 60)
 ```
@@ -414,7 +420,7 @@ tolerances are computed correctly, and include $x=0$ as an explicit
 endpoint to let `quadgk` know that the integral is badly behaved there.
 
 In code:
-```
+```julia
 using QuadGK
 
 function int_slow(g, α, a, b; kws...)
@@ -440,7 +446,7 @@ function int_fast(g, α, a, b; kws...)
 end
 ```
 This gives:
-```
+```julia-repl
 julia> int_slow(cos, 1e-6, -1, 1)
 (1.1102230246251565e-16 + 3.1415896808206125im, 1.4895091715264936e-9, 1230)
 
