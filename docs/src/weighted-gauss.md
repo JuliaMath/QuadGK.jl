@@ -62,7 +62,7 @@ are the first components² of the corresponding normalized eigenvectors, scaled 
 
 Given the $n \times n$ matrix $J_n$ (represented by a [`LinearAlgebra.SymTridiagonal`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.SymTridiagonal) object, which only stores the $\alpha_k$ and $\sqrt{\beta_k}$ coefficients) and the integral `unitintegral` $= I[1]$, you can construct the points $x_i$ and
 weights $w_i$ of the $n$-point Gaussian quadrature rule in QuadGK via `x, w = gauss(Jₙ, unitintegral)`.  To construct
-the $(2n+1)$-point Kronrod rule, then you need the $m \times m$ matrix $J_m$ where `m ≥ div(3n+3,2)` ($m \ge \lfloor (3n+3)/2 \rfloor$), and then obtain the points `x` and weights `w` (along with embedded Gauss weights `gw`) via `x, w, gw = kronrod(Jₘ, n, unitintegral)`.  Much of the time, you can simply look up formulas for the recurrence relations
+the $(2n+1)$-point Kronrod rule, then you need the $m \times m$ matrix $J_m$ where `m ≥ div(3n+3,2)` ($m \ge \lfloor (3n+3)/2 \rfloor$), and then obtain the points `x` and weights `w` (along with embedded Gauss weights `wg`) via `x, w, wg = kronrod(Jₘ, n, unitintegral)`.  Much of the time, you can simply look up formulas for the recurrence relations
 for weight functions of common interest.   Hopefully, this will be clearer with some examples below.
 
 ### Gauss–Legendre quadrature via the Jacobi matrix
@@ -123,7 +123,7 @@ julia> x, w = gauss(5); [x w]
 ```
 Similarly, the 5-point Gauss–Kronrod rule can be constructed from the $9\times 9$ Jacobi matrix ($9 = (3n+3)/2$):
 ```julia-repl
-julia> x, w, gw = kronrod(J(9), 5, 2); [x w]
+julia> x, w, wg = kronrod(J(9), 5, 2); [x w]
 11×2 Matrix{Float64}:
  -0.984085  0.042582
  -0.90618   0.115233
@@ -139,7 +139,7 @@ julia> x, w, gw = kronrod(J(9), 5, 2); [x w]
 ```
 which is the same as the "standard" Gauss–Kronrod rule returned by `kronrod(n)` (returning only the $x_i \le 0$ points) or `kronrod(n, -1, +1)` (returning all the points):
 ```julia-repl
-julia> x, w, gw = kronrod(5); [x w]
+julia> x, w, wg = kronrod(5); [x w]
 6×2 Matrix{Float64}:
  -0.984085  0.042582
  -0.90618   0.115233
@@ -178,7 +178,7 @@ julia> x, w = gauss(JholloW(5), 2); [x w]
   0.538469  0.478629
   0.90618   0.236927
 
-julia> x, w, gw = kronrod(JholloW(9), 5, 2); [x w] # only returns xᵢ ≤ 0 points:
+julia> x, w, wg = kronrod(JholloW(9), 5, 2); [x w] # only returns xᵢ ≤ 0 points:
 6×2 Matrix{Float64}:
  -0.984085  0.042582
  -0.90618   0.115233
@@ -313,7 +313,7 @@ extends the 5-point Gauss-Jacobi rule in order to give you an error estimate:
 ```julia-repl
 julia> J₁₂ = FastGaussQuadrature.jacobi_jacobimatrix(12, α, β);
 
-julia> kx, kw, gw = kronrod(J₁₂, n, I₁); [kx kw]
+julia> kx, kw, wg = kronrod(J₁₂, n, I₁); [kx kw]
 11×2 Matrix{Float64}:
  -0.988882   0.0723663
  -0.923234   0.181321
@@ -327,7 +327,7 @@ julia> kx, kw, gw = kronrod(J₁₂, n, I₁); [kx kw]
   0.852191   0.0520297
   0.962303   0.0135914
 
-julia> [ kx[2:2:end] gw ]  # embedded Gauss–Jacobi rule is a subset x₂ᵢ of the points
+julia> [ kx[2:2:end] wg ]  # embedded Gauss–Jacobi rule is a subset x₂ᵢ of the points
 5×2 Matrix{Float64}:
  -0.923234   0.372265
  -0.589357   0.610968
@@ -391,7 +391,7 @@ while a subset `kx[2:2:end]` of the points (for which we could re-use the
 integrand evaluations if we wanted) gives us an embedded Gauss rule and an
 error bound:
 ```julia-repl
-julia> Ig = sum(@. cos(2kx[2:2:end]) * gw)
+julia> Ig = sum(@. cos(2kx[2:2:end]) * wg)
 0.9016690323443182
 
 julia> abs(Ik - Ig) # conservative error estimate: Kronrod - Gauss
@@ -412,7 +412,7 @@ julia> bigJ = FastGaussQuadrature.jacobi_jacobimatrix(18, big"0.5", big"-0.1");
 julia> bigI₁ = FastGaussQuadrature.jacobimoment(big"0.5", big"-0.1")
 2.01202309828912479732166203322245014347199888907111184953347045850828228938420405746115463698460502738
 
-julia> bigkx, bigkw, biggw = kronrod(bigJ, 11, bigI₁);
+julia> bigkx, bigkw, bigwg = kronrod(bigJ, 11, bigI₁);
 
 julia> bigIk = sum(@. cos(2bigkx) * bigkw)
 0.901668442452561479449854535530176522419159355847389937592609530571246098597677208391320749304692456157
@@ -422,7 +422,7 @@ julia> Float64(bigIk - bigexact)
 ```
 so the 18-point Gauss–Kronrod rule is accurate to about 43 digits, while the conservative error estimate (= error of embedded 11-point Gauss rule) is about 20 digits:
 ```julia-repl
-julia> bigIg = sum(@. cos(2bigkx[2:2:end]) * biggw)
+julia> bigIg = sum(@. cos(2bigkx[2:2:end]) * bigwg)
 0.901668442452561479451864506089616011729536201879100045019491743663463853013435135385929850010604582451
 
 julia> Float64(abs(bigIk - bigIg))
@@ -447,7 +447,7 @@ to compute a large number of integrals with the same `W`.  See the [`gauss`](@re
 Similarly, one can use the `kronrod(W, n, a, b, rtol=rtol)` function to construct Gauss–Kronrod rules
 for arbitrary weight functions.   Unfortunately, it turns out that a Gauss–Kronrod rule does not exist for the weight function above, and the `kronrod` function consequently throws an error — probably because it is very similar to [Gauss–Laguerre quadrature](https://en.wikipedia.org/wiki/Gauss%E2%80%93Laguerre_quadrature) and Gauss–Kronrod rules are known to not exist for the Gauss–Laguerre problem [(Kahaner & Monegato, 1978)](https://doi.org/10.1007/BF01590820).   However, we can for example reproduce the points and weights from the Gauss–Jacobi weight function of the previous section, now computed completely numerically without supplying the analytical Jacobi matrix:
 ```julia-repl
-julia> kx, kw, gw = kronrod(x -> (1-x)^0.5 * (1+x)^-0.1, 5, -1, 1, rtol=1e-9); [kx kw]
+julia> kx, kw, wg = kronrod(x -> (1-x)^0.5 * (1+x)^-0.1, 5, -1, 1, rtol=1e-9); [kx kw]
 11×2 Matrix{Float64}:
  -0.988882   0.0723663
  -0.923234   0.181321
