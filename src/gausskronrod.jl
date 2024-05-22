@@ -292,7 +292,7 @@ Laurie (1997), appendix A, for integrating on the interval ``(a,b)`` (defaulting
 
 If `a` and `b` are not passed, since the rule is symmetric,
 this only returns the `n+1` points with `x <= 0`.
-The function Also computes the embedded `n`-point Gauss quadrature weights `gw`
+The function Also computes the embedded `n`-point Gauss quadrature weights `wg`
 (again for `x <= 0` if `a` and `b` are not passed), corresponding to the points `x[2:2:end]`.
 Returns `(x,w,wg)` in O(`n`²) operations.
 
@@ -331,9 +331,9 @@ function kronrod(::Type{T}, n::Integer) where T<:AbstractFloat
     for j = 1:n-1
         b[j] = j / sqrt(4j^2 - o)
     end
-    @views gw = T[ 2abs2(eigvec1!(v[1:n],b[1:n-1],x[i],n)[1]) for i = 2:2:n+1 ]
+    @views wg = T[ 2abs2(eigvec1!(v[1:n],b[1:n-1],x[i],n)[1]) for i = 2:2:n+1 ]
 
-    return x, w, gw
+    return x, w, wg
 end
 
 kronrod(n::Integer) = kronrod(Float64, n)
@@ -341,16 +341,16 @@ kronrod(n::Integer) = kronrod(Float64, n)
 # as above but allow you to pass the interval [a,b],
 # and returns all the points not just half
 function kronrod(n::Integer, a::Real, b::Real)
-    x, w, gw = kronrod(typeof(float(b-a)), n)
+    x, w, wg = kronrod(typeof(float(b-a)), n)
     x = [x; rmul!(reverse!(x[1:end-1]), -1)]
     w = [w; reverse!(w[1:end-1])]
-    gw = [gw; reverse!(gw[1:end-isodd(n)])]
+    wg = [wg; reverse!(wg[1:end-isodd(n)])]
     T = eltype(x)
     xscale = (T(b) - T(a)) / 2
     x .= (x .+ 1) .* xscale .+ a
     w .*= xscale
-    gw .*= xscale
-    return x, w, gw
+    wg .*= xscale
+    return x, w, wg
 end
 
 # as above, but generalized to an arbitrary Jacobi matrix
@@ -367,8 +367,8 @@ An optional argument `(a₀,b₀) => (a,b)` allows you to specify that `J` was o
 defined for a different interval ``(a_0, b_0)``, which you want to rescale to
 a given ``(a, b)``.  (`gauss` will rescale the points and weights for you.)
 
-Returns a tuple `(x, w, gw)` of ``n`` quadrature points `x[i]` and weights `w[i]` to
-integrate functions, i.e. `sum(w .* f.(x))` approximates the integral ``I[f]``.  `gw`
+Returns a tuple `(x, w, wg)` of ``n`` quadrature points `x[i]` and weights `w[i]` to
+integrate functions, i.e. `sum(w .* f.(x))` approximates the integral ``I[f]``.  `wg`
 are the weights of the embedded Gauss rule corresponding to the points `x[2:2:end]`,
 which can be used for error estimation.
 """
@@ -384,24 +384,24 @@ function kronrod(J::AbstractSymTri{<:Real}, n::Integer, unitintegral::Real=1)
     else
         @views HollowSymTridiagonal(J.ev[1:n-1])
     end
-    @views gw = [ unitintegral*abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
+    @views wg = [ unitintegral*abs2(eigvec1!(v[1:n],Jsmall,x[i])[1]) for i = 2:2:length(x) ]
 
-    return x, w, gw
+    return x, w, wg
 end
 
 function kronrod(J::AbstractMatrix{<:Real}, n::Integer, unitintegral::Real, xrescale::Pair{<:Tuple{Real,Real}, <:Tuple{Real,Real}})
-    x, w, gw = kronrod(J, n, unitintegral)
+    x, w, wg = kronrod(J, n, unitintegral)
     if J isa HollowSymTridiagonal
         x = [x; rmul!(reverse!(x[1:end-1]), -1)]
         w = [w; reverse!(w[1:end-1])]
-        gw = [gw; reverse!(gw[1:end-isodd(n)])]
+        wg = [wg; reverse!(wg[1:end-isodd(n)])]
     end
     a0, b0 = xrescale.first
     a, b = xrescale.second
     T = eltype(x)
     xscale = (T(b) - T(a)) / (T(b0) - T(a0))
     x .= (x .- a0) .* xscale .+ a
-    return x, w, gw
+    return x, w, wg
 end
 
 """
@@ -540,19 +540,19 @@ const wd7 = [2.2935322010529224963732008059913e-02,
              1.9035057806478540991325640242055e-01,
              2.0443294007529889241416199923466e-01,
              2.0948214108472782801299917489173e-01]
-const gwd7 = [1.2948496616886969327061143267787e-01,
+const wgd7 = [1.2948496616886969327061143267787e-01,
               2.797053914892766679014677714229e-01,
               3.8183005050511894495036977548818e-01,
               4.1795918367346938775510204081658e-01]
 
-# cache of T -> n -> (x,w,gw) Kronrod rules, to avoid recomputing them
+# cache of T -> n -> (x,w,wg) Kronrod rules, to avoid recomputing them
 # unnecessarily for repeated integration.   We initialize it with the
 # default n=7 rule for double-precision calculations.  We use a cache
 # of caches to allow us to evaluate the cache in a type-stable way with
 # a generated function below.
 const rulecache = Dict{Type,Dict}(
-    Float64 => Dict{Int,NTuple{3,Vector{Float64}}}(7 => (xd7,wd7,gwd7)),
-    Float32 => Dict{Int,NTuple{3,Vector{Float32}}}(7 => (xd7,wd7,gwd7)))
+    Float64 => Dict{Int,NTuple{3,Vector{Float64}}}(7 => (xd7,wd7,wgd7)),
+    Float32 => Dict{Int,NTuple{3,Vector{Float32}}}(7 => (xd7,wd7,wgd7)))
 
 # for BigFloat rules, we need a separate cache keyed by (n,precision)
 const bigrulecache = Dict{Tuple{Int,Int}, NTuple{3,Vector{BigFloat}}}()

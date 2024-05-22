@@ -11,8 +11,8 @@ Base.convert(::Type{T}, s::Segment) where {T<:Segment} = T(s.a,s.b,s.I,s.E)
 Base.isless(i::Segment, j::Segment) = isless(i.E, j.E)
 
 # Internal routine: approximately integrate f(x) over the interval (a,b)
-# by evaluating the integration rule (x,w,gw). Return a Segment.
-function evalrule(f::F, a,b, x,w,gw, nrm) where {F}
+# by evaluating the integration rule (x,w,wg). Return a Segment.
+function evalrule(f::F, a,b, x,w,wg, nrm) where {F}
     # Ik and Ig are integrals via Kronrod and Gauss rules, respectively
     s = convert(eltype(x), 0.5) * (b-a)
     n1 = 1 - (length(x) & 1) # 0 if even order, 1 if odd order
@@ -21,14 +21,14 @@ function evalrule(f::F, a,b, x,w,gw, nrm) where {F}
         Ig = zero(Ik)
     else # odd: don't count x==0 twice in Gauss rule
         f0 = f(a + s)
-        Ig = f0 * gw[end]
+        Ig = f0 * wg[end]
         Ik = f0 * w[end] +
             (f(a + (1+x[end-1])*s) + f(a + (1-x[end-1])*s)) * w[end-1]
     end
-    for i = 1:length(gw)-n1
+    for i = 1:length(wg)-n1
         fg = f(a + (1+x[2i])*s) + f(a + (1-x[2i])*s)
         fk = f(a + (1+x[2i-1])*s) + f(a + (1-x[2i-1])*s)
-        Ig += fg * gw[i]
+        Ig += fg * wg[i]
         Ik += fg * w[2i] + fk * w[2i-1]
     end
     Ik_s, Ig_s = Ik * s, Ig * s # new variable since this may change the type
@@ -48,7 +48,7 @@ end
 
 # as above, but call assume a mutable result type (e.g. an array) and
 # act in-place using `f!(result, x)`.
-function evalrule(f::InplaceIntegrand{F}, a,b, x,w,gw, nrm) where {F}
+function evalrule(f::InplaceIntegrand{F}, a,b, x,w,wg, nrm) where {F}
     # Ik and Ig are integrals via Kronrod and Gauss rules, respectively
     s = convert(eltype(x), 0.5) * (b-a)
     n1 = 1 - (length(x) & 1) # 0 if even order, 1 if odd order
@@ -58,15 +58,15 @@ function evalrule(f::InplaceIntegrand{F}, a,b, x,w,gw, nrm) where {F}
         Ik .= f.fx .* w[end]
         Ig .= zero.(Ik)
     else # odd: don't count x==0 twice in Gauss rule
-        Ig .= f.fx .* gw[end]
+        Ig .= f.fx .* wg[end]
         f.f!(f.fg, a + (1+x[end-1])*s)
         f.f!(f.fk, a + (1-x[end-1])*s)
         Ik .= f.fx .* w[end] .+ (f.fg + f.fk) .* w[end-1]
     end
-    for i = 1:length(gw)-n1
+    for i = 1:length(wg)-n1
         eval2x!(fg, f, a + (1+x[2i])*s, a + (1-x[2i])*s)
         eval2x!(fk, f, a + (1+x[2i-1])*s, a + (1-x[2i-1])*s)
-        Ig .+= fg .* gw[i]
+        Ig .+= fg .* wg[i]
         Ik .+= fg .* w[2i] .+ fk .* w[2i-1]
     end
     Ik_s = Ik * s # new variable since this may change the type

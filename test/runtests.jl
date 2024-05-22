@@ -102,7 +102,7 @@ end
 # check some arbitrary precision (Maple) values from https://keisan.casio.com/exec/system/1289382036
 @testset "kronrod" begin
     setprecision(200) do
-        for (n,x0,w0,gw0) in (
+        for (n,x0,w0,wg0) in (
             (1, [big"-0.77459666924148337703585307995647992216658434105832", big"0.0"],
                 [big"0.55555555555555555555555555555555555555555555555556", big"0.88888888888888888888888888888888888888888888888889"],
                 [big"2.0"]),
@@ -126,32 +126,32 @@ end
                     # test generic Kronrod algorithm that doesn't
                     # assume a Jacobi matrix with zero diagonals
                     J = SymTridiagonal(zeros(BigFloat, m), b)
-                    x,w,gw = kronrod(Matrix(J), n, 2)
-                    @test kronrod(Matrix(J), n, 2, (-1,1)=>(-1,1)) ≅ (x,w,gw) atol=1e-55
-                    @test kronrod(QuadGK.HollowSymTridiagonal(b), n, 2, (-1,1)=>(-1,1)) ≅ (x,w,gw) atol=1e-55
-                    @test kronrod(n, big"-1.", big"1.") ≅ (x,w,gw) atol=1e-55
+                    x,w,wg = kronrod(Matrix(J), n, 2)
+                    @test kronrod(Matrix(J), n, 2, (-1,1)=>(-1,1)) ≅ (x,w,wg) atol=1e-55
+                    @test kronrod(QuadGK.HollowSymTridiagonal(b), n, 2, (-1,1)=>(-1,1)) ≅ (x,w,wg) atol=1e-55
+                    @test kronrod(n, big"-1.", big"1.") ≅ (x,w,wg) atol=1e-55
                     # check symmetric rule & remove redundant points/weights
                     @test x[1:n] ≈ -reverse(x[n+2:end]) atol=1e-55
                     @test w[1:n] ≈ reverse(w[n+2:end]) atol=1e-55
                     resize!(x, n+1)
                     resize!(w, n+1)
-                    resize!(gw, length(2:2:n+1))
+                    resize!(wg, length(2:2:n+1))
                 else
                     # test generic HollowSymTridiagonal method
                     J = QuadGK.HollowSymTridiagonal(b)
-                    x,w,gw = kronrod(J, n, 2)
+                    x,w,wg = kronrod(J, n, 2)
                 end
             else
-                x,w,gw = kronrod(BigFloat, n)
+                x,w,wg = kronrod(BigFloat, n)
             end
             @test (x,w) ≅ (x0,w0) atol=1e-49
-            @test gw ≈ gw0 atol=1e-49
+            @test wg ≈ wg0 atol=1e-49
 
             xg, wg = gauss(n, big"-1", big"+1")
             nn = length(2:2:n+1)
             nn0 = length(2:2:n)
             @test wg[1:nn0] ≈ reverse(wg[nn+1:end]) atol=1e-55
-            @test wg[1:nn] ≈ gw0 atol=1e-49
+            @test wg[1:nn] ≈ wg0 atol=1e-49
         end
     end
 

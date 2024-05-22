@@ -4,15 +4,15 @@
 # with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
 function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) where {T,N,F}
-    x,w,gw = cachedrule(T,n)
+    x,w,wg = cachedrule(T,n)
 
     @assert N ≥ 2
     if f isa BatchIntegrand
-        segs = evalrules(f, s, x,w,gw, nrm)
+        segs = evalrules(f, s, x,w,wg, nrm)
     else
         segs = ntuple(Val{N-1}()) do i
             a, b = s[i], s[i+1]
-            evalrule(f, a,b, x,w,gw, nrm)
+            evalrule(f, a,b, x,w,wg, nrm)
         end
     end
     if f isa InplaceIntegrand
@@ -41,15 +41,15 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
 
     segheap = segbuf === nothing ? collect(segs) : (resize!(segbuf, N-1) .= segs)
     heapify!(segheap, Reverse)
-    return resum(f, adapt(f, segheap, I, E, numevals, x,w,gw,n, atol_, rtol_, maxevals, nrm))
+    return resum(f, adapt(f, segheap, I, E, numevals, x,w,wg,n, atol_, rtol_, maxevals, nrm))
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
-function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
+function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,wg,n, atol, rtol, maxevals, nrm) where {F, T}
     # Pop the biggest-error segment and subdivide (h-adaptation)
     # until convergence is achieved or maxevals is exceeded.
     while E > atol && E > rtol * nrm(I) && numevals < maxevals
-        next = refine(f, segs, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
+        next = refine(f, segs, I, E, numevals, x,w,wg,n, atol, rtol, maxevals, nrm)
         next isa Vector && return next # handle type-unstable functions
         I, E, numevals = next
     end
@@ -57,7 +57,7 @@ function adapt(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxe
 end
 
 # internal routine to refine the segment with largest error
-function refine(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm) where {F, T}
+function refine(f::F, segs::Vector{T}, I, E, numevals, x,w,wg,n, atol, rtol, maxevals, nrm) where {F, T}
     s = heappop!(segs, Reverse)
     mid = (s.a + s.b) / 2
 
@@ -67,8 +67,8 @@ function refine(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, max
         return segs
     end
 
-    s1 = evalrule(f, s.a, mid, x,w,gw, nrm)
-    s2 = evalrule(f, mid, s.b, x,w,gw, nrm)
+    s1 = evalrule(f, s.a, mid, x,w,wg, nrm)
+    s2 = evalrule(f, mid, s.b, x,w,wg, nrm)
 
     if f isa InplaceIntegrand
         I .= (I .- s.I) .+ s1.I .+ s2.I
@@ -82,7 +82,7 @@ function refine(f::F, segs::Vector{T}, I, E, numevals, x,w,gw,n, atol, rtol, max
     Tj = promote_type(typeof(s1), promote_type(typeof(s2), T))
     if Tj !== T
         return adapt(f, heappush!(heappush!(Vector{Tj}(segs), s1, Reverse), s2, Reverse),
-                     I, E, numevals, x,w,gw,n, atol, rtol, maxevals, nrm)
+                     I, E, numevals, x,w,wg,n, atol, rtol, maxevals, nrm)
     end
 
     heappush!(segs, s1, Reverse)
