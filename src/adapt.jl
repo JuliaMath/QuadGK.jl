@@ -118,61 +118,77 @@ realone(x::Number) = one(x) isa Real
 # and pass transformed data to workfunc(f, s, tfunc)
 function handle_infinities(workfunc, f, s)
     s1, s2 = s[1], s[end]
+    u = float(real(oneunit(s1))) # the units of the segment
     if realone(s1) && realone(s2) # check for infinite or semi-infinite intervals
         inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
-                return workfunc(t -> begin t2 = t*t; den = 1 / (1 - t2);
-                                            f(oneunit(s1)*t*den) * (1+t2)*den*den*oneunit(s1); end,
+                I, E = workfunc(t -> begin t2 = t*t; den = 1 / (1 - t2);
+                                            f(u*t*den) * (1+t2)*den*den; end,
                                 map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
-                                t -> oneunit(s1) * t / (1 - t^2))
+                                t -> u * t / (1 - t^2))
+                return u * I, u * E
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < zero(si) # x = s0 - t/(1-t)
-                    return workfunc(t -> begin den = 1 / (1 - t);
-                                                f(s0 - oneunit(s1)*t*den) * den*den*oneunit(s1); end,
+                    I, E = workfunc(t -> begin den = 1 / (1 - t);
+                                                f(s0 - u*t*den) * den*den; end,
                                     reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
-                                    t -> s0 - oneunit(s1)*t/(1-t))
+                                    t -> s0 - u*t/(1-t))
+                    return u * I, u * E
                 else # x = s0 + t/(1-t)
-                    return workfunc(t -> begin den = 1 / (1 - t);
-                                                f(s0 + oneunit(s1)*t*den) * den*den*oneunit(s1); end,
+                    I, E = workfunc(t -> begin den = 1 / (1 - t);
+                                                f(s0 + u*t*den) * den*den; end,
                                     map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
-                                    t -> s0 + oneunit(s1)*t/(1-t))
+                                    t -> s0 + u*t/(1-t))
+                    return u * I, u * E
                 end
             end
         end
     end
-    return workfunc(f, s, identity)
+    I, E = workfunc(t -> f(t*u), map(x -> x/oneunit(x), s), identity)
+    return u * I, u * E
 end
 
 function handle_infinities(workfunc, f::InplaceIntegrand, s)
     s1, s2 = s[1], s[end]
+    result = f.I
+    u = float(real(oneunit(s1))) # the units of the segment
     if realone(s1) && realone(s2) # check for infinite or semi-infinite intervals
         inf1, inf2 = isinf(s1), isinf(s2)
         if inf1 || inf2
-            ftmp = f.fx # original integrand may have different units
             if inf1 && inf2 # x = t/(1-t^2) coordinate transformation
-                return workfunc(InplaceIntegrand((v, t) -> begin t2 = t*t; den = 1 / (1 - t2);
-                                            f.f!(ftmp, oneunit(s1)*t*den); v .= ftmp .* ((1+t2)*den*den*oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
+                I, E = workfunc(InplaceIntegrand((v, t) -> begin t2 = t*t; den = 1 / (1 - t2);
+                                            f.f!(v, u*t*den); v .*= ((1+t2)*den*den); end, f.fg, f.fk, f.Ig, f.Ik, f.fx, f.Idiff, similar(f.fx)),
                                 map(x -> isinf(x) ? (signbit(x) ? -one(x) : one(x)) : 2x / (oneunit(x)+hypot(oneunit(x),2x)), s),
-                                t -> oneunit(s1) * t / (1 - t^2))
+                                t -> u * t / (1 - t^2))
+                result .= u .* I
+                return result, u * E
             end
             let (s0,si) = inf1 ? (s2,s1) : (s1,s2) # let is needed for JuliaLang/julia#15276
                 if si < zero(si) # x = s0 - t/(1-t)
-                    return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
-                                            f.f!(ftmp, s0 - oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
+                    I, E = workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
+                                            f.f!(v, s0 - u*t*den); v .*= (den * den); end, f.fg, f.fk, f.Ig, f.Ik, f.fx, f.Idiff, similar(f.fx)),
                                     reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
-                                    t -> s0 - oneunit(s1)*t/(1-t))
+                                    t -> s0 - u*t/(1-t))
+                    result .= u .* I
+                    return result, u * E
                 else # x = s0 + t/(1-t)
-                    return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
-                                            f.f!(ftmp, s0 + oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
+                    I, E = workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
+                                            f.f!(v, s0 + u*t*den); v .*= (den * den); end, f.fg, f.fk, f.Ig, f.Ik, f.fx, f.Idiff, similar(f.fx)),
                                     map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
-                                    t -> s0 + oneunit(s1)*t/(1-t))
+                                    t -> s0 + u*t/(1-t))
+                    result .= u .* I
+                    return result, u * E
                 end
             end
         end
     end
-    return workfunc(f, s, identity)
+    I, E = workfunc(InplaceIntegrand((y,t) -> f.f!(y, t*u), f.fg, f.fk, f.Ig, f.Ik, f.fx, f.Idiff, similar(f.fx)),
+                    map(x -> x/oneunit(x), s),
+                    identity)
+    result .= u .* I
+    return result, u * E
 end
 
 function check_endpoint_roundoff(a, b, x)
@@ -249,8 +265,9 @@ quadgk(f, segs...; kws...) =
 
 function quadgk(f, segs::T...;
        atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
+    utol = isnothing(atol) ? atol : atol/float(real(oneunit(T))) # remove units of domain
     handle_infinities(f, segs) do f, s, _
-        do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf)
+        do_quadgk(f, s, order, utol, rtol, maxevals, norm, segbuf)
     end
 end
 
@@ -265,7 +282,9 @@ starting with the given `size`. The buffer can then be reused across multiple
 compatible calls to `quadgk(...)` to avoid repeated allocation.
 """
 function alloc_segbuf(domain_type=Float64, range_type=Float64, error_type=Float64; size=1)
-    Vector{Segment{domain_type, range_type, error_type}}(undef, size)
+    x = float(real(one(domain_type)))   # quadrature point type
+    err = oneunit(error_type)/oneunit(domain_type)  # error has units of the integral
+    Vector{Segment{typeof(x), range_type, typeof(err)}}(undef, size)
 end
 
 """

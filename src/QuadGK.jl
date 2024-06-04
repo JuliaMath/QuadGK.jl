@@ -40,14 +40,14 @@ struct InplaceIntegrand{F,R,RI}
     Ig::R
     Ik::R
     fx::R
-    Idiff::RI
+    Idiff::R
 
     # final result array
     I::RI
 end
 
 InplaceIntegrand(f!::F, I::RI, fx::R) where {F,RI,R} =
-    InplaceIntegrand{F,R,RI}(f!, similar(fx), similar(fx), similar(fx), similar(fx), fx, similar(I), I)
+    InplaceIntegrand{F,R,RI}(f!, similar(fx), similar(fx), similar(fx), similar(fx), fx, similar(fx), I)
 
 include("gausskronrod.jl")
 include("evalrule.jl")
