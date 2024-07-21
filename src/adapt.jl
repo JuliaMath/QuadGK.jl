@@ -227,7 +227,7 @@ end
 # Gauss-Kronrod quadrature of f from a to b to c...
 
 """
-    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm, segbuf=nothing, eval_segbuf=false)
+    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm, segbuf=nothing, eval_segbuf=nothing)
 
 Numerically integrate the function `f(x)` from `a` to `b`, and optionally over additional
 intervals `b` to `c` and so on. Keyword options include a relative error tolerance `rtol`
@@ -287,7 +287,7 @@ instead pass a preallocated buffer allocated using `alloc_segbuf(...)` as the
 call with `quadgk_segbuf(...)` to return the segment buffer from a given
 call.  This buffer can be used across multiple calls to avoid
 repeated allocation.   Upon return from `quadgk`, the `segbuf` array contains
-an array of subintervals that were used for the final quadrature evaluation
+an array of subintervals that were used for the final quadrature evaluation.
 
 By passing `eval_segbuf=segbuf` to a subsequent call to `quadgk`, these subintervals
 can be re-used as the starting point for the next integrand evaluation (over the
