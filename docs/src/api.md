@@ -16,6 +16,10 @@ QuadGK.quadgk_count
 QuadGK.quadgk_print
 QuadGK.quadgk!
 QuadGK.alloc_segbuf
+QuadGK.quadgk_segbuf
+QuadGK.quadgk_segbuf_count
+QuadGK.quadgk_segbuf_print
+QuadGK.quadgk_segbuf!
 ```
 
 For a vectorized integrand that can evaluate the integrand at multiple points

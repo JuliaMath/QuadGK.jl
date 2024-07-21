@@ -1,30 +1,66 @@
+
+# This can be wrapped around the `segbuf` argument
+# of do_quadgk to indicate that the segment buffer
+# should be saved and returned as an extra return value.
+# (Helps us re-use do_quadgk for both cases, while
+#  remaining type-stable despite the varying return value.)
+struct ReturnSegbuf{S<:Union{Nothing,<:AbstractVector{<:Segment}}}
+    segbuf::S # either a pre-allocateed segment buffer or nothing
+end
+
 # Internal routine: integrate f over the union of the open intervals
 # (s[1],s[2]), (s[2],s[3]), ..., (s[end-1],s[end]), using h-adaptive
 # integration with the order-n Kronrod rule and weights of type Tw,
 # with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
-function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) where {T,N,F}
+function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm,
+                   _segbuf::Union{Nothing,<:AbstractVector{<:Segment},ReturnSegbuf},
+                   eval_segbuf::Union{Nothing,<:AbstractVector{<:Segment}}) where {T,N,F}
     x,w,wg = cachedrule(T,n)
+    segbuf = _segbuf isa ReturnSegbuf ? _segbuf.segbuf : _segbuf
 
-    @assert N ≥ 2
-    if f isa BatchIntegrand
-        segs = evalrules(f, s, x,w,wg, nrm)
-    else
-        segs = ntuple(Val{N-1}()) do i
-            a, b = s[i], s[i+1]
-            evalrule(f, a,b, x,w,wg, nrm)
+    if !isnothing(eval_segbuf) # contains initial quadrature intervals
+        isempty(eval_segbuf) && throw(ArgumentError("eval_segbuf must be non-empty"))
+        if f isa BatchIntegrand
+            if isnothing(segbuf)
+                segbuf2 = evalrules(f, eval_segbuf, x,w,wg, nrm)
+            else
+                segbuf2 = evalrules!(resize!(segbuf, length(eval_segbuf)),
+                                     f, eval_segbuf, x,w,wg, nrm)
+            end
+        else
+            if isnothing(segbuf)
+                segbuf2 = map(eval_segbuf) do seg
+                    evalrule(f, seg.a, seg.b, x,w,wg, nrm)
+                end
+            else
+                segbuf2 = map!(resize!(segbuf, length(eval_segbuf)), eval_segbuf) do seg
+                    evalrule(f, seg.a, seg.b, x,w,wg, nrm)
+                end
+            end
         end
-    end
-    if f isa InplaceIntegrand
-        I = f.I .= segs[1].I
-        for i = 2:length(segs)
-            I .+= segs[i].I
-        end
+
+        I, E = resum(f, segbuf2)
+        numevals = (2n+1) * length(segbuf2)
     else
-        I = sum(s -> s.I, segs)
+        @assert N ≥ 2
+        if f isa BatchIntegrand
+            segs = evalrules(f, s, x,w,wg, nrm)
+        else
+            segs = ntuple(Val{N-1}()) do i
+                a, b = s[i], s[i+1]
+                evalrule(f, a,b, x,w,wg, nrm)
+            end
+        end
+
+        I, E = resum(f, segs)
+        numevals = (2n+1) * (N-1)
+
+        # save segs into segbuf if !== nothing, both for adaptive subdivision
+        # and to return to the user for re-using with different integrands:
+        isnothing(segbuf) || (resize!(segbuf, N-1) .= segs)
+        segbuf2 = segbuf # to mirror eval_segbuf branch above
     end
-    E = sum(s -> s.E, segs)
-    numevals = (2n+1) * (N-1)
 
     # logic here is mainly to handle dimensionful quantities: we
     # don't know the correct type of atol115, in particular, until
@@ -35,13 +71,19 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     rtol_ = something(rtol, iszero(atol_) ? sqrt(eps(one(eltype(x)))) : zero(eltype(x)))
 
     # optimize common case of no subdivision
-    if E ≤ atol_ || E ≤ rtol_ * nrm(I) || numevals ≥ maxevals
-        return (I, E) # fast return when no subdivisions required
+    if numevals ≥ maxevals || E ≤ atol_ || E ≤ rtol_ * nrm(I)
+        # fast return when no subdivisions required
+        if _segbuf isa ReturnSegbuf
+            return (I, E, isnothing(segbuf2) ? collect(segs) : segbuf2)
+        else
+            return (I, E)
+        end
     end
 
-    segheap = segbuf === nothing ? collect(segs) : (resize!(segbuf, N-1) .= segs)
+    segheap = segbuf2 === nothing ? collect(segs) : segbuf2
     heapify!(segheap, Reverse)
-    return resum(f, adapt(f, segheap, I, E, numevals, x,w,wg,n, atol_, rtol_, maxevals, nrm))
+    I, E = resum(f, adapt(f, segheap, I, E, numevals, x,w,wg,n, atol_, rtol_, maxevals, nrm))
+    return _segbuf isa ReturnSegbuf ? (I, E, segheap) : (I, E)
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
@@ -94,16 +136,16 @@ end
 # re-sum (paranoia about accumulated roundoff)
 function resum(f, segs)
     if f isa InplaceIntegrand
-        I = f.I .= segs[1].I
-        E = segs[1].E
-        for i in 2:length(segs)
+        I = f.I .= segs[firstindex(segs)].I
+        E = segs[firstindex(segs)].E
+        for i in firstindex(segs)+1:lastindex(segs)
             I .+= segs[i].I
             E += segs[i].E
         end
     else
-        I = segs[1].I
-        E = segs[1].E
-        for i in 2:length(segs)
+        I = segs[firstindex(segs)].I
+        E = segs[firstindex(segs)].E
+        for i in firstindex(segs)+1:lastindex(segs)
             I += segs[i].I
             E += segs[i].E
         end
@@ -185,7 +227,7 @@ end
 # Gauss-Kronrod quadrature of f from a to b to c...
 
 """
-    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm, segbuf=nothing)
+    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm, segbuf=nothing, eval_segbuf=false)
 
 Numerically integrate the function `f(x)` from `a` to `b`, and optionally over additional
 intervals `b` to `c` and so on. Keyword options include a relative error tolerance `rtol`
@@ -241,16 +283,26 @@ transformation is performed internally to map the infinite interval to a finite 
 
 In normal usage, `quadgk(...)` will allocate a buffer for segments. You can
 instead pass a preallocated buffer allocated using `alloc_segbuf(...)` as the
-`segbuf` argument. This buffer can be used across multiple calls to avoid
-repeated allocation.
+`segbuf` argument.  Alternatively, one can replace the first `quadgk(...)`
+call with `quadgk_segbuf(...)` to return the segment buffer from a given
+call.  This buffer can be used across multiple calls to avoid
+repeated allocation.   Upon return from `quadgk`, the `segbuf` array contains
+an array of subintervals that were used for the final quadrature evaluation
+
+By passing `eval_segbuf=segbuf` to a subsequent call to `quadgk`, these subintervals
+can be re-used as the starting point for the next integrand evaluation (over the
+same domain), even for an integrand of a different result type; by also passing
+`maxevals=0`, further refinement of these subintervals is prohibited, so that it
+forces the same quadrature rule to be used (which is useful for evaluating e.g.
+derivatives of the approximate integral).
 """
 quadgk(f, segs...; kws...) =
     quadgk(f, promote(segs...)...; kws...)
 
 function quadgk(f, segs::T...;
-       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
+       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing, eval_segbuf=nothing) where {T}
     handle_infinities(f, segs) do f, s, _
-        do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf)
+        do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf, eval_segbuf)
     end
 end
 
@@ -263,6 +315,11 @@ limits, `range_type` i.e. the range of the function being integrated and
 `error_type`, the type returned by the `norm` given to `quadgk(...)` and
 starting with the given `size`. The buffer can then be reused across multiple
 compatible calls to `quadgk(...)` to avoid repeated allocation.
+
+Alternatively, you can replace your first call to `quadgk(...) with a
+call to `quadgk_segbuf(...)`, which returns the computed segment buffer
+from your first integration.  This saves you the trouble of figuring out
+`domain_type` etc., which may not be obvious if the integrand is a variable.
 """
 function alloc_segbuf(domain_type=Float64, range_type=Float64, error_type=Float64; size=1)
     Vector{Segment{domain_type, range_type, error_type}}(undef, size)
@@ -291,7 +348,7 @@ an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/S
 quadgk!(f!, result, segs...; kws...) =
     quadgk!(f!, result, promote(segs...)...; kws...)
 
-function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
+function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing, eval_segbuf=nothing) where {T}
     fx = result / oneunit(T) # pre-allocate array of correct type for integrand evaluations
     f = InplaceIntegrand(f!, result, fx)
     return quadgk(f, a, b, c...; atol=atol, rtol=rtol, maxevals=maxevals, order=order, norm=norm, segbuf=segbuf)
@@ -341,3 +398,54 @@ quadgk_print(io::IO, f, args...; kws...) = quadgk_count(args...; kws...) do x
     y
 end
 quadgk_print(f, args...; kws...) = quadgk_print(stdout, f, args...; kws...)
+
+# variants that also return a segment buffer:
+
+"""
+    quadgk_segbuf(f, args...; kws...)
+
+Identical to `quadgk(f, args...; kws...)`, but returns a tuple
+`(I, E, segbuf)` where `segbuf` is a segment buffer (storing the
+subintervals used for the final integral evaluation) that can
+be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
+calls to `quadgk` and related functions.
+"""
+quadgk_segbuf(f, segs...; segbuf=nothing, kws...) =
+    quadgk(f, promote(segs...)...; segbuf=ReturnSegbuf(segbuf), kws...)
+
+
+"""
+    quadgk_segbuf_count(f, args...; kws...)
+
+Identical to `quadgk_count(f, args...; kws...)`, but returns a tuple
+`(I, E, segbuf, count)` where `segbuf` is a segment buffer (storing the
+subintervals used for the final integral evaluation) that can
+be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
+calls to `quadgk` and related functions.
+"""
+quadgk_segbuf_count(f, segs...; segbuf=nothing, kws...) =
+    quadgk_count(f, promote(segs...)...; segbuf=ReturnSegbuf(segbuf), kws...)
+
+"""
+    quadgk_segbuf_print(f, args...; kws...)
+
+Identical to `quadgk_print(f, args...; kws...)`, but returns a tuple
+`(I, E, segbuf, count)` where `segbuf` is a segment buffer (storing the
+subintervals used for the final integral evaluation) that can
+be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
+calls to `quadgk` and related functions.
+"""
+quadgk_segbuf_print(f, segs...; segbuf=nothing, kws...) =
+    quadgk_print(f, promote(segs...)...; segbuf=ReturnSegbuf(segbuf), kws...)
+
+"""
+    quadgk_segbuf!(f, result, args...; kws...)
+
+Identical to `quadgk!(f, result, args...; kws...)`, but returns a tuple
+`(I, E, segbuf)` where `segbuf` is a segment buffer (storing the
+subintervals used for the final integral evaluation) that can
+be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
+calls to `quadgk` and related functions.
+"""
+quadgk_segbuf!(f!, result, segs...; segbuf=nothing, kws...) =
+    quadgk!(f!, result, segs...; segbuf=ReturnSegbuf(segbuf), kws...)
