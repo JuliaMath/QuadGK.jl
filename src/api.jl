@@ -8,7 +8,6 @@ intervals `b` to `c` and so on. Keyword options include a relative error toleran
 (if `atol==0`, defaults to `sqrt(eps)` in the precision of the endpoints), an absolute error tolerance
 `atol` (defaults to 0), a maximum number of function evaluations `maxevals` (defaults to
 `10^7`), and the `order` of the integration rule (defaults to 7).
-
 Returns a pair `(I,E)` of the estimated integral `I` and an estimated upper bound on the
 absolute error `E`. If `maxevals` is not exceeded then `E <= max(atol, rtol*norm(I))`
 will hold. (Note that it is useful to specify a positive `atol` in cases where `norm(I)`
@@ -24,6 +23,11 @@ integration will be performed in `BigFloat` precision as well.
 
 More generally, the precision is set by the precision of the integration
 endpoints (promoted to floating-point types).
+
+Instead of passing the integration domain as separate arguments `a,b,c...`,
+you can alternatively pass the domain as a single argument: an array of
+endpoints `[a,b,c...]` or an array of interval tuples `[(a,b), (b,c)]`.
+(The latter enables you to integrate over a disjoint domain if you want.)
 
 The integrand `f(x)` can return any numeric scalar, vector, or matrix type, or in fact any
 type supporting `+`, `-`, multiplication by real values, and a `norm` (i.e., any normed
@@ -184,8 +188,8 @@ subintervals used for the final integral evaluation) that can
 be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
 calls to `quadgk` and related functions.
 """
-quadgk_segbuf(f, segs...; segbuf=nothing, kws...) =
-    quadgk(f, promote(segs...)...; segbuf=ReturnSegbuf(segbuf), kws...)
+quadgk_segbuf(f, args...; segbuf=nothing, kws...) =
+    quadgk(f, args...; segbuf=ReturnSegbuf(segbuf), kws...)
 
 
 """
@@ -197,8 +201,8 @@ subintervals used for the final integral evaluation) that can
 be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
 calls to `quadgk` and related functions.
 """
-quadgk_segbuf_count(f, segs...; segbuf=nothing, kws...) =
-    quadgk_count(f, promote(segs...)...; segbuf=ReturnSegbuf(segbuf), kws...)
+quadgk_segbuf_count(f, args...; segbuf=nothing, kws...) =
+    quadgk_count(f, args...; segbuf=ReturnSegbuf(segbuf), kws...)
 
 """
     quadgk_segbuf_print(f, args...; kws...)
@@ -209,8 +213,8 @@ subintervals used for the final integral evaluation) that can
 be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
 calls to `quadgk` and related functions.
 """
-quadgk_segbuf_print(f, segs...; segbuf=nothing, kws...) =
-    quadgk_print(f, promote(segs...)...; segbuf=ReturnSegbuf(segbuf), kws...)
+quadgk_segbuf_print(f, args...; segbuf=nothing, kws...) =
+    quadgk_print(f, args...; segbuf=ReturnSegbuf(segbuf), kws...)
 
 """
     quadgk_segbuf!(f, result, args...; kws...)
@@ -221,5 +225,43 @@ subintervals used for the final integral evaluation) that can
 be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
 calls to `quadgk` and related functions.
 """
-quadgk_segbuf!(f!, result, segs...; segbuf=nothing, kws...) =
-    quadgk!(f!, result, segs...; segbuf=ReturnSegbuf(segbuf), kws...)
+quadgk_segbuf!(f!, result, args...; segbuf=nothing, kws...) =
+    quadgk!(f!, result, args...; segbuf=ReturnSegbuf(segbuf), kws...)
+
+# variants that take an array of points or an array of (a,b) tuples
+# to specify the integration domain:
+
+for f in (:quadgk, :quadgk_count, :quadgk_print,
+    :quadgk_segbuf, :quadgk_segbuf_count, :quadgk_segbuf_print)
+    @eval function $f(f, segs::Union{AbstractVector{<:Number},AbstractVector{<:Tuple{Number,Number}}}; kws...)
+        segbuf, min, max = to_segbuf(segs)
+        return $f(f, min, max; eval_segbuf=segbuf, kws...)
+    end
+end
+for f! in (:quadgk!, :quadgk_segbuf!)
+    @eval function $f!(f, result, segs::Union{AbstractVector{<:Number},AbstractVector{<:Tuple{Number,Number}}}; kws...)
+        segbuf, min, max = to_segbuf(segs)
+        return $f!(f, result, min, max; eval_segbuf=segbuf, kws...)
+    end
+end
+
+# helper function for above: convert array of points or intervals
+# to array of Segment, along with min/max of all points so that
+# quadgk gets the correct domain type and handles infinities
+function to_segbuf(x::AbstractVector{<:Number})
+    length(x) >= 2 || throw(ArgumentError("at least 2 endpoints are required"))
+    Tx = float(isconcretetype(eltype(x)) ? eltype(x) : mapreduce(typeof, promote_type, x))
+    segbuf = Segment{Tx,Nothing,Nothing}[Segment(Tx(x[i]), Tx(x[i+1])) for i in firstindex(x):lastindex(x)-1]
+    return segbuf, Tx.(extrema(real, x))...
+end
+function to_segbuf(segments::AbstractVector{<:Tuple{Number,Number}})
+    !isempty(segments) || throw(ArgumentError("at least 1 interval is required"))
+    Tx = float(if isconcretetype(eltype(segments))
+        promote_type(fieldtypes(eltype(segments))...)
+    else
+        mapreduce(seg -> promote_type(typeof.(seg)...), promote_type, segments)
+    end)
+    return Segment{Tx,Nothing,Nothing}[Segment(Tx(seg[1]), Tx(seg[2])) for seg in segments],
+           Tx(minimum(seg -> min(real.(seg)...), segments)),
+           Tx(maximum(seg -> max(real.(seg)...), segments))
+end
