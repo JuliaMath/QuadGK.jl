@@ -56,6 +56,7 @@ InplaceIntegrand(f!::F, I::RI, fx::R) where {F,RI,R} =
 include("gausskronrod.jl")
 include("evalrule.jl")
 include("adapt.jl")
+include("api.jl")
 include("weightedgauss.jl")
 include("batch.jl")
 
