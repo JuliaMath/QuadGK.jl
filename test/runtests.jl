@@ -351,20 +351,50 @@ end
     @test quadgk(BatchIntegrand{Float64}((y,x)-> @.(y = 1/x^1.1)),1,Inf)[1] ≈ I rtol=0.05
 end
 
+# wrappers to test quadgk_print API without printing anything
+quadgk_printnull(args...; kws...) = quadgk_print(devnull, args...; kws...)
+quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...; kws...)
+
 @testset "eval_segbuf" begin
     f1(x) = sin(33x + 5cos(20x)) # a highly oscillatory function
     I, E, segbuf, count = quadgk_segbuf_count(f1, 0, 1)
     Iexact = -0.046071240254489526114240147803 # from BigFloat calc
     @test I ≈ Iexact rtol=1e-13
 
-    @test I ≈ quadgk(f1, 0,1, eval_segbuf=segbuf, maxevals=0)[1] rtol=1e-15
-    @test I ≈ quadgk(f1, [0,1])[1] rtol=1e-15
-    @test I ≈ quadgk(f1, Real[0,1])[1] rtol=1e-15
-    @test I ≈ quadgk(f1, [(0,1)])[1] rtol=1e-15
-    @test I ≈ quadgk(f1, [(0,1.0)])[1] rtol=1e-15
-    @test I ≈ quadgk(f1, Tuple{Real,Real}[(0,1.0)])[1] rtol=1e-15
+    for q in (quadgk, quadgk_count, quadgk_printnull, quadgk_segbuf, quadgk_segbuf_count, quadgk_segbuf_printnull)
+        @test I ≈ q(f1, 0,1, eval_segbuf=segbuf, maxevals=0)[1] rtol=1e-15
+        @test I ≈ q(f1, [0,1])[1] rtol=1e-15
+        @test I ≈ q(f1, Real[0,1])[1] rtol=1e-15
+        @test I ≈ q(f1, [(0,1)])[1] rtol=1e-15
+        @test I ≈ q(f1, [(0,1.0)])[1] rtol=1e-15
+        @test I ≈ q(f1, Tuple{Real,Real}[(0,1.0)])[1] rtol=1e-15
+    end
+
+    I2, E2, segbuf2 = quadgk_segbuf(sin, 0, 1, maxevals=0) # 1-interval segbuf
+    @test segbuf2 == [QuadGK.Segment(0, 1, I2, E2)]
+    quadgk(f1, 0, 1, segbuf=segbuf2) # overwrites segbuf2
+    @test segbuf2 == segbuf
+    quadgk(sin, 0, 1, segbuf=segbuf2, maxevals=0) # overwrite segbuf2 again
+    @test segbuf2 == [QuadGK.Segment(0, 1, I2, E2)]
+    I′, E′, count′ = quadgk_count(f1, 0, 1, segbuf=segbuf2, eval_segbuf=segbuf, maxevals=0)
+    @test segbuf2 == segbuf && segbuf2 !== segbuf
+    @test I ≈ I′ rtol=1e-15
+    @test E ≈ E′ rtol=1e-15
+    @test count′ == length(segbuf)*15
+
+    # shouldn't do any refinement even without specifying maxevals,
+    # since we haven't changed the function and hence the error tolerance
+    # should already be met
+    @test quadgk_count(f1, 0, 1, eval_segbuf=segbuf)[3] == length(segbuf)*15
+
+    # try changing the integrand but using same evaluation points:
+    @test I ≈ quadgk(x -> [f1(x), sin(100x)], 0, 1, eval_segbuf=segbuf, maxevals=0)[1][1] rtol=1e-15
 
     # disjoint interval
     Iexact2 = 0.02027807292981734183907838879693 # integral on (1.1, 1.2)
     @test Iexact+Iexact2 ≈ quadgk(f1, [(0,1), (1.1,1.2)])[1] rtol=1e-13
+
+    # type inference of to_segbuf for concrete types:
+    @inferred QuadGK.to_segbuf([0,1])
+    @inferred QuadGK.to_segbuf([(0,1+3im)])
 end
