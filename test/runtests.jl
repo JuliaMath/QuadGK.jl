@@ -350,3 +350,21 @@ end
     @test quadgk!((y,x)-> y .= 1/x^1.1,[0.0],1,Inf)[1][1] ≈ I rtol=0.05
     @test quadgk(BatchIntegrand{Float64}((y,x)-> @.(y = 1/x^1.1)),1,Inf)[1] ≈ I rtol=0.05
 end
+
+@testset "eval_segbuf" begin
+    f1(x) = sin(33x + 5cos(20x)) # a highly oscillatory function
+    I, E, segbuf, count = quadgk_segbuf_count(f1, 0, 1)
+    Iexact = -0.046071240254489526114240147803 # from BigFloat calc
+    @test I ≈ Iexact rtol=1e-13
+
+    @test I ≈ quadgk(f1, 0,1, eval_segbuf=segbuf, maxevals=0)[1] rtol=1e-15
+    @test I ≈ quadgk(f1, [0,1])[1] rtol=1e-15
+    @test I ≈ quadgk(f1, Real[0,1])[1] rtol=1e-15
+    @test I ≈ quadgk(f1, [(0,1)])[1] rtol=1e-15
+    @test I ≈ quadgk(f1, [(0,1.0)])[1] rtol=1e-15
+    @test I ≈ quadgk(f1, Tuple{Real,Real}[(0,1.0)])[1] rtol=1e-15
+
+    # disjoint interval
+    Iexact2 = 0.02027807292981734183907838879693 # integral on (1.1, 1.2)
+    @test Iexact+Iexact2 ≈ quadgk(f1, [(0,1), (1.1,1.2)])[1] rtol=1e-13
+end
