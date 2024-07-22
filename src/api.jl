@@ -180,69 +180,64 @@ quadgk_print(f, args...; kws...) = quadgk_print(stdout, f, args...; kws...)
 # variants that also return a segment buffer:
 
 """
-    quadgk_segbuf(f, args...; kws...)
+    quadgk_segbuf(args...; kws...)
 
-Identical to `quadgk(f, args...; kws...)`, but returns a tuple
+Identical to `quadgk(args...; kws...)`, but returns a tuple
 `(I, E, segbuf)` where `segbuf` is a segment buffer (storing the
 subintervals used for the final integral evaluation) that can
 be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
 calls to `quadgk` and related functions.
 """
-quadgk_segbuf(f, args...; segbuf=nothing, kws...) =
-    quadgk(f, args...; segbuf=ReturnSegbuf(segbuf), kws...)
+quadgk_segbuf(args...; segbuf=nothing, kws...) =
+    quadgk(args...; segbuf=ReturnSegbuf(segbuf), kws...)
 
 
 """
-    quadgk_segbuf_count(f, args...; kws...)
+    quadgk_segbuf_count(args...; kws...)
 
-Identical to `quadgk_count(f, args...; kws...)`, but returns a tuple
+Identical to `quadgk_count(args...; kws...)`, but returns a tuple
 `(I, E, segbuf, count)` where `segbuf` is a segment buffer (storing the
 subintervals used for the final integral evaluation) that can
 be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
 calls to `quadgk` and related functions.
 """
-quadgk_segbuf_count(f, args...; segbuf=nothing, kws...) =
-    quadgk_count(f, args...; segbuf=ReturnSegbuf(segbuf), kws...)
+quadgk_segbuf_count(args...; segbuf=nothing, kws...) =
+    quadgk_count(args...; segbuf=ReturnSegbuf(segbuf), kws...)
 
 """
-    quadgk_segbuf_print(f, args...; kws...)
+    quadgk_segbuf_print(args...; kws...)
 
-Identical to `quadgk_print(f, args...; kws...)`, but returns a tuple
+Identical to `quadgk_print(args...; kws...)`, but returns a tuple
 `(I, E, segbuf, count)` where `segbuf` is a segment buffer (storing the
 subintervals used for the final integral evaluation) that can
 be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
 calls to `quadgk` and related functions.
 """
-quadgk_segbuf_print(f, args...; segbuf=nothing, kws...) =
-    quadgk_print(f, args...; segbuf=ReturnSegbuf(segbuf), kws...)
+quadgk_segbuf_print(args...; segbuf=nothing, kws...) =
+    quadgk_print(args...; segbuf=ReturnSegbuf(segbuf), kws...)
 
 """
-    quadgk_segbuf!(f, result, args...; kws...)
+    quadgk_segbuf!(args...; kws...)
 
-Identical to `quadgk!(f, result, args...; kws...)`, but returns a tuple
+Identical to `quadgk!(args...; kws...)`, but returns a tuple
 `(I, E, segbuf)` where `segbuf` is a segment buffer (storing the
 subintervals used for the final integral evaluation) that can
 be passed as a `segbuf` and/or `eval_segbuf` argument on subsequent
 calls to `quadgk` and related functions.
 """
-quadgk_segbuf!(f!, result, args...; segbuf=nothing, kws...) =
-    quadgk!(f!, result, args...; segbuf=ReturnSegbuf(segbuf), kws...)
+quadgk_segbuf!(args...; segbuf=nothing, kws...) =
+    quadgk!(args...; segbuf=ReturnSegbuf(segbuf), kws...)
 
 # variants that take an array of points or an array of (a,b) tuples
 # to specify the integration domain:
 
-for f in (:quadgk, :quadgk_count, :quadgk_print,
-    :quadgk_segbuf, :quadgk_segbuf_count, :quadgk_segbuf_print)
-    @eval function $f(f, segs::Union{AbstractVector{<:Number},AbstractVector{<:Tuple{Number,Number}}}; kws...)
-        segbuf, min, max = to_segbuf(segs)
-        return $f(f, min, max; eval_segbuf=segbuf, kws...)
-    end
+function quadgk(f, segs::Union{AbstractVector{<:Number},AbstractVector{<:Tuple{Number,Number}}}; kws...)
+    segbuf, min, max = to_segbuf(segs)
+    return quadgk(f, min, max; eval_segbuf=segbuf, kws...)
 end
-for f! in (:quadgk!, :quadgk_segbuf!)
-    @eval function $f!(f, result, segs::Union{AbstractVector{<:Number},AbstractVector{<:Tuple{Number,Number}}}; kws...)
-        segbuf, min, max = to_segbuf(segs)
-        return $f!(f, result, min, max; eval_segbuf=segbuf, kws...)
-    end
+function quadgk!(f, result, segs::Union{AbstractVector{<:Number},AbstractVector{<:Tuple{Number,Number}}}; kws...)
+    segbuf, min, max = to_segbuf(segs)
+    return quadgk!(f, result, min, max; eval_segbuf=segbuf, kws...)
 end
 
 # helper function for above: convert array of points or intervals

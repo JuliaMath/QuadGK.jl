@@ -234,8 +234,8 @@ simultaneously. In particular, there are two differences from `quadgk`
    together, which can produce slightly different results and sometimes require more
    integrand evaluations when using relative tolerances.
 """
-function quadgk(f::BatchIntegrand{Y,Nothing}, segs::T...; kws...) where {Y,T}
+function quadgk(f::BatchIntegrand{Y,Nothing}, a::T,b::T,c::T...; kws...) where {Y,T}
     FT = float(T) # the gk points are floating-point
     g = BatchIntegrand(f.f!, f.y, similar(f.x, FT), f.max_batch)
-    return quadgk(g, segs...; kws...)
+    return quadgk(g, a,b,c...; kws...)
 end
