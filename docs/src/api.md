@@ -8,18 +8,12 @@ The most commonly used function from the QuadGK package is the `quadgk` function
 QuadGK.quadgk
 ```
 
-The `quadgk` function also has variants `quadgk_count` (which also returns a count of the integrand evaluations), `quadgk_print` (which also prints each integrand evaluation), `quadgk!` (which implements an in-place API for array-valued functions), as well as an `alloc_segbuf` function to pre-allocate
-internal buffers used by `quadgk`:
+The `quadgk` function also has variants `quadgk_count` (which also returns a count of the integrand evaluations), `quadgk_print` (which also prints each integrand evaluation), `quadgk!` (which implements an in-place API for array-valued functions).
 
 ```@docs
 QuadGK.quadgk_count
 QuadGK.quadgk_print
 QuadGK.quadgk!
-QuadGK.alloc_segbuf
-QuadGK.quadgk_segbuf
-QuadGK.quadgk_segbuf_count
-QuadGK.quadgk_segbuf_print
-QuadGK.quadgk_segbuf!
 ```
 
 For a vectorized integrand that can evaluate the integrand at multiple points
@@ -29,6 +23,22 @@ integrand and pre-allocated input and output buffers.
 ```@docs
 QuadGK.BatchIntegrand
 ```
+
+The `quadgk` functions accept a `segbuf=segbuf` keyword to re-use internal
+buffers from one call to the next, and an `eval_segbuf=segbuf` to re-use
+the adaptive subdivision from one call to the next.   To return the internal
+`segbuf` from an integration in order to re-use it, you can use the
+`quadgk_segbuf` function and its variants.  You can also use the `alloc_segbuf` function to pre-allocate a segment buffer if you know the
+correct numeric types for the domain endpoints, integral, and error estimate:
+
+```@docs
+QuadGK.quadgk_segbuf
+QuadGK.quadgk_segbuf_count
+QuadGK.quadgk_segbuf_print
+QuadGK.quadgk_segbuf!
+QuadGK.alloc_segbuf
+```
+
 
 ## Gauss and Gauss–Kronrod rules
 
