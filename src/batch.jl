@@ -116,11 +116,10 @@ function evalrules!(segs::AbstractVector, f::BatchIntegrand, eval_segs::Abstract
     return segs
 end
 
-# eval rules for a vector `eval_segs` of segments, mutating segs in-place
+# eval rules for a vector `eval_segs` of segments
 function evalrules(f::BatchIntegrand, eval_segs::Vector, x,w,wg, nrm)
-    length(segs) == length(eval_segs) || throw(DimensionMismatch())
     m = eval_integrand_from_segs!(f, eval_segs, x,w,wg, nrm)
-    return map(enumerate(eachindex(segs))) do (i,j)
+    return map(enumerate(eachindex(eval_segs))) do (i,j)
         @inbounds a, b = eval_segs[j].a, eval_segs[j].b
         batchevalrule(view(f.y, (1+(i-1)*m):(i*m)), a,b, x,w,wg, nrm)
     end

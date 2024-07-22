@@ -357,6 +357,7 @@ quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...;
 
 @testset "eval_segbuf" begin
     f1(x) = sin(33x + 5cos(20x)) # a highly oscillatory function
+    f1!(y, x) = @. y = f1(x)
     I, E, segbuf, count = quadgk_segbuf_count(f1, 0, 1)
     Iexact = -0.046071240254489526114240147803 # from BigFloat calc
     @test I ≈ Iexact rtol=1e-13
@@ -369,6 +370,9 @@ quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...;
         @test I ≈ q(f1, [(0,1.0)])[1] rtol=1e-15
         @test I ≈ q(f1, Tuple{Real,Real}[(0,1.0)])[1] rtol=1e-15
     end
+    @test I ≈ quadgk!(f1!, [0.0], 0,1, eval_segbuf=segbuf, maxevals=0)[1][1] rtol=1e-15
+    @test I ≈ quadgk!(f1!, [0.0], [0,1])[1][1] rtol=1e-15
+    @test I ≈ quadgk!(f1!, [0.0], [(0,1)])[1][1] rtol=1e-15
 
     I2, E2, segbuf2 = quadgk_segbuf(sin, 0, 1, maxevals=0) # 1-interval segbuf
     @test segbuf2 == [QuadGK.Segment(0, 1, I2, E2)]
@@ -381,6 +385,21 @@ quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...;
     @test I ≈ I′ rtol=1e-15
     @test E ≈ E′ rtol=1e-15
     @test count′ == length(segbuf)*15
+
+    I′, E′, segbuf′ = quadgk_segbuf!(f1!, [0.0], 0, 1)
+    @test I ≈ I′[1] rtol=1e-15
+    @test E ≈ E′ rtol=1e-15
+    @test [QuadGK.Segment(seg.a, seg.b, seg.I[1], seg.E) for seg in segbuf′] == segbuf
+
+    bf1 = BatchIntegrand{Float64}(f1!)
+    I′, E′ = quadgk(bf1, 0, 1, eval_segbuf=segbuf, maxevals=0)
+    @test I ≈ I′ rtol=1e-15
+    @test E ≈ E′ rtol=1e-15
+    quadgk(sin, 0, 1, segbuf=segbuf2, maxevals=0) # overwrite segbuf2 again
+    I′, E′ = quadgk(bf1, 0, 1, segbuf=segbuf2, eval_segbuf=segbuf, maxevals=0)
+    @test segbuf2 == segbuf && segbuf2 !== segbuf
+    @test I ≈ I′ rtol=1e-15
+    @test E ≈ E′ rtol=1e-15
 
     # shouldn't do any refinement even without specifying maxevals,
     # since we haven't changed the function and hence the error tolerance
