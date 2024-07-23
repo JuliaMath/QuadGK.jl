@@ -109,9 +109,9 @@ end
 function evalrules!(segs::AbstractVector, f::BatchIntegrand, eval_segs::AbstractVector, x,w,wg, nrm)
     axes(segs, 1) == axes(eval_segs, 1) || throw(DimensionMismatch())
     m = eval_integrand_from_segs!(f, eval_segs, x,w,wg, nrm)
-    for (i,j) in enumerate(eachindex(segs))
-        @inbounds a, b = eval_segs[j].a, eval_segs[j].b
-        segs[j] = batchevalrule(view(f.y, (1+(i-1)*m):(i*m)), a,b, x,w,wg, nrm)
+    for i in 1:length(segs)
+        @inbounds a, b = eval_segs[i].a, eval_segs[i].b
+        segs[i] = batchevalrule(view(f.y, (1+(i-1)*m):(i*m)), a,b, x,w,wg, nrm)
     end
     return segs
 end
@@ -119,8 +119,8 @@ end
 # eval rules for a vector `eval_segs` of segments
 function evalrules(f::BatchIntegrand, eval_segs::Vector, x,w,wg, nrm)
     m = eval_integrand_from_segs!(f, eval_segs, x,w,wg, nrm)
-    return map(enumerate(eachindex(eval_segs))) do (i,j)
-        @inbounds a, b = eval_segs[j].a, eval_segs[j].b
+    return map(1:length(eval_segs)) do i
+        @inbounds a, b = eval_segs[i].a, eval_segs[i].b
         batchevalrule(view(f.y, (1+(i-1)*m):(i*m)), a,b, x,w,wg, nrm)
     end
 end

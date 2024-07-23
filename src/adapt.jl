@@ -18,8 +18,10 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm,
                    eval_segbuf::Union{Nothing,<:AbstractVector{<:Segment}}) where {T,N,F}
     x,w,wg = cachedrule(T,n)
     segbuf = _segbuf isa ReturnSegbuf ? _segbuf.segbuf : _segbuf
+    isnothing(segbuf) || Base.require_one_based_indexing(segbuf)
 
     if !isnothing(eval_segbuf) # contains initial quadrature intervals
+        Base.require_one_based_indexing(eval_segbuf)
         isempty(eval_segbuf) && throw(ArgumentError("eval_segbuf must be non-empty"))
         if f isa BatchIntegrand
             if isnothing(segbuf)
@@ -136,16 +138,16 @@ end
 # re-sum (paranoia about accumulated roundoff)
 function resum(f, segs)
     if f isa InplaceIntegrand
-        I = f.I .= segs[firstindex(segs)].I
-        E = segs[firstindex(segs)].E
-        for i in firstindex(segs)+1:lastindex(segs)
+        I = f.I .= segs[1].I
+        E = segs[1].E
+        for i in 2:length(segs)
             I .+= segs[i].I
             E += segs[i].E
         end
     else
-        I = segs[firstindex(segs)].I
-        E = segs[firstindex(segs)].E
-        for i in firstindex(segs)+1:lastindex(segs)
+        I = segs[1].I
+        E = segs[1].E
+        for i in 2:length(segs)
             I += segs[i].I
             E += segs[i].E
         end
