@@ -83,6 +83,48 @@ function evalrules(f::BatchIntegrand, s::NTuple{N}, x,w,wg, nrm) where {N}
     end
 end
 
+# for evalrules, evaluate at points from `eval_segs` segments, storing in f.y,
+# returning the number m of evaluations per segment.
+function eval_integrand_from_segs!(f::BatchIntegrand, eval_segs::AbstractVector, x,w,wg, nrm)
+    l = length(x)
+    m = 2l-1    # evaluations per segment
+    n = length(eval_segs)*m # total evaluations
+    resize!(f.x, n)
+    resize!(f.y, n)
+    for i in eachindex(eval_segs) # fill buffer with evaluation points
+        @inbounds a, b = eval_segs[i].a, eval_segs[i].b
+        c = convert(eltype(x), 0.5) * (b-a)
+        o = (i-firstindex(eval_segs))*m
+        f.x[l+o] = a + c
+        for j in 1:l-1
+            f.x[j+o] = a + (1 + x[j]) * c
+            f.x[m+1-j+o] = a + (1 - x[j]) * c
+        end
+    end
+    f.f!(f.y, f.x)  # evaluate integrand
+    return m
+end
+
+# eval rules for a vector `eval_segs` of segments, mutating segs in-place
+function evalrules!(segs::AbstractVector, f::BatchIntegrand, eval_segs::AbstractVector, x,w,wg, nrm)
+    axes(segs, 1) == axes(eval_segs, 1) || throw(DimensionMismatch())
+    m = eval_integrand_from_segs!(f, eval_segs, x,w,wg, nrm)
+    for i in 1:length(segs)
+        @inbounds a, b = eval_segs[i].a, eval_segs[i].b
+        segs[i] = batchevalrule(view(f.y, (1+(i-1)*m):(i*m)), a,b, x,w,wg, nrm)
+    end
+    return segs
+end
+
+# eval rules for a vector `eval_segs` of segments
+function evalrules(f::BatchIntegrand, eval_segs::Vector, x,w,wg, nrm)
+    m = eval_integrand_from_segs!(f, eval_segs, x,w,wg, nrm)
+    return map(1:length(eval_segs)) do i
+        @inbounds a, b = eval_segs[i].a, eval_segs[i].b
+        batchevalrule(view(f.y, (1+(i-1)*m):(i*m)), a,b, x,w,wg, nrm)
+    end
+end
+
 # we refine as many segments as we can fit into the buffer
 function refine(f::BatchIntegrand, segs::Vector{T}, I, E, numevals, x,w,wg,n, atol, rtol, maxevals, nrm) where {T}
     tol = max(atol, rtol*nrm(I))
@@ -191,8 +233,8 @@ simultaneously. In particular, there are two differences from `quadgk`
    together, which can produce slightly different results and sometimes require more
    integrand evaluations when using relative tolerances.
 """
-function quadgk(f::BatchIntegrand{Y,Nothing}, segs::T...; kws...) where {Y,T}
+function quadgk(f::BatchIntegrand{Y,Nothing}, a::T,b::T,c::T...; kws...) where {Y,T}
     FT = float(T) # the gk points are floating-point
     g = BatchIntegrand(f.f!, f.y, similar(f.x, FT), f.max_batch)
-    return quadgk(g, segs...; kws...)
+    return quadgk(g, a,b,c...; kws...)
 end

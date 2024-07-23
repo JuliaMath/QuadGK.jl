@@ -8,7 +8,9 @@ end
 Base.@pure Base.promote_rule(::Type{Segment{TX,TI,TE}}, ::Type{Segment{TX′,TI′,TE′}}) where {TX,TI,TE,TX′,TI′,TE′} =
     Segment{promote_type(TX,TX′), promote_type(TI,TI′), promote_type(TE,TE′)}
 Base.convert(::Type{T}, s::Segment) where {T<:Segment} = T(s.a,s.b,s.I,s.E)
+Base.:(==)(s1::Segment, s2::Segment) = s1.a == s2.a && s1.b == s2.b && s1.I == s2.I && s1.E == s2.E
 Base.isless(i::Segment, j::Segment) = isless(i.E, j.E)
+Segment(a::Number, b::Number) = Segment(promote(a, b)..., nothing, nothing)
 
 # Internal routine: approximately integrate f(x) over the interval (a,b)
 # by evaluating the integration rule (x,w,wg). Return a Segment.

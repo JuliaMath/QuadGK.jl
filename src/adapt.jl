@@ -1,30 +1,68 @@
+
+# This can be wrapped around the `segbuf` argument
+# of do_quadgk to indicate that the segment buffer
+# should be saved and returned as an extra return value.
+# (Helps us re-use do_quadgk for both cases, while
+#  remaining type-stable despite the varying return value.)
+struct ReturnSegbuf{S<:Union{Nothing,<:AbstractVector{<:Segment}}}
+    segbuf::S # either a pre-allocateed segment buffer or nothing
+end
+
 # Internal routine: integrate f over the union of the open intervals
 # (s[1],s[2]), (s[2],s[3]), ..., (s[end-1],s[end]), using h-adaptive
 # integration with the order-n Kronrod rule and weights of type Tw,
 # with absolute tolerance atol and relative tolerance rtol,
 # with maxevals an approximate maximum number of f evaluations.
-function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) where {T,N,F}
+function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm,
+                   _segbuf::Union{Nothing,<:AbstractVector{<:Segment},ReturnSegbuf},
+                   eval_segbuf::Union{Nothing,<:AbstractVector{<:Segment}}) where {T,N,F}
     x,w,wg = cachedrule(T,n)
+    segbuf = _segbuf isa ReturnSegbuf ? _segbuf.segbuf : _segbuf
+    isnothing(segbuf) || Base.require_one_based_indexing(segbuf)
 
-    @assert N ≥ 2
-    if f isa BatchIntegrand
-        segs = evalrules(f, s, x,w,wg, nrm)
-    else
-        segs = ntuple(Val{N-1}()) do i
-            a, b = s[i], s[i+1]
-            evalrule(f, a,b, x,w,wg, nrm)
+    if !isnothing(eval_segbuf) # contains initial quadrature intervals
+        Base.require_one_based_indexing(eval_segbuf)
+        isempty(eval_segbuf) && throw(ArgumentError("eval_segbuf must be non-empty"))
+        if f isa BatchIntegrand
+            if isnothing(segbuf)
+                segbuf2 = evalrules(f, eval_segbuf, x,w,wg, nrm)
+            else
+                segbuf2 = evalrules!(resize!(segbuf, length(eval_segbuf)),
+                                     f, eval_segbuf, x,w,wg, nrm)
+            end
+        else
+            if isnothing(segbuf)
+                segbuf2 = map(eval_segbuf) do seg
+                    evalrule(f, seg.a, seg.b, x,w,wg, nrm)
+                end
+            else
+                segbuf2 = map!(resize!(segbuf, length(eval_segbuf)), eval_segbuf) do seg
+                    evalrule(f, seg.a, seg.b, x,w,wg, nrm)
+                end
+            end
         end
-    end
-    if f isa InplaceIntegrand
-        I = f.I .= segs[1].I
-        for i = 2:length(segs)
-            I .+= segs[i].I
-        end
+
+        I, E = resum(f, segbuf2)
+        numevals = (2n+1) * length(segbuf2)
     else
-        I = sum(s -> s.I, segs)
+        @assert N ≥ 2
+        if f isa BatchIntegrand
+            segs = evalrules(f, s, x,w,wg, nrm)
+        else
+            segs = ntuple(Val{N-1}()) do i
+                a, b = s[i], s[i+1]
+                evalrule(f, a,b, x,w,wg, nrm)
+            end
+        end
+
+        I, E = resum(f, segs)
+        numevals = (2n+1) * (N-1)
+
+        # save segs into segbuf if !== nothing, both for adaptive subdivision
+        # and to return to the user for re-using with different integrands:
+        isnothing(segbuf) || (resize!(segbuf, N-1) .= segs)
+        segbuf2 = segbuf # to mirror eval_segbuf branch above
     end
-    E = sum(s -> s.E, segs)
-    numevals = (2n+1) * (N-1)
 
     # logic here is mainly to handle dimensionful quantities: we
     # don't know the correct type of atol115, in particular, until
@@ -35,13 +73,19 @@ function do_quadgk(f::F, s::NTuple{N,T}, n, atol, rtol, maxevals, nrm, segbuf) w
     rtol_ = something(rtol, iszero(atol_) ? sqrt(eps(one(eltype(x)))) : zero(eltype(x)))
 
     # optimize common case of no subdivision
-    if E ≤ atol_ || E ≤ rtol_ * nrm(I) || numevals ≥ maxevals
-        return (I, E) # fast return when no subdivisions required
+    if numevals ≥ maxevals || E ≤ atol_ || E ≤ rtol_ * nrm(I)
+        # fast return when no subdivisions required
+        if _segbuf isa ReturnSegbuf
+            return (I, E, isnothing(segbuf2) ? collect(segs) : segbuf2)
+        else
+            return (I, E)
+        end
     end
 
-    segheap = segbuf === nothing ? collect(segs) : (resize!(segbuf, N-1) .= segs)
+    segheap = segbuf2 === nothing ? collect(segs) : segbuf2
     heapify!(segheap, Reverse)
-    return resum(f, adapt(f, segheap, I, E, numevals, x,w,wg,n, atol_, rtol_, maxevals, nrm))
+    I, E = resum(f, adapt(f, segheap, I, E, numevals, x,w,wg,n, atol_, rtol_, maxevals, nrm))
+    return _segbuf isa ReturnSegbuf ? (I, E, segheap) : (I, E)
 end
 
 # internal routine to perform the h-adaptive refinement of the integration segments (segs)
@@ -181,163 +225,3 @@ function check_endpoint_roundoff(a, b, x)
     eval_at_b = b == a + (1-x[1])*c
     return eval_at_a || eval_at_b
 end
-
-# Gauss-Kronrod quadrature of f from a to b to c...
-
-"""
-    quadgk(f, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm, segbuf=nothing)
-
-Numerically integrate the function `f(x)` from `a` to `b`, and optionally over additional
-intervals `b` to `c` and so on. Keyword options include a relative error tolerance `rtol`
-(if `atol==0`, defaults to `sqrt(eps)` in the precision of the endpoints), an absolute error tolerance
-`atol` (defaults to 0), a maximum number of function evaluations `maxevals` (defaults to
-`10^7`), and the `order` of the integration rule (defaults to 7).
-
-Returns a pair `(I,E)` of the estimated integral `I` and an estimated upper bound on the
-absolute error `E`. If `maxevals` is not exceeded then `E <= max(atol, rtol*norm(I))`
-will hold. (Note that it is useful to specify a positive `atol` in cases where `norm(I)`
-may be zero.)
-
-The endpoints `a` et cetera can also be complex (in which case the integral is performed over
-straight-line segments in the complex plane). If the endpoints are `BigFloat`, then the
-integration will be performed in `BigFloat` precision as well.
-
-!!! note
-    It is advisable to increase the integration `order` in rough proportion to the
-    precision, for smooth integrands.
-
-More generally, the precision is set by the precision of the integration
-endpoints (promoted to floating-point types).
-
-The integrand `f(x)` can return any numeric scalar, vector, or matrix type, or in fact any
-type supporting `+`, `-`, multiplication by real values, and a `norm` (i.e., any normed
-vector space). Alternatively, a different norm can be specified by passing a `norm`-like
-function as the `norm` keyword argument (which defaults to `norm`).
-
-!!! note
-    Only one-dimensional integrals are provided by this function. For multi-dimensional
-    integration (cubature), there are many different algorithms (often much better than simple
-    nested 1d integrals) and the optimal choice tends to be very problem-dependent. See the
-    Julia external-package listing for available algorithms for multidimensional integration or
-    other specialized tasks (such as integrals of highly oscillatory or singular functions).
-
-The algorithm is an adaptive Gauss-Kronrod integration technique: the integral in each
-interval is estimated using a Kronrod rule (`2*order+1` points) and the error is estimated
-using an embedded Gauss rule (`order` points). The interval with the largest error is then
-subdivided into two intervals and the process is repeated until the desired error tolerance
-is achieved.
-
-These quadrature rules work best for smooth functions within each interval, so if your
-function has a known discontinuity or other singularity, it is best to subdivide your
-interval to put the singularity at an endpoint. For example, if `f` has a discontinuity at
-`x=0.7` and you want to integrate from 0 to 1, you should use `quadgk(f, 0,0.7,1)` to
-subdivide the interval at the point of discontinuity. The integrand is never evaluated
-exactly at the endpoints of the intervals, so it is possible to integrate functions that
-diverge at the endpoints as long as the singularity is integrable (for example, a `log(x)`
-or `1/sqrt(x)` singularity).
-
-For real-valued endpoints, the starting and/or ending points may be infinite. (A coordinate
-transformation is performed internally to map the infinite interval to a finite one.)
-
-In normal usage, `quadgk(...)` will allocate a buffer for segments. You can
-instead pass a preallocated buffer allocated using `alloc_segbuf(...)` as the
-`segbuf` argument. This buffer can be used across multiple calls to avoid
-repeated allocation.
-"""
-quadgk(f, segs...; kws...) =
-    quadgk(f, promote(segs...)...; kws...)
-
-function quadgk(f, segs::T...;
-       atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
-    handle_infinities(f, segs) do f, s, _
-        do_quadgk(f, s, order, atol, rtol, maxevals, norm, segbuf)
-    end
-end
-
-"""
-    function alloc_segbuf(domain_type=Float64, range_type=Float64, error_type=Float64; size=1)
-
-This helper will allocate a segment buffer for segments to a `quadgk(...)` call
-with the given `domain_type`, which is the same as the type of the integration
-limits, `range_type` i.e. the range of the function being integrated and
-`error_type`, the type returned by the `norm` given to `quadgk(...)` and
-starting with the given `size`. The buffer can then be reused across multiple
-compatible calls to `quadgk(...)` to avoid repeated allocation.
-"""
-function alloc_segbuf(domain_type=Float64, range_type=Float64, error_type=Float64; size=1)
-    Vector{Segment{domain_type, range_type, error_type}}(undef, size)
-end
-
-"""
-    quadgk!(f!, result, a,b,c...; rtol=sqrt(eps), atol=0, maxevals=10^7, order=7, norm=norm)
-
-Like `quadgk`, but make use of in-place operations for array-valued integrands (or other mutable
-types supporting in-place operations).  In particular, there are two differences from `quadgk`:
-
-1. The function `f!` should be of the form `f!(y, x) = y .= f(x)`.  That is, it writes the
-   return value of the integand `f(x)` in-place into its first argument `y`.   (The return
-   value of `f!` is ignored.)
-
-2. Like `quadgk`, the return value is a tuple `(I,E)` of the estimated integral `I` and the
-   estimated error `E`.   However, in `quadgk!` the estimated integral is written in-place
-   into the `result` argument, so that `I === result`.
-
-Otherwise, the behavior is identical to `quadgk`.
-
-For integrands whose values are *small* arrays whose length is known at compile-time,
-it is usually more efficient to use `quadgk` and modify your integrand to return
-an `SVector` from the [StaticArrays.jl package](https://github.com/JuliaArrays/StaticArrays.jl).
-"""
-quadgk!(f!, result, segs...; kws...) =
-    quadgk!(f!, result, promote(segs...)...; kws...)
-
-function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxevals=10^7, order=7, norm=norm, segbuf=nothing) where {T}
-    fx = result / oneunit(T) # pre-allocate array of correct type for integrand evaluations
-    f = InplaceIntegrand(f!, result, fx)
-    return quadgk(f, a, b, c...; atol=atol, rtol=rtol, maxevals=maxevals, order=order, norm=norm, segbuf=segbuf)
-end
-
-"""
-    quadgk_count(f, args...; kws...)
-
-Identical to [`quadgk`](@ref) but returns a triple `(I, E, count)`
-of the estimated integral `I`, the estimated error bound `E`, and a `count`
-of the number of times the integrand `f` was evaluated.
-
-The count of integrand evaluations is a useful performance metric: a large
-number typically indicates a badly behaved integrand (with singularities,
-discontinuities, sharp peaks, and/or rapid oscillations), in which case
-it may be possible to mathematically transform the problem in some way
-to improve the convergence rate.
-"""
-function quadgk_count(f, args...; kws...)
-    count = 0
-    i = quadgk(args...; kws...) do x
-        count += 1
-        f(x)
-    end
-    return (i..., count)
-end
-
-"""
-    quadgk_print([io], f, args...; kws...)
-
-Identical to [`quadgk`](@ref), but **prints** each integrand
-evaluation to the stream `io` (defaults to `stdout`) in the form:
-```
-f(x1) = y1
-f(x2) = y2
-...
-```
-which is useful for pedagogy and debugging.
-
-Also, like [`quadgk_count`](@ref), it returns a triple `(I, E, count)`
-of the estimated integral `I`, the estimated error bound `E`, and a `count`
-of the number of times the integrand `f` was evaluated.
-"""
-quadgk_print(io::IO, f, args...; kws...) = quadgk_count(args...; kws...) do x
-    y = f(x)
-    println(io, "f(", x, ") = ", y)
-    y
-end
-quadgk_print(f, args...; kws...) = quadgk_print(stdout, f, args...; kws...)

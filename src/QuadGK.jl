@@ -23,8 +23,12 @@ and returns the approximate `integral = 0.746824132812427` and error estimate
 """
 module QuadGK
 
-export quadgk, quadgk!, gauss, kronrod, alloc_segbuf, quadgk_count, quadgk_print
-export BatchIntegrand
+export quadgk, quadgk!,
+       quadgk_count, quadgk_print,
+       gauss, kronrod,
+       alloc_segbuf,
+       quadgk_segbuf, quadgk_segbuf!, quadgk_segbuf_count, quadgk_segbuf_print,
+       BatchIntegrand
 
 using DataStructures, LinearAlgebra
 import Base.Order.Reverse
@@ -52,6 +56,7 @@ InplaceIntegrand(f!::F, I::RI, fx::R) where {F,RI,R} =
 include("gausskronrod.jl")
 include("evalrule.jl")
 include("adapt.jl")
+include("api.jl")
 include("weightedgauss.jl")
 include("batch.jl")
 
