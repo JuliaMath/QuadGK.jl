@@ -413,6 +413,15 @@ quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...;
     Iexact2 = 0.02027807292981734183907838879693 # integral on (1.1, 1.2)
     @test Iexact+Iexact2 ≈ quadgk(f1, [(0,1), (1.1,1.2)])[1] rtol=1e-13
 
+    # improper integral:
+    I3, E3, segbuf3, count3 = quadgk_segbuf_count(x -> exp(-x^2) * sin(5x), 1, Inf)
+    Iexact3 = -0.0109699584591428491728787745989450034528797727445108 # WolframAlpha
+    @test I3 ≈ Iexact3 rtol=1e-13
+    I3′, E3′, count3′ = quadgk_count(x -> exp(-x^2) * sin(5x), 1, Inf, eval_segbuf=segbuf3)
+    @test I3 ≈ I3′ rtol=1e-15
+    @test E3 ≈ E3′ rtol=1e-15
+    @test count3′ == length(segbuf3) * 15
+
     # type inference of to_segbuf for concrete types:
     @inferred QuadGK.to_segbuf([0,1])
     @inferred QuadGK.to_segbuf([(0,1+3im)])
