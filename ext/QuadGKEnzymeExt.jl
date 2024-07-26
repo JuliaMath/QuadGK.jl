@@ -64,7 +64,7 @@ function Base.:+(a::ClosureVector, b::ClosureVector)
 end
 
 function Base.:-(a::ClosureVector, b::ClosureVector)
-    Enzyme.Compiler.recursive_add(b, b, x->-x, guaranteed_nonactive)
+    Enzyme.Compiler.recursive_add(a, b, x->-x, guaranteed_nonactive)
 end
 
 function Base.:*(a::Number, b::ClosureVector)
