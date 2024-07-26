@@ -446,6 +446,30 @@ function _kronrod_b(J::AbstractSymTri{<:Real}, n::Integer)
     return b
 end
 
+# Laurie's algorithm seems to suffer from spurious underflow,
+# in which the s, t factors get exponentially smaller as n
+# increases.  A workaround is to simply renormalize them on
+# each step, which is allowed because our final answer only
+# depends on their ratios.  There is probably a more elegant
+# workaround, and we could be more clever about normalizing
+# only where needed, but this only slows down kronrod by
+# by a constant factor (about 1%), so not much payoff in being clever.
+# (Laurie mentions this problem in passing: they work around it
+#  by rescaling the interval by 2, which rescales b by 4 and hence
+#  causes b to asymptote to 1.0 rather than 0.25, suppressing the
+#  exponential underflow.  It's not clear how to generalize that
+#  hack to arbitrary Jacobi matrices, however.)  See issue #93.
+function normalize2!(s, t, maxabs, n)
+    if !iszero(maxabs)
+        scaleby = inv(maxabs)
+        for i = 1:n
+            s[i] *= scaleby
+            t[i] *= scaleby
+        end
+    end
+    return s, t
+end
+
 # return the Kronrod–Jacobi matrix
 function _kronrodjacobi(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int) where {T<:AbstractFloat}
     # these are checked above:
@@ -461,21 +485,22 @@ function _kronrodjacobi(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int)
     t = zeros(T, length(s))
     t[2] = b[n+1]
     for m = 0:n-2
-        u = zero(T)
+        maxabs = u = zero(T)
         for k = div(m+1,2):-1:0
             u += b[k + n + 1]*s[k+1] - (m > k ? b[m - k]*s[k+2] : zero(T))
             if J isa SymTridiagonal
                 u += (a[k+n+2] - a[(m-k)+1]) * t[k+2]
             end
             s[k+2] = u
+            maxabs = max(maxabs, abs(u))
         end
-        s,t = t,s
+        t, s = normalize2!(s, t, maxabs, div(m+1,2)+2) # normalize & swap
     end
     for j = div(n,2):-1:0
         s[j+2] = s[j+1]
     end
     for m = n-1:2n-3
-        u = zero(T)
+        maxabs = u = zero(T)
         for k = m+1-n:div(m-1,2)
             j = n - (m - k) - 1
             u -= b[k + n + 1]*s[j+2] - b[m - k]*s[j+3]
@@ -483,15 +508,16 @@ function _kronrodjacobi(J::AbstractSymTri{<:Real}, b::AbstractVector{T}, n::Int)
                 u -= (a[k+n+2] - a[(m-k)+1]) * t[j+2]
             end
             s[j+2] = u
+            maxabs = max(maxabs, abs(u))
         end
+        t, s = normalize2!(s, t, maxabs, length(s)) # normalize & swap
         k = div(m+1,2)
         j = n - (m - k + 2)
         if 2k != m
-            b[k+n+1] = s[j+2] / s[j+3]
+            b[k+n+1] = t[j+2] / t[j+3]
         elseif J isa SymTridiagonal
-            a[k+n+2] = a[k+1] + (s[j+2] - b[k+n+1] * s[j+3]) / t[j+3]
+            a[k+n+2] = a[k+1] + (t[j+2] - b[k+n+1] * t[j+3]) / s[j+3]
         end
-        s,t = t,s
     end
     if J isa SymTridiagonal
         a[2n+1] = a[n] - b[2n]*s[2]/t[2]
