@@ -1,6 +1,6 @@
  # This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
 
-using QuadGK, LinearAlgebra, Test
+using QuadGK, LinearAlgebra, Test, Enzyme
 
 ≅(x::Tuple, y::Tuple; kws...) = all(a -> isapprox(a[1],a[2]; kws...), zip(x,y))
 
@@ -428,9 +428,9 @@ quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...;
 end
 
 
-f1(x) = quadgk(cos, 0., x)
-f2(x) = quadgk(cos, x, 1)
-f3(x) = quadgk(y->cos(x * y), 0., 1.)
+f1(x) = quadgk(cos, 0., x)[1]
+f2(x) = quadgk(cos, x, 1)[1]
+f3(x) = quadgk(y->cos(x * y), 0., 1.)[1]
 
 @testset "Enzyme" begin
     @test cos(0.3) ≈ Enzyme.autodiff(Reverse, f1, Active(0.3))[1][1]
