@@ -1,4 +1,4 @@
- # This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
+# This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
 
 using QuadGK, LinearAlgebra, Test
 
