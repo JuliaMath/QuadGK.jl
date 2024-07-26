@@ -1,4 +1,4 @@
-# This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
+ # This file contains code that was formerly part of Julia. License is MIT: http://julialang.org/license
 
 using QuadGK, LinearAlgebra, Test
 
@@ -425,4 +425,15 @@ quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...;
     # type inference of to_segbuf for concrete types:
     @inferred QuadGK.to_segbuf([0,1])
     @inferred QuadGK.to_segbuf([(0,1+3im)])
+end
+
+
+f1(x) -> quadgk(cos, 0., x)
+f2(x) -> quadgk(cos, x, 1)
+f3(x) -> quadgk(y->cos(x * y), 0., 1.)
+
+@testset "Enzyme" begin
+    @test cos(0.3) ≈ Enzyme.autodiff(Reverse, f1, Active(0.3))[1][1]
+    @test -cos(0.3) ≈ Enzyme.autodiff(Reverse, f2, Active(0.3))[1][1]
+    @test (0.3 * cos(0.3) - sin(0.3))/(0.3*0.3) ≈ Enzyme.autodiff(Reverse, f3, Active(0.3))[1][1]
 end
