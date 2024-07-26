@@ -50,6 +50,14 @@ function call(f, x)
     f(x)
 end
 
+# Wrapper around a function f that allows it to act as a vector space, and hence be usable as
+# an integrand, where the vector operations act on the closed-over parameters of f that are
+# begin differentiated with respect to.   In particular, if we have a closure f = x -> g(x, p), and we want
+# to differentiate with respect to p, then our reverse (vJp) rule needs an integrand given by the
+# Jacobian-vector product (pullback) vᵀ∂g/∂p.  But Enzyme wraps this in a closure so that it is the
+# same "shape" as f, whereas to integrate it we need to be able to treat it as a vector space.
+# ClosureVector calls Enzyme.Compiler.recursive_add, which is an internal function that "unwraps"
+# the closure to access the internal state, which can then be added/subtracted/scaled.
 struct ClosureVector{F}
     f::F
 end
