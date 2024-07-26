@@ -69,6 +69,8 @@ end
     @test @inferred(quadgk(x -> sin(10x), 0,1))[1] ≈ (1 - cos(10))/10
 end
 
+include("gauss1093.jl") # 1093-point validation data
+
 @testset "gauss" begin
     x,w = gauss(10, -1, 1)
     x′,w′ = @inferred gauss(x->1, 10, -1, 1)
@@ -97,6 +99,11 @@ end
     # check for underflow bug: https://discourse.julialang.org/t/nan-returned-by-gauss/68260
     x,w = gauss(1093)
     @test all(isfinite, x) && all(isfinite, w)
+
+    # issue #109
+    @test x ≈ fx1093 rtol=1e-14
+    @test w ≈ fw1093 rtol=1e-14
+    @test dot(exp.(x), w) ≈ exp(1) - exp(-1) rtol=1e-14
 end
 
 # check some arbitrary precision (Maple) values from https://keisan.casio.com/exec/system/1289382036
