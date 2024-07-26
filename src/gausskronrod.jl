@@ -82,8 +82,8 @@ end
 
 # Given a symmetric tridiagonal matrix H with H[i,i] = 0 and
 # H[i-1,i] = H[i,i-1] = b[i-1], compute p(z) = det(z I - H) and its
-# derivative p'(z), returning (p,p').
-function eigpoly(b::AbstractVector{<:Real},z::Number,m::Integer=length(b)+1)
+# derivative p'(z), returning the ratio p / p'
+function eigpolyrat(b::AbstractVector{<:Real},z::Number,m::Integer=length(b)+1)
     d1 = z
     d1deriv = d2 = one(z)
     d2deriv = zero(z)
@@ -91,17 +91,21 @@ function eigpoly(b::AbstractVector{<:Real},z::Number,m::Integer=length(b)+1)
         b2 = b[i-1]^2
         d = z * d1 - b2 * d2
         dderiv = d1 + z * d1deriv - b2 * d2deriv
-        d2 = d1
-        d1 = d
-        d2deriv = d1deriv
-        d1deriv = dderiv
+        if iszero(dderiv)
+            d2, d1 = d1, d
+            d2deriv, d1deriv = d1deriv, dderiv
+        else # rescale to suppress under/overflow
+            dderiv⁻¹ = inv(dderiv)
+            d2, d1 = d1 * dderiv⁻¹, d * dderiv⁻¹
+            d2deriv, d1deriv = d1deriv * dderiv⁻¹, one(dderiv)
+        end
     end
-    return (d1, d1deriv)
+    return d1 / d1deriv
 end
-eigpoly(H::HollowSymTridiagonal{<:Real},z) = eigpoly(H.ev, z)
+eigpolyrat(H::HollowSymTridiagonal{<:Real},z) = eigpolyrat(H.ev, z)
 
 # as above, but for general symmetric tridiagonal (diagonal ≠ 0)
-function eigpoly(H::SymTridiagonal{<:Real},z::Number)
+function eigpolyrat(H::SymTridiagonal{<:Real},z::Number)
     d1 = z - H.dv[1]
     d1deriv = d2 = one(d1)
     d2deriv = zero(d1)
@@ -110,12 +114,16 @@ function eigpoly(H::SymTridiagonal{<:Real},z::Number)
         a = z - H.dv[i]
         d = a * d1 - b2 * d2
         dderiv = d1 + a * d1deriv - b2 * d2deriv
-        d2 = d1
-        d1 = d
-        d2deriv = d1deriv
-        d1deriv = dderiv
+        if iszero(dderiv)
+            d2, d1 = d1, d
+            d2deriv, d1deriv = d1deriv, dderiv
+        else # rescale to suppress under/overflow
+            dderiv⁻¹ = inv(dderiv)
+            d2, d1 = d1 * dderiv⁻¹, d * dderiv⁻¹
+            d2deriv, d1deriv = d1deriv * dderiv⁻¹, one(dderiv)
+        end
     end
-    return (d1, d1deriv)
+    return d1 / d1deriv
 end
 
 # compute the n smallest eigenvalues of the symmetric tridiagonal matrix H
@@ -127,14 +135,14 @@ function eignewt(H::AbstractSymTri{T}, n::Integer) where {T<:Real}
     lambda = Vector{float(T)}(lambda0)
     for i = 1:n
         for k = 1:1000
-            (p,pderiv) = eigpoly(H,lambda[i])
-            δλ = p / pderiv # may be NaN or Inf if pderiv underflows to 0.0
+            δλ = eigpolyrat(H,lambda[i])
             if isfinite(δλ)
                 lambda[i] -= δλ
                 if abs(δλ) ≤ 10 * eps(lambda[i])
                     # do one final Newton iteration for luck and profit:
-                    δλ = (/)(eigpoly(H,lambda[i])...) # = p / pderiv
-                    isfinite(δλ) && (lambda[i] -= δλ)
+                    δλ = eigpolyrat(H,lambda[i])
+                    lambda[i] -= δλ
+                    break
                 end
             else
                 break
