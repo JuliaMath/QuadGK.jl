@@ -270,10 +270,24 @@ gauss(A::AbstractMatrix{<:Real}, unitintegral::Real=1) =
     gauss(symtri(A), unitintegral)
 
 function gauss(J::AbstractSymTri{<:Real}, unitintegral::Real=1)
+    N = size(J,1)
+    # hollow eigenvalues come in ± pairs, so we only need to compute half
+    n = J isa HollowSymTridiagonal ? (N+1) >> 1 : N
+
     # Golub–Welch algorithm
-    x = eignewt(J, size(J,1))
-    v = Vector{promote_type(eltype(J),eltype(x))}(undef, size(J,1))
-    w = [ unitintegral * abs2(eigvec1!(v,J,x[i])[1]) for i = 1:size(J,1) ]
+    x = eignewt(J, n)
+    v = Vector{promote_type(eltype(J),eltype(x))}(undef, N)
+    w = [ unitintegral * abs2(eigvec1!(v,J,x[i])[1]) for i = 1:n ]
+
+    if n < N # fill in +x points from -x mirror images
+        resize!(x, N)
+        resize!(w, N)
+        for i = n+1:N
+            j = 2n+iseven(N)-i # mirror-image point in 1st half
+            @inbounds x[i], w[i] = -x[j], w[j]
+        end
+    end
+
     return (x, w)
 end
 
