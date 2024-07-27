@@ -184,7 +184,7 @@ end
         @test xg ≈ x[2:2:end]
         @test wg2 ≈ wg
 
-        # test against results of Laurie implementatation by Gautschi
+        # test against results of Laurie implementation by Gautschi
         # in Matlab (from the OPQ suite https://www.cs.purdue.edu/archives/2002/wxg/codes/OPQ.html),
         # for the same Jacobi matrix:
         x0 = [0.00438238617866954, 0.02614951914104513, 0.06952432823447702, 0.1331034150629803, 0.2132620595793294, 0.306005657934478, 0.4072933420568336, 0.5125123454997229, 0.6164666827040001, 0.7142807062929434, 0.8021670261548075, 0.8770965454790314, 0.9359980967418293, 0.9759635237163186, 0.9959709148947024]
