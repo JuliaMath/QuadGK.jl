@@ -139,9 +139,6 @@ function eignewt(H::AbstractSymTri{T}, n::Integer) where {T<:Real}
             if isfinite(δλ)
                 lambda[i] -= δλ
                 if abs(δλ) ≤ 10 * eps(lambda[i])
-                    # do one final Newton iteration for luck and profit:
-                    δλ = eigpolyrat(H,lambda[i])
-                    lambda[i] -= δλ
                     break
                 end
             else
