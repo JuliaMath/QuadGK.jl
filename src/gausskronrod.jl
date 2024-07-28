@@ -614,4 +614,4 @@ end
 end
 
 cachedrule(::Type{T}, n::Integer) where {T<:Number} =
-    _cachedrule(typeof(float(real(one(T)))), Int(n))
+    _cachedrule(typeof(float(one(base_numeric_type(T)))), Int(n))

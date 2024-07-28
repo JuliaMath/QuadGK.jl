@@ -30,7 +30,7 @@ export quadgk, quadgk!,
        quadgk_segbuf, quadgk_segbuf!, quadgk_segbuf_count, quadgk_segbuf_print,
        BatchIntegrand
 
-using DataStructures, LinearAlgebra
+using DataStructures, LinearAlgebra, BaseType
 import Base.Order.Reverse
 
 # an in-place integrand function f!(result, x) and
