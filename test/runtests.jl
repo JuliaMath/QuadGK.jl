@@ -434,9 +434,26 @@ end
     f2(x) = quadgk(cos, x, 1)[1]
     f3(x) = quadgk(y->cos(x * y), 0., 1.)[1]
 
+    f1_count(x) = quadgk_count(cos, 0., x)[1]
+    f2_count(x) = quadgk_count(cos, x, 1)[1]
+    f3_count(x) = quadgk_count(y->cos(x * y), 0., 1.)[1]
+
+    f_vec(x) = sum(quadgk(y->[cos(x[1] * y), cos(x[2] * y)], 0., 1.)[1])
+
     @testset "Enzyme" begin
         @test cos(0.3) ≈ Enzyme.autodiff(Reverse, f1, Active(0.3))[1][1]
         @test -cos(0.3) ≈ Enzyme.autodiff(Reverse, f2, Active(0.3))[1][1]
         @test (0.3 * cos(0.3) - sin(0.3))/(0.3*0.3) ≈ Enzyme.autodiff(Reverse, f3, Active(0.3))[1][1]
+
+        @test cos(0.3) ≈ Enzyme.autodiff(Reverse, f1_count, Active(0.3))[1][1]
+        @test -cos(0.3) ≈ Enzyme.autodiff(Reverse, f2_count, Active(0.3))[1][1]
+        @test_broken (0.3 * cos(0.3) - sin(0.3))/(0.3*0.3) ≈ Enzyme.autodiff(Reverse, f3_count, Active(0.3))[1][1]
+
+        x = [0.3, 0.7]
+        dx = [0.0, 0.0]
+        f_vec(x)
+        # TODO custom rule with mixed vector returns not yet supported
+        @test_throws Enzyme.Compiler.EnzymeRuntimeException autodiff(Reverse, f_vec, Duplicated(x, dx))
+        # @test dx ≈ [(0.3 * cos(0.3) - sin(0.3))/(0.3*0.3), (0.7 * cos(0.7) - sin(0.7))/(0.7*0.7)]
     end
 end

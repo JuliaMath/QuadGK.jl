@@ -67,17 +67,17 @@ end
     return rt == Enzyme.Compiler.AnyState || rt == Enzyme.Compiler.DupState
 end
 
-function Base.:+(a::ClosureVector, b::ClosureVector)
-    Enzyme.Compiler.recursive_add(a, b, identity, guaranteed_nonactive)
+function Base.:+(a::CV, b::CV) where {CV <: ClosureVector}
+    Enzyme.Compiler.recursive_add(a, b, identity, guaranteed_nonactive)::CV
 end
 
-function Base.:-(a::ClosureVector, b::ClosureVector)
-    Enzyme.Compiler.recursive_add(a, b, x->-x, guaranteed_nonactive)
+function Base.:-(a::CV, b::CV) where {CV <: ClosureVector}
+    Enzyme.Compiler.recursive_add(a, b, x->-x, guaranteed_nonactive)::CV
 end
 
-function Base.:*(a::Number, b::ClosureVector)
+function Base.:*(a::Number, b::CV) where {CV <: ClosureVector}
     # b + (a-1) * b = a * b
-    Enzyme.Compiler.recursive_add(b, b, x->(a-1)*x, guaranteed_nonactive)
+    Enzyme.Compiler.recursive_add(b, b, x->(a-1)*x, guaranteed_nonactive)::CV
 end
 
 function Base.:*(a::ClosureVector, b::Number)
@@ -99,6 +99,34 @@ function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::
     end
     dsegs1 = segs[1] isa Const ? nothing : -LinearAlgebra.dot(f.val(segs[1].val), dres.val[1])
     dsegsn = segs[end] isa Const ? nothing : LinearAlgebra.dot(f.val(segs[end].val), dres.val[1])
+    return (df, # f
+            dsegs1,
+            ntuple(i -> nothing, Val(length(segs)-2))...,
+            dsegsn)
+end
+
+function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::Type{<:Union{Duplicated, BatchDuplicated}}, cache, f, segs::Annotation{T}...; kws...) where {T<:Real}
+    dres = cache[2]
+    @show dres
+    df = if f isa Const
+        nothing
+    else
+        segbuf = cache[1]
+        fwd, rev = Enzyme.autodiff_thunk(ReverseSplitNoPrimal, Const{typeof(call)}, Active, typeof(f), Const{T})
+        _df, _ = quadgk(map(x->x.val, segs)...; kws..., eval_segbuf=segbuf, maxevals=0, norm=f->0) do x
+            @show x
+            tape, prim, shad = fwd(Const(call), f, Const(x))
+            @show prim, shad
+            shad .= dres
+            drev = rev(Const(call), f, Const(x), tape)
+            @show drev
+            return ClosureVector(drev[1][1])
+        end
+        _df.f
+    end
+    dsegs1 = segs[1] isa Const ? nothing : -LinearAlgebra.dot(f.val(segs[1].val), dres)
+    dsegsn = segs[end] isa Const ? nothing : LinearAlgebra.dot(f.val(segs[end].val), dres)
+    Enzyme.make_zero!(dres)
     return (df, # f
             dsegs1,
             ntuple(i -> nothing, Val(length(segs)-2))...,
