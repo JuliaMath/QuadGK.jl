@@ -452,7 +452,7 @@ end
         x = [0.3, 0.7]
         dx = [0.0, 0.0]
         f_vec(x)
-        # TODO custom rule with mixed vector returns not yet supported
+        # TODO custom rule with mixed vector returns not yet supported x/ref https://github.com/EnzymeAD/Enzyme.jl/issues/1692
         @test_throws Enzyme.Compiler.EnzymeRuntimeException autodiff(Reverse, f_vec, Duplicated(x, dx))
         # @test dx ≈ [(0.3 * cos(0.3) - sin(0.3))/(0.3*0.3), (0.7 * cos(0.7) - sin(0.7))/(0.7*0.7)]
     end
