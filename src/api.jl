@@ -132,6 +132,15 @@ function quadgk!(f!, result, a::T,b::T,c::T...; atol=nothing, rtol=nothing, maxe
     return quadgk(f, a, b, c...; atol=atol, rtol=rtol, maxevals=maxevals, order=order, norm=norm, segbuf=segbuf, eval_segbuf=eval_segbuf)
 end
 
+struct Counter{F}
+    f::F
+    count::Base.RefValue{Int}
+end
+function (c::Counter{F})(args...) where F
+    c.count[] += 1
+    c.f(args...)
+end
+
 """
     quadgk_count(f, args...; kws...)
 
@@ -146,12 +155,9 @@ it may be possible to mathematically transform the problem in some way
 to improve the convergence rate.
 """
 function quadgk_count(f, args...; kws...)
-    count = 0
-    i = quadgk(args...; kws...) do x
-        count += 1
-        f(x)
-    end
-    return (i..., count)
+    counter = Counter(f, Ref(0))
+    i = quadgk(counter, args...; kws...)
+    return (i..., counter.count[])
 end
 
 """

@@ -84,7 +84,7 @@ function Base.:*(a::ClosureVector, b::Number)
     return b*a
 end
 
-function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::Active, cache, f, segs::Annotation{T}...; kws...) where {T<:Real}
+function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::Active, cache, f::Union{Const, Active}, segs::Annotation{T}...; kws...) where {T<:Real}
     df = if f isa Const
         nothing
     else
@@ -105,21 +105,17 @@ function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::
             dsegsn)
 end
 
-function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::Type{<:Union{Duplicated, BatchDuplicated}}, cache, f, segs::Annotation{T}...; kws...) where {T<:Real}
+function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::Type{<:Union{Duplicated, BatchDuplicated}}, cache, f::Union{Const, Active}, segs::Annotation{T}...; kws...) where {T<:Real}
     dres = cache[2]
-    @show dres
     df = if f isa Const
         nothing
     else
         segbuf = cache[1]
         fwd, rev = Enzyme.autodiff_thunk(ReverseSplitNoPrimal, Const{typeof(call)}, Active, typeof(f), Const{T})
         _df, _ = quadgk(map(x->x.val, segs)...; kws..., eval_segbuf=segbuf, maxevals=0, norm=f->0) do x
-            @show x
             tape, prim, shad = fwd(Const(call), f, Const(x))
-            @show prim, shad
             shad .= dres
             drev = rev(Const(call), f, Const(x), tape)
-            @show drev
             return ClosureVector(drev[1][1])
         end
         _df.f

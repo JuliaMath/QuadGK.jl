@@ -447,7 +447,7 @@ end
 
         @test cos(0.3) ≈ Enzyme.autodiff(Reverse, f1_count, Active(0.3))[1][1]
         @test -cos(0.3) ≈ Enzyme.autodiff(Reverse, f2_count, Active(0.3))[1][1]
-        @test_broken (0.3 * cos(0.3) - sin(0.3))/(0.3*0.3) ≈ Enzyme.autodiff(Reverse, f3_count, Active(0.3))[1][1]
+        @test (0.3 * cos(0.3) - sin(0.3))/(0.3*0.3) ≈ Enzyme.autodiff(Reverse, f3_count, Active(0.3))[1][1]
 
         x = [0.3, 0.7]
         dx = [0.0, 0.0]
