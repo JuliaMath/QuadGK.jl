@@ -439,9 +439,12 @@ quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...;
     @test E3 ≈ E3′ rtol=1e-15
     @test count3′ == length(segbuf3) * 15
 
-    # type inference of to_segbuf for concrete types:
-    @inferred QuadGK.to_segbuf([0,1])
-    @inferred QuadGK.to_segbuf([(0,1+3im)])
+    # type inference of to_segbuf for concrete types
+    # (fails due to apparent Julia inference limitation for some older versions):
+    if VERSION >= v"1.9"
+        @inferred QuadGK.to_segbuf([0,1])
+        @inferred QuadGK.to_segbuf([(0,1+3im)])
+    end
 end
 
 # Extension package only supported in 1.9+
