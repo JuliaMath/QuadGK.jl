@@ -630,7 +630,7 @@ function cachedrule(::Type{T}, n::Integer) where {T<:Number}
 end
 
 # fast path for common case of Float64 precision and default order
-function cachedrule(::Type{Union{Float64,ComplexF64}}, n::Integer)
+function cachedrule(::Union{Type{Float64},Type{ComplexF64}}, n::Integer)
     n == 7 && return (xd7,wd7,wgd7)
     lock(rulecache_lock)
     try
