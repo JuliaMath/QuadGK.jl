@@ -634,7 +634,7 @@ function cachedrule(::Union{Type{Float64},Type{ComplexF64}}, n::Integer)
     n == 7 && return (xd7,wd7,wgd7)
     lock(rulecache_lock)
     try
-        return _cachedrule(typeof(float(real(one(T)))), Int(n))
+        return _cachedrule(Float64, Int(n))
     finally
         unlock(rulecache_lock)
     end
