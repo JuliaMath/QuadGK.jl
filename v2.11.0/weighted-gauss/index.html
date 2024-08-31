@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Weighted quadrature · QuadGK.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">QuadGK.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../quadgk-examples/">Examples</a></li><li><a class="tocitem" href="../gauss-kronrod/">Quadrature rules</a></li><li class="is-active"><a class="tocitem" href>Weighted quadrature</a><ul class="internal"><li><a class="tocitem" href="#Weight-functions-and-Jacobi-matrices"><span>Weight functions and Jacobi matrices</span></a></li><li><a class="tocitem" href="#Arbitrary-weight-functions"><span>Arbitrary weight functions</span></a></li></ul></li><li><a class="tocitem" href="../api/">API reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Weighted quadrature</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Weighted quadrature</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JuliaMath/QuadGK.jl/blob/master/docs/src/weighted-gauss.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Gaussian-quadrature-and-arbitrary-weight-functions"><a class="docs-heading-anchor" href="#Gaussian-quadrature-and-arbitrary-weight-functions">Gaussian quadrature and arbitrary weight functions</a><a id="Gaussian-quadrature-and-arbitrary-weight-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Gaussian-quadrature-and-arbitrary-weight-functions" title="Permalink"></a></h1><p>The manual chapter on <a href="../gauss-kronrod/#Gauss-and-Gauss–Kronrod-quadrature-rules">Gauss and Gauss–Kronrod quadrature rules</a> explains the fundamentals of numerical integration (&quot;quadrature&quot;) to approximate <span>$\int_a^b f(x) dx$</span> by a weighted sum of <span>$f(x_i)$</span> values at quadrature points <span>$x_i$</span>.  Make sure you understand that chapter before reading this one!</p><p>More generally, one can compute quadrature rules for a <strong>weighted</strong> integral:</p><p class="math-container">\[\int_a^b W(x) f(x) dx \approx \sum_{i=1}^n w_i f(x_i) \, ,\]</p><p>where the effect of <strong>weight function</strong> <span>$W(x)$</span> (usually required to be <span>$≥ 0$</span> in <span>$(a,b)$</span>) is included in the quadrature weights <span>$w_i$</span> and points <span>$x_i$</span>.  The main motivation for weighted quadrature rules is to handle <em>poorly behaved</em> integrands — singular, discontinuous, highly oscillatory, and so on — where the &quot;bad&quot; behavior is <em>known</em> and can be <em>factored out</em> into <span>$W(x)$</span>.  By designing a quadrature rule with <span>$W(x)$</span> taken into account, one can obtain fast convergence as long as the remaining factor <span>$f(x)$</span> is smooth, regardless of how &quot;bad&quot; <span>$W(x)$</span> is.  Moreover, the rule can be re-used for many different <span>$f(x)$</span> as long as <span>$W(x)$</span> remains the same.</p><p>Gaussian quadrature is ideally suited to designing weighted quadrature rules, and QuadGK includes functions to construct the points <span>$x_i$</span> and weights <span>$w_i$</span> for nearly any desired weight function <span>$W(x) \ge 0$</span>, in principle, to any desired precision.   The case of Gauss–Kronrod rules (if you want an error estimate) is a bit trickier: it turns out that Gauss–Kronrod rules may not exist for arbitrary weight functions [see the review in <a href="https://etna.ricam.oeaw.ac.at/vol.45.2016/pp371-404.dir/pp371-404.pdf">Notaris (2016)</a>], but if a (real-valued) rule <em>does</em> exist then QuadGK can compute it for you (to arbitrary precision) using an algorithm by <a href="https://www.ams.org/journals/mcom/1997-66-219/S0025-5718-97-00861-2/S0025-5718-97-00861-2.pdf">Laurie (1997)</a>.  You can specify the weight function <span>$W(x)$</span> and the interval <span>$(a,b)$</span> in one of two ways:</p><ul><li>Via the <a href="https://en.wikipedia.org/wiki/Jacobi_operator">Jacobi matrix</a> of the <a href="https://en.wikipedia.org/wiki/Orthogonal_polynomials">orthogonal polynomials</a> associated with this weighted integral.  That may sound complicated, but it turns out that these are tabulated for many important weighted integrals.  For example, all of the weighted integrals in the <a href="https://github.com/JuliaApproximation/FastGaussQuadrature.jl">FastGaussQuadrature.jl</a> package are based on well-known recurrences that you can look up easily.</li><li>By explicitly providing the weight function <span>$W(x)$</span>, in which case QuadGK can perform a sequence of numerical integrals of <span>$W(x)$</span> against polynomials (using <code>quadgk</code>) to numerically construct the Jacobi matrix and hence the Gauss or Gauss–Kronrod quadrature rule.  (This can be computationally expensive, especially to attain high accuracy, but it can still be worthwhile if you re-use the quadrature rule for many different <span>$f(x)$</span> and/or <span>$f(x)$</span> is extremely computationally expensive.)</li></ul><h2 id="Weight-functions-and-Jacobi-matrices"><a class="docs-heading-anchor" href="#Weight-functions-and-Jacobi-matrices">Weight functions and Jacobi matrices</a><a id="Weight-functions-and-Jacobi-matrices-1"></a><a class="docs-heading-anchor-permalink" href="#Weight-functions-and-Jacobi-matrices" title="Permalink"></a></h2><p>For any weighted integral <span>$I[f] = \int_a^b W(x) f(x)$</span> with non-negative <span>$W(x)$</span>, there is an associated set of <a href="https://en.wikipedia.org/wiki/Orthogonal_polynomials">orthogonal polynomials</a> <span>$p_k(x)$</span> of degrees <span>$k = 0,1,\ldots$</span>, such that <span>$I[p_j p_k] = 0$</span> for <span>$j \ne k$</span>.   Amazingly, the <span>$n$</span>-point Gaussian quadrature points <span>$x_i$</span> are simply the roots of <span>$p_n(x)$</span>, and in general there is a deep relationship between quadrature and the theory of orthogonal polynomials.   A key part of this theory ends up being the <a href="https://en.wikipedia.org/wiki/Jacobi_operator">Jacobi matrix</a> describing the three-term recurrence of these polynomials for a given weighted integral.</p><p>It turns out that orthogonal polynomials always obey a three-term recurrence relationship</p><p class="math-container">\[p_{k+1}(x) = (a_k x + b_k)p_k(x) - c_k q_{k-1}(x)\]</p><p>for some coefficients <span>$a_k &gt; 0$</span>, <span>$b_k$</span>, and <span>$c_k&gt;0$</span> that depend on the integral <span>$I$</span>. By a rescaling <span>$p_k = q_k \prod_{j&lt;k} a_k$</span>, this simplifies to:</p><p class="math-container">\[q_{k+1}(x) = (x - \alpha_k)q_k(x) - \beta_k q_{k-1}(x)\]</p><p>for  coefficients <span>$\alpha_k = -b_k/a_k$</span> and <span>$\beta_k = c_k/a_k a_{k-1} &gt; 0$</span>.  (Once you know these coefficients, in fact, you can obtain all of the orthogonal polynomials by <span>$q_{-1}=0, q_0=1, q_1=(x-\alpha_0), q_2=(x-\alpha_1)(x-\alpha_0) - \beta_1,\ldots$</span>.) The coefficients are also associated with an infinite real-symmetric tridiagonal <a href="https://en.wikipedia.org/wiki/Jacobi_operator">&quot;Jacobi&quot; matrix</a>:</p><p class="math-container">\[J = \begin{pmatrix}
+\alpha_0 &amp; \sqrt{\beta_1} &amp; &amp; &amp; \\
+\sqrt{\beta_1} &amp; \alpha_1 &amp; \sqrt{\beta_2} &amp; &amp; \\
+&amp; \sqrt{\beta_2} &amp; \alpha_2 &amp; \sqrt{\beta_3} &amp; \\
+&amp; &amp; \ddots &amp; \ddots &amp; \ddots
+\end{pmatrix} .\]</p><p>Let <span>$J_n$</span> be the <span>$n \times n$</span> upper-left corner of <span>$J$</span>.   Astonishingly, the quadrature points <span>$x_i$</span> turn out to be exactly the eigenvalues of <span>$J$</span>, and the quadrature weights <span>$w_i$</span> are the first components² of the corresponding normalized eigenvectors, scaled by <span>$I[1]$</span> <a href="https://www.ams.org/journals/mcom/1969-23-106/S0025-5718-69-99647-1/S0025-5718-69-99647-1.pdf">(Golub &amp; Welch, 1968)</a>!</p><p>Given the <span>$n \times n$</span> matrix <span>$J_n$</span> (represented by a <a href="https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.SymTridiagonal"><code>LinearAlgebra.SymTridiagonal</code></a> object, which only stores the <span>$\alpha_k$</span> and <span>$\sqrt{\beta_k}$</span> coefficients) and the integral <code>unitintegral</code> <span>$= I[1]$</span>, you can construct the points <span>$x_i$</span> and weights <span>$w_i$</span> of the <span>$n$</span>-point Gaussian quadrature rule in QuadGK via <code>x, w = gauss(Jₙ, unitintegral)</code>.  To construct the <span>$(2n+1)$</span>-point Kronrod rule, then you need the <span>$m \times m$</span> matrix <span>$J_m$</span> where <code>m ≥ div(3n+3,2)</code> (<span>$m \ge \lfloor (3n+3)/2 \rfloor$</span>), and then obtain the points <code>x</code> and weights <code>w</code> (along with embedded Gauss weights <code>wg</code>) via <code>x, w, wg = kronrod(Jₘ, n, unitintegral)</code>.  Much of the time, you can simply look up formulas for the recurrence relations for weight functions of common interest.   Hopefully, this will be clearer with some examples below.</p><h3 id="Gauss–Legendre-quadrature-via-the-Jacobi-matrix"><a class="docs-heading-anchor" href="#Gauss–Legendre-quadrature-via-the-Jacobi-matrix">Gauss–Legendre quadrature via the Jacobi matrix</a><a id="Gauss–Legendre-quadrature-via-the-Jacobi-matrix-1"></a><a class="docs-heading-anchor-permalink" href="#Gauss–Legendre-quadrature-via-the-Jacobi-matrix" title="Permalink"></a></h3><p>The common case of integrals <span>$I[f] = \int_{-1}^{+1} f(x) dx$</span>, corresponding to the weight function <span>$W(x) = 1$</span> over the interval <span>$(-1,1)$</span>, leads to the <a href="https://en.wikipedia.org/wiki/Legendre_polynomials">Legendre polynomials</a>:</p><p class="math-container">\[p_0(x) = 1, \; p_1(x) = x, \; p_2(x) = (3x^2 - 1)/2, \; \ldots\]</p><p>which satisfy the recurrence (<a href="https://en.wikipedia.org/wiki/Legendre_polynomials#Recurrence_relations">found on Wikipedia</a> and in many other sources):</p><p class="math-container">\[(k+1)p_{k+1}(x) = (2k+1)x p_k(x) - k p_{k-1}(x) \, .\]</p><p>In the notation given above, that corresponds to coefficients <span>$a_k = (2k+1)/(k+1)$</span>, <span>$b_k = 0$</span>, and <span>$c_k = k/(k+1)$</span>, or equivalently <span>$\alpha_k = 0$</span> and <span>$\beta_k = c_k/a_k a_{k-1} = k^2 / (4k^2 - 1)$</span>, giving a Jacobi matrix:</p><p class="math-container">\[J = \begin{pmatrix}
+0 &amp; \sqrt{1/3} &amp; &amp; &amp; \\
+\sqrt{1/3} &amp; 0 &amp; \sqrt{4/15} &amp; &amp; \\
+&amp; \sqrt{4/15} &amp; 0 &amp; \sqrt{9/35} &amp; \\
+&amp; &amp; \ddots &amp; \ddots &amp; \ddots
+\end{pmatrix} .\]</p><p>which can be constructed in Julia by</p><pre><code class="language-julia-repl">julia&gt; using LinearAlgebra # for SymTridiagonal
+
+julia&gt; J(n) = SymTridiagonal(zeros(n), [sqrt(k^2/(4k^2-1)) for k=1:n-1]) # the n×n matrix Jₙ
+J (generic function with 1 method)
+
+julia&gt; J(5)
+5×5 SymTridiagonal{Float64, Vector{Float64}}:
+ 0.0      0.57735    ⋅         ⋅         ⋅
+ 0.57735  0.0       0.516398   ⋅         ⋅
+  ⋅       0.516398  0.0       0.507093   ⋅
+  ⋅        ⋅        0.507093  0.0       0.503953
+  ⋅        ⋅         ⋅        0.503953  0.0</code></pre><p>The unit integral is simply <span>$I[1] = \int_{-1}^{+1} dx = 2$</span>, so we can construct our <span>$n$</span>-point Gauss rule with, for example:</p><pre><code class="language-julia-repl">julia&gt; x, w = gauss(J(5), 2); [x w]
+5×2 Matrix{Float64}:
+ -0.90618   0.236927
+ -0.538469  0.478629
+  0.0       0.568889
+  0.538469  0.478629
+  0.90618   0.236927</code></pre><p>This is, of course, the same as the &quot;standard&quot; Gaussian quadrature rule, returned by <code>gauss(n)</code>:</p><pre><code class="language-julia-repl">julia&gt; x, w = gauss(5); [x w]
+5×2 Matrix{Float64}:
+ -0.90618   0.236927
+ -0.538469  0.478629
+  0.0       0.568889
+  0.538469  0.478629
+  0.90618   0.236927</code></pre><p>Similarly, the 5-point Gauss–Kronrod rule can be constructed from the <span>$9\times 9$</span> Jacobi matrix (<span>$9 = (3n+3)/2$</span>):</p><pre><code class="language-julia-repl">julia&gt; x, w, wg = kronrod(J(9), 5, 2); [x w]
+11×2 Matrix{Float64}:
+ -0.984085  0.042582
+ -0.90618   0.115233
+ -0.754167  0.186801
+ -0.538469  0.24104
+ -0.27963   0.27285
+  0.0       0.282987
+  0.27963   0.27285
+  0.538469  0.24104
+  0.754167  0.186801
+  0.90618   0.115233
+  0.984085  0.042582</code></pre><p>which is the same as the &quot;standard&quot; Gauss–Kronrod rule returned by <code>kronrod(n)</code> (returning only the <span>$x_i \le 0$</span> points) or <code>kronrod(n, -1, +1)</code> (returning all the points):</p><pre><code class="language-julia-repl">julia&gt; x, w, wg = kronrod(5); [x w]
+6×2 Matrix{Float64}:
+ -0.984085  0.042582
+ -0.90618   0.115233
+ -0.754167  0.186801
+ -0.538469  0.24104
+ -0.27963   0.27285
+  0.0       0.282987</code></pre><p>Notice that, in this case, our Jacobi matrix had zero diagonal entries <span>$\alpha_k = 0$</span>. It turns out that this <em>always</em> happens when the integration is centered around zero (<span>$a=-b$</span>) and the weight function <span>$W(x)$</span> that is <em>symmetric</em> (<span>$W(x)=W(-x)$</span>). This is called a &quot;hollow&quot; tridiagonal matrix, and its eigenvalues always come in <span>$\pm x_j$</span> pairs: the quadrature rule is has <em>symmetric points and weights</em>. In this case QuadGK can do its computations a bit more efficiently, and only compute the non-redundant <span>$x_i \le 0$</span> half of of the quadrature rule, if you represent <span>$J_n$</span> with a special type <a href="../api/#QuadGK.HollowSymTridiagonal"><code>QuadGK.HollowSymTridiagonal</code></a> whose constructor only requires you to supply the off-diagonal elements <span>$\sqrt{\beta_k}$</span>:</p><pre><code class="language-julia-repl">julia&gt; JholloW(n) = QuadGK.HollowSymTridiagonal([sqrt(k^2/(4k^2-1)) for k=1:n-1])
+Jhollow (generic function with 1 method)
+
+julia&gt; JholloW(5)
+5×5 QuadGK.HollowSymTridiagonal{Float64, Vector{Float64}}:
+  ⋅       0.57735    ⋅         ⋅         ⋅
+ 0.57735   ⋅        0.516398   ⋅         ⋅
+  ⋅       0.516398   ⋅        0.507093   ⋅
+  ⋅        ⋅        0.507093   ⋅        0.503953
+  ⋅        ⋅         ⋅        0.503953   ⋅
+
+julia&gt; x, w = gauss(JholloW(5), 2); [x w]
+5×2 Matrix{Float64}:
+ -0.90618   0.236927
+ -0.538469  0.478629
+  0.0       0.568889
+  0.538469  0.478629
+  0.90618   0.236927
+
+julia&gt; x, w, wg = kronrod(JholloW(9), 5, 2); [x w] # only returns xᵢ ≤ 0 points:
+6×2 Matrix{Float64}:
+ -0.984085  0.042582
+ -0.90618   0.115233
+ -0.754167  0.186801
+ -0.538469  0.24104
+ -0.27963   0.27285
+  0.0       0.282987</code></pre><p>(The <code>gauss</code> function returns all the points, albeit computed more efficiently, while the <code>kronrod</code> function returns only the <span>$x_i \le 0$</span> points for a <code>HollowSymTridiagonal</code> Jacobi matrix.)</p><p>If you have the Jacobi matrix for one interval, but want QuadGK to rescale the quadrature points and weights to some other interval (rather than doing the change of variables yourself), you can use the method <code>gauss(J, unitintegral,  (a,b) =&gt; (newa, newb))</code>, where <code>(newa,newb)</code> is the new interval and <code>unitintegral</code> is the integral of <span>$f(x)=1$</span> over the new interval, and similarly for <code>kronrod</code>.  For example, to rescale the Legendre <span>$W(x)=1$</span> rule from <span>$(-1,+1)$</span> to the interval <span>$(4,7)$</span>, with unit integral <span>$7-4 = 3$</span>, we could do:</p><pre><code class="language-julia-repl">julia&gt; x, w = gauss(JholloW(5), 3, (-1,1) =&gt; (4,7)); [x w]
+5×2 Matrix{Float64}:
+ 4.14073  0.35539
+ 4.6923   0.717943
+ 5.5      0.853333
+ 6.3077   0.717943
+ 6.85927  0.35539
+
+julia&gt; x, w = kronrod(JholloW(9), 5, 3, (-1,1) =&gt; (4,7)); [x w]
+11×2 Matrix{Float64}:
+ 4.02387  0.0638731
+ 4.14073  0.17285
+ 4.36875  0.280201
+ 4.6923   0.361561
+ 5.08055  0.409275
+ 5.5      0.424481
+ 5.91945  0.409275
+ 6.3077   0.361561
+ 6.63125  0.280201
+ 6.85927  0.17285
+ 6.97613  0.0638731</code></pre><p>(When the result is rescaled to a new interval, both functions return all of the points, but they are still computed more efficiently for a <code>HollowSymTridiagonal</code> Jacobi matrix.)</p><h3 id="Gauss–Jacobi-quadrature-via-the-Jacobi-matrix"><a class="docs-heading-anchor" href="#Gauss–Jacobi-quadrature-via-the-Jacobi-matrix">Gauss–Jacobi quadrature via the Jacobi matrix</a><a id="Gauss–Jacobi-quadrature-via-the-Jacobi-matrix-1"></a><a class="docs-heading-anchor-permalink" href="#Gauss–Jacobi-quadrature-via-the-Jacobi-matrix" title="Permalink"></a></h3><p>A typical application of weighted quadrature rules is to accelerate convergence for integrands that have power-law singularities at one or both of the endpoints.  Without loss of generality, we can rescale the interval to <span>$(-1,+1)$</span>, in which case such integrals are of the form:</p><p class="math-container">\[I[f] = \int_{-1}^{+1} \underbrace{(1-x)^\alpha (1+x)^\beta}_{W(x)} f(x) dx \, ,\]</p><p>where <span>$\alpha &gt; -1$</span> and <span>$\beta &gt; -1$</span> are the power laws at the two endpoints, which we have factored out into a weight function <span>$W(x) = (1+x)^\alpha (1-x)^\beta$</span> multiplied by some (hopefully smooth) function <span>$f(x)$</span>.  For example, <span>$\alpha = 0.5$</span> means that there is a square-root singularity at <span>$x=+1$</span> (where the integrand is finite, but its slope blows up).  Or if <span>$\beta = -0.1$</span> then the integrand blows up at <span>$x=-1$</span> but the integral is still finite (<span>$1/x^{0.1}$</span> is an &quot;integrable singularity&quot;). This weight function is quite well known, in fact: it yields <a href="https://en.wikipedia.org/wiki/Gauss%E2%80%93Jacobi_quadrature">Gauss–Jacobi quadrature</a>, with the corresponding orthogonal polynomials being the <a href="https://en.wikipedia.org/wiki/Jacobi_polynomials">Jacobi polynomials</a>.</p><p>Again, we can simply look up the 3-term recurrence for the Jacobi polynomials <span>$p_n$</span> corresponding to this weight function:</p><p class="math-container">\[2k (k + \alpha + \beta) (2k + \alpha + \beta - 2) p_k(x) = (2k+\alpha + \beta-1) \Big\{ (2k+\alpha + \beta)(2k+\alpha+\beta-2) x +  \alpha^2 - \beta^2 \Big\} p_{k-1}(x) - 2 (k+\alpha - 1) (k + \beta-1) (2k+\alpha + \beta) p_{k-2}(x),\]</p><p>giving <span>$\alpha_k$</span> and <span>$\beta_k$</span> by the earlier formulas, after a bit of algebra. We also will need the unit integral</p><p class="math-container">\[I[1] = \int_{-1}^{+1} (1+x)^\alpha (1-x)^\beta dx  = \frac{2^{\alpha + \beta + 1}}{\alpha + \beta + 1} \frac{\Gamma(\alpha+1)\Gamma(\beta+1)}{\Gamma(\alpha+\beta+1)} \, ,\]</p><p>where <span>$\Gamma$</span> is the <a href="https://en.wikipedia.org/wiki/Gamma_function">Gamma function</a>, computed in Julia by <a href="https://github.com/JuliaMath/SpecialFunctions.jl">SpecialFunctions.jl</a>. This is all rather tedious, but fortunately exactly these expressions have already been worked out for us by the <a href="https://github.com/JuliaApproximation/FastGaussQuadrature.jl">FastGaussQuadrature.jl</a> package, in undocumented functions <code>FastGaussQuadrature.jacobi_jacobimatrix(n, α, β)</code> (which computes the Jacobi matrix <span>$J_n$</span>) and <code>FastGaussQuadrature.jacobimoment(α, β)</code> (which computes <span>$I[1]$</span>).</p><p>We can use these to immediately compute the Gauss and Gauss–Kronrod points and weights for the Jacobi weight function, say for <span>$\alpha = 0.5$</span>, <span>$\beta = -0.1$</span>, and <span>$n=5$</span>:</p><pre><code class="language-julia-repl">julia&gt; using FastGaussQuadrature, QuadGK
+
+julia&gt; α, β, n = 0.5, -0.1, 5;
+
+julia&gt; Jₙ = FastGaussQuadrature.jacobi_jacobimatrix(n, α, β)
+5×5 LinearAlgebra.SymTridiagonal{Float64, Vector{Float64}}:
+ -0.25       0.525105     ⋅            ⋅            ⋅
+  0.525105  -0.0227273   0.506534      ⋅            ⋅
+   ⋅         0.506534   -0.00852273   0.503003      ⋅
+   ⋅          ⋅          0.503003    -0.00446429   0.501725
+   ⋅          ⋅           ⋅           0.501725    -0.00274725
+
+julia&gt; I₁ = FastGaussQuadrature.jacobimoment(α, β)
+2.012023098289125
+
+julia&gt; x, w = gauss(Jₙ, I₁); [x w]
+5×2 Matrix{Float64}:
+ -0.923234   0.372265
+ -0.589357   0.610968
+ -0.0806012  0.574759
+  0.452539   0.349891
+  0.852191   0.10414</code></pre><p>(Notice that this weight function is <em>not</em> symmetric, and so the Jacobi matrix is <em>not</em> hollow and the quadrature points and weights are asymmetrically distributed: the  points are denser near <span>$x=-1$</span> where the weight function diverges.) These are the same as the Gauss points and weights returned by the <code>gaussjacobi</code> function in FastGaussQuadrature (which has fancy algorithms that scale better for large <code>n</code> than those in QuadGK):</p><pre><code class="language-julia-repl">julia&gt; xf, wf = FastGaussQuadrature.gaussjacobi(n, α, β); [xf wf]
+5×2 Matrix{Float64}:
+ -0.923234   0.372265
+ -0.589357   0.610968
+ -0.0806012  0.574759
+  0.452539   0.349891
+  0.852191   0.10414
+
+julia&gt; [x w] - [xf wf] # they are same points/weights to nearly machine precision
+5×2 Matrix{Float64}:
+  0.0           3.33067e-16
+  0.0           0.0
+ -1.38778e-17  -2.22045e-16
+  5.55112e-17  -2.77556e-16
+ -1.11022e-16   9.71445e-17</code></pre><p>However, QuadGK can also return the 12-point Gauss–Kronrod rule, which embeds/ extends the 5-point Gauss-Jacobi rule in order to give you an error estimate:</p><pre><code class="language-julia-repl">julia&gt; J₁₂ = FastGaussQuadrature.jacobi_jacobimatrix(12, α, β);
+
+julia&gt; kx, kw, wg = kronrod(J₁₂, n, I₁); [kx kw]
+11×2 Matrix{Float64}:
+ -0.988882   0.0723663
+ -0.923234   0.181321
+ -0.786958   0.264521
+ -0.589357   0.306879
+ -0.347734   0.311949
+ -0.0806012  0.286857
+  0.192962   0.238356
+  0.452539   0.175128
+  0.677987   0.109024
+  0.852191   0.0520297
+  0.962303   0.0135914
+
+julia&gt; [ kx[2:2:end] wg ]  # embedded Gauss–Jacobi rule is a subset x₂ᵢ of the points
+5×2 Matrix{Float64}:
+ -0.923234   0.372265
+ -0.589357   0.610968
+ -0.0806012  0.574759
+  0.452539   0.349891
+  0.852191   0.10414</code></pre><p>The whole point of this is to accelerate convergence for smooth <span>$f(x)$</span>.  For example, let&#39;s consider <span>$f(x) = \cos(2x)$</span> with <span>$\alpha = 0.5, \beta = -0.1$</span> as above. In this case, according to Mathematica, the correct integral to 100 decimal places is <span>$I[\cos(2x)] \approx 0.9016684424525614794498545355301765224191593237834490575027527594933568786176710824696779907143025232764922385146156$</span>, or about <code>0.9016684424525615</code> to machine precision.  If we use the default <code>quadgk</code> function, which uses adaptive Gauss–Kronod quadrature that doesn&#39;t have the singularity built-in, it takes about 1000 function evaluations to reach 9 digits of accuracy:</p><pre><code class="language-julia-repl">julia&gt; exact = 0.9016684424525615;
+
+julia&gt; I, _ = quadgk_count(x -&gt; (1-x)^α * (1+x)^β * cos(2x), -1, 1, rtol=1e-9)
+(0.9016684425015659, 6.535590698106445e-10, 1125)
+
+julia&gt; I - exact
+4.900435612853471e-11</code></pre><p>(This isn&#39;t too terrible! If we plotted the points where <code>quadgk</code> evaluates our integrand, we would see that it concentrates points mostly close to the singularities at the boundaries. To get a similar error from unweighted Gauss–Legendre quadrature requires about <span>$n=10^5$</span> points, which is too slow with the <code>gauss(n)</code> function — it&#39;s only practical with <code>x, w = FastGaussQuadrature.gausslegendre(10^5)</code>, which uses a fancy <span>$O(n)$</span> algorithm.  Ordinary Gaussian quadrature very slowly converging for non-smooth functions.) In contrast, our 5-point Gauss–Jacobi quadrature rule from above gets about 6 digits:</p><pre><code class="language-julia-repl">julia&gt; I = sum(@. cos(2x) * w)
+0.9016690323443182
+
+julia&gt; I - exact
+5.898917566637962e-7</code></pre><p>and gets 10 digits with only 7 points:</p><pre><code class="language-julia-repl">julia&gt; x, w = gauss(FastGaussQuadrature.jacobi_jacobimatrix(7, α, β), I₁);
+
+julia&gt; I = sum(@. cos(2x) * w)
+0.9016684424777912
+
+julia&gt; I - exact
+2.522970721230422e-11</code></pre><p>This is not unexpected, because the fact that <span>$f(x)$</span> is smooth means that Gaussian quadrature converges exponentially fast, regardless of the weight function&#39;s endpoint singularities (which have been taken into account analytically by the quadrature rule). The Gauss–Kronrod rule also converges exponentially, and gives us an error estimate to give us added confidence in the result.  For example, with our 12-point Gauss–Kronrod rule we obtain the correct result to machine precision:</p><pre><code class="language-julia-repl">julia&gt; Ik = sum(@. cos(2kx) * kw)
+0.9016684424525613
+
+julia&gt; Ik - exact
+-2.220446049250313e-16</code></pre><p>while a subset <code>kx[2:2:end]</code> of the points (for which we could re-use the integrand evaluations if we wanted) gives us an embedded Gauss rule and an error bound:</p><pre><code class="language-julia-repl">julia&gt; Ig = sum(@. cos(2kx[2:2:end]) * wg)
+0.9016690323443182
+
+julia&gt; abs(Ik - Ig) # conservative error estimate: Kronrod - Gauss
+5.898917568858408e-7</code></pre><p>As usual, this error bound is quite conservative for smooth <span>$f(x)$</span> where the quadrature rule is converging rapidly, since it is actually an error estimate for the 5-point <code>Ig</code> and not for the 12-point <code>Ik</code>.  But at least it gives you some indication as to whether you picked a sufficient number of points to integrate <span>$f(x)$</span> sufficiently accurately.</p><p>For fun, let&#39;s do the same calculation to 100 digits with <span>$n=11$</span>, using <code>BigFloat</code> arithmetic.  (We simple need to pass <code>big&quot;0.5&quot;</code> and <code>big&quot;-0.1&quot;</code> for <code>α</code> and <code>β</code> to FastGaussQuadrature and it will construct the Jacobi matrix in <code>BigFloat</code> precision, which QuadGK will then turn into <code>BigFloat</code> Gauss/Gauss–Kronrod points and weights.)</p><pre><code class="language-julia-repl">julia&gt; setprecision(100, base=10)
+100
+
+julia&gt; bigexact = big&quot;0.9016684424525614794498545355301765224191593237834490575027527594933568786176710824696779907143025232764922385146156&quot;
+0.901668442452561479449854535530176522419159323783449057502752759493356878617671082469677990714302523252
+
+julia&gt; bigJ = FastGaussQuadrature.jacobi_jacobimatrix(18, big&quot;0.5&quot;, big&quot;-0.1&quot;);
+
+julia&gt; bigI₁ = FastGaussQuadrature.jacobimoment(big&quot;0.5&quot;, big&quot;-0.1&quot;)
+2.01202309828912479732166203322245014347199888907111184953347045850828228938420405746115463698460502738
+
+julia&gt; bigkx, bigkw, bigwg = kronrod(bigJ, 11, bigI₁);
+
+julia&gt; bigIk = sum(@. cos(2bigkx) * bigkw)
+0.901668442452561479449854535530176522419159355847389937592609530571246098597677208391320749304692456157
+
+julia&gt; Float64(bigIk - bigexact)
+3.2063940880089856e-44</code></pre><p>so the 18-point Gauss–Kronrod rule is accurate to about 43 digits, while the conservative error estimate (= error of embedded 11-point Gauss rule) is about 20 digits:</p><pre><code class="language-julia-repl">julia&gt; bigIg = sum(@. cos(2bigkx[2:2:end]) * bigwg)
+0.901668442452561479451864506089616011729536201879100045019491743663463853013435135385929850010604582451
+
+julia&gt; Float64(abs(bigIk - bigIg))
+2.0099705594394893e-21</code></pre><h2 id="Arbitrary-weight-functions"><a class="docs-heading-anchor" href="#Arbitrary-weight-functions">Arbitrary weight functions</a><a id="Arbitrary-weight-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Arbitrary-weight-functions" title="Permalink"></a></h2><p>Although analytical formulas for 3-term recurrences and Jacobi matrices are known for many common types of singularities that appear in integrals, this is certainly not universally true.   As a fallback, you can simply supply an arbitrary weight function <span>$W(x)$</span> and let QuadGK compute everything for you numerically (essentially by a form of <a href="https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process">Gram–Schmidt process</a> in which a basis of polynomials is orthonormalized with respect to <span>$w$</span>, using a sequence of <span>$O(n)$</span> numerical integrals).   This is much more time consuming, especially if you want high accuracy (i.e. you specify a low tolerance for the numerical integrals), but can be worth it if your <span>$f(x)$</span> is expensive and/or you need many integrals of a similar form:  the numerical integrals are againt cheap polynomial functions, and are only done once for all <span>$f(x)$</span> with the same weight function.</p><p>For example:</p><pre><code class="language-julia">using QuadGK
+x, w = gauss(x -&gt; exp(-x) / sqrt(x), 10, 0, -log(1e-10), rtol=1e-9)</code></pre><p>computes the points and weights for performing <code>∫exp(-x)f(x)/√x dx</code> integrals from <code>0</code> to <code>-log(1e-10) ≈ 23</code>, so that there is a <code>1/√x</code> singularity in the integrand at <code>x=0</code> and a rapid decay for increasing <code>x</code>.  (The <code>gauss</code> function currently does not support infinite integration intervals, but for a rapidly decaying weight function you can approximate an infinite interval to any desired accuracy by a sufficiently broad interval, with a tradeoff in computational expense.)  For example, with <code>f(x) = sin(x)</code>, the exact answer is <code>0.570370556005742…</code>.  Using the points and weights above with <code>sum(sin.(x) .* w)</code>, we obtain <code>0.5703706212868831</code>, which is correct to 6–7 digits using only 10 <code>f(x)</code> evaluations.  Obtaining similar accuracy for the same integral from <code>quadgk</code> requires nearly 300 function evaluations.   However, the <code>gauss</code> function itself computes many (<span>$2n$</span>) numerical integrals of your weight function (multiplied by polynomials), so this is only more efficient if your <code>f(x)</code> is very expensive or if you need to compute a large number of integrals with the same <code>W</code>.  See the <a href="../api/#QuadGK.gauss-Tuple{Type{var&quot;#s1&quot;} where var&quot;#s1&quot;&lt;:AbstractFloat, Integer}"><code>gauss</code></a> documentation for more information.</p><p>Similarly, one can use the <code>kronrod(W, n, a, b, rtol=rtol)</code> function to construct Gauss–Kronrod rules for arbitrary weight functions.   Unfortunately, it turns out that a Gauss–Kronrod rule does not exist for the weight function above, and the <code>kronrod</code> function consequently throws an error — probably because it is very similar to <a href="https://en.wikipedia.org/wiki/Gauss%E2%80%93Laguerre_quadrature">Gauss–Laguerre quadrature</a> and Gauss–Kronrod rules are known to not exist for the Gauss–Laguerre problem <a href="https://doi.org/10.1007/BF01590820">(Kahaner &amp; Monegato, 1978)</a>.   However, we can for example reproduce the points and weights from the Gauss–Jacobi weight function of the previous section, now computed completely numerically without supplying the analytical Jacobi matrix:</p><pre><code class="language-julia-repl">julia&gt; kx, kw, wg = kronrod(x -&gt; (1-x)^0.5 * (1+x)^-0.1, 5, -1, 1, rtol=1e-9); [kx kw]
+11×2 Matrix{Float64}:
+ -0.988882   0.0723663
+ -0.923234   0.181321
+ -0.786958   0.264521
+ -0.589357   0.306879
+ -0.347734   0.311949
+ -0.0806012  0.286857
+  0.192962   0.238356
+  0.452539   0.175128
+  0.677987   0.109024
+  0.852191   0.0520297
+  0.962303   0.0135914</code></pre><p>(If you compare these more quantitatively to those in the previous section, you&#39;ll see that they are accurate to about 10 digits, consistent with the <code>rtol=1e-9</code> that we passed as a tolerance for the numerical integrals used in constructing the Jacobi matrix numerically.)</p><p>For a more practical example that can <em>only</em> be done numerically, see our tutorial using a <a href="https://nbviewer.jupyter.org/urls/math.mit.edu/~stevenj/Solar-Quadrature.ipynb">weight function interpolated from tabulated solar-spectrum data</a>, also described in <a href="https://arxiv.org/abs/1912.06870">Johnson (2019)</a>.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../gauss-kronrod/">« Quadrature rules</a><a class="docs-footer-nextpage" href="../api/">API reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 31 August 2024 18:54">Saturday 31 August 2024</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
