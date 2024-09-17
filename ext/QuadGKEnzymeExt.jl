@@ -124,7 +124,7 @@ function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::
         segbuf = cache[1]
         fwd, rev = Enzyme.autodiff_thunk(ReverseSplitNoPrimal, Const{typeof(call)}, Active, typeof(f), Const{T})
         _df, _ = quadgk(map(x->x.val, segs)...; kws..., eval_segbuf=segbuf, maxevals=0, norm=f->0) do x
-            fshadow = Rev(Enzyme.make_zero(f.val))
+            fshadow = Ref(Enzyme.make_zero(f.val))
             tape, prim, shad = fwd(Const(call), MixedDuplicated(f.val, fshadow), Const(x))
             drev = rev(Const(call), f, Const(x), dres.val[1], tape)
             return MixedClosureVector(fshadow)
