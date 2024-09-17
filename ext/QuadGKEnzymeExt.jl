@@ -89,16 +89,19 @@ struct MixedClosureVector{F}
 end
 
 function Base.:+(a::CV, b::CV) where {CV <: MixedClosureVector}
-    Enzyme.Compiler.recursive_accumulate(a, b, identity)::CV
+    res = deepcopy(a)::CV
+    Enzyme.Compiler.recursive_accumulate(res, b, identity)::CV
 end
 
 function Base.:-(a::CV, b::CV) where {CV <: MixedClosureVector}
-    Enzyme.Compiler.recursive_accumulate(a, b, x->-x)::CV
+    res = deepcopy(a)::CV
+    Enzyme.Compiler.recursive_accumulate(res, b, x->-x)::CV
 end
 
 function Base.:*(a::Number, b::CV) where {CV <: MixedClosureVector}
     # b + (a-1) * b = a * b
-    Enzyme.Compiler.recursive_accumulate(b, b, x->(a-1)*x)::CV
+    res = deepcopy(b)::CV
+    Enzyme.Compiler.recursive_accumulate(res, b, x->(a-1)*x)::CV
 end
 
 function Base.:*(a::MixedClosureVector, b::Number)
@@ -126,7 +129,8 @@ function Enzyme.EnzymeRules.reverse(config, ofunc::Const{typeof(quadgk)}, dres::
             drev = rev(Const(call), f, Const(x), dres.val[1], tape)
             return MixedClosureVector(fshadow)
         end
-        _df.f[]
+        Enzyme.Compiler.recursive_accumulate(f.dval, _df.f)
+        nothing
     end
     dsegs1 = segs[1] isa Const ? nothing : -LinearAlgebra.dot(f.val(segs[1].val), dres.val[1])
     dsegsn = segs[end] isa Const ? nothing : LinearAlgebra.dot(f.val(segs[end].val), dres.val[1])
