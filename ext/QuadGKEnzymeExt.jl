@@ -90,18 +90,21 @@ end
 
 function Base.:+(a::CV, b::CV) where {CV <: MixedClosureVector}
     res = deepcopy(a)::CV
-    Enzyme.Compiler.recursive_accumulate(res, b, identity)::CV
+    Enzyme.Compiler.recursive_accumulate(res, b, identity)
+    res
 end
 
 function Base.:-(a::CV, b::CV) where {CV <: MixedClosureVector}
     res = deepcopy(a)::CV
-    Enzyme.Compiler.recursive_accumulate(res, b, x->-x)::CV
+    Enzyme.Compiler.recursive_accumulate(res, b, x->-x)
+    res
 end
 
 function Base.:*(a::Number, b::CV) where {CV <: MixedClosureVector}
     # b + (a-1) * b = a * b
     res = deepcopy(b)::CV
-    Enzyme.Compiler.recursive_accumulate(res, b, x->(a-1)*x)::CV
+    Enzyme.Compiler.recursive_accumulate(res, b, x->(a-1)*x)
+    res
 end
 
 function Base.:*(a::MixedClosureVector, b::Number)
