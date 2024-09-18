@@ -61,9 +61,9 @@ function evalrule(f::InplaceIntegrand{F}, a,b, x,w,wg, nrm) where {F}
         Ig .= zero.(Ik)
     else # odd: don't count x==0 twice in Gauss rule
         Ig .= f.fx .* wg[end]
-        f.f!(f.fg, a + (1+x[end-1])*s)
-        f.f!(f.fk, a + (1-x[end-1])*s)
-        Ik .= f.fx .* w[end] .+ (f.fg + f.fk) .* w[end-1]
+        f.f!(fg, a + (1+x[end-1])*s)
+        f.f!(fk, a + (1-x[end-1])*s)
+        Ik .= f.fx .* w[end] .+ (fg .+ fk) .* w[end-1]
     end
     for i = 1:length(wg)-n1
         eval2x!(fg, f, a + (1+x[2i])*s, a + (1-x[2i])*s)
