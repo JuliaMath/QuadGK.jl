@@ -212,7 +212,12 @@ end
 
     # check that non-symtridiagonal matrices throw error
     for A in ((1:3) * (1:3)', (1:3) * (4:7)', Tridiagonal(1:2, 3:5, 6:7))
-        @test_throws ArgumentError gauss(A)
+        if VERSION >= v"1.11" && (!=)(size(A)...)
+            # in Julia 1.11, SymTridiagonal started calling checksquare
+            @test_throws DimensionMismatch gauss(A)
+        else
+            @test_throws ArgumentError gauss(A)
+        end
     end
 
     # issue 93: underflow for large n
