@@ -94,7 +94,7 @@ limits, `range_type` i.e. the range of the function being integrated and
 starting with the given `size`. The buffer can then be reused across multiple
 compatible calls to `quadgk(...)` to avoid repeated allocation.
 
-Alternatively, you can replace your first call to `quadgk(...) with a
+Alternatively, you can replace your first call to `quadgk(...)` with a
 call to `quadgk_segbuf(...)`, which returns the computed segment buffer
 from your first integration.  This saves you the trouble of figuring out
 `domain_type` etc., which may not be obvious if the integrand is a variable.
