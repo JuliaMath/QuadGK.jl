@@ -132,7 +132,7 @@ to relax your error tolerance because of the slow convergence, and floating-poin
 may prevent `quadgk` from reaching very low error tolerances for singular integrands.)   Of
 course, it is always better to remove the singularity by some analytical transformation if you
 can.  For example, if you need $\int_0^a f(x) x^{-1/2} dx$, you can do a change of variables $x = y^2$
-to obtain an equivalent integral $\int_0^\sqrt{a} f(y^2) 2 dy$ that has no singularity and will
+to obtain an equivalent integral $\int_0^{\sqrt{a}} f(y^2) 2 dy$ that has no singularity and will
 therefore converge *much* more quickly.
 
 If your integrand blows up (or has *any* singularity or discontinuity) in the *interior* of the integration domain,
