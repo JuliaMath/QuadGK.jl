@@ -175,12 +175,12 @@ function handle_infinities(workfunc, f, s)
                 if si < zero(si) # x = s0 - t/(1-t)
                     return workfunc(t -> begin den = 1 / (1 - t);
                                                 f(s0 - oneunit(s1)*t*den) * den*den*oneunit(s1); end,
-                                    reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
+                                    reverse(map(x -> x == s0 ? zero(x) : isinf(x) ? one(x) : 1 / (1 + oneunit(x) / (s0 - x)), s)),
                                     t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
                     return workfunc(t -> begin den = 1 / (1 - t);
                                                 f(s0 + oneunit(s1)*t*den) * den*den*oneunit(s1); end,
-                                    map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
+                                    map(x -> x == s0 ? zero(x) : isinf(x) ? one(x) : 1 / (1 + oneunit(x) / (x - s0)), s),
                                     t -> s0 + oneunit(s1)*t/(1-t))
                 end
             end
