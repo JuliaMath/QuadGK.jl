@@ -205,12 +205,12 @@ function handle_infinities(workfunc, f::InplaceIntegrand, s)
                 if si < zero(si) # x = s0 - t/(1-t)
                     return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
                                             f.f!(ftmp, s0 - oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
-                                    reverse(map(x -> 1 / (1 + oneunit(x) / (s0 - x)), s)),
+                                    reverse(map(x -> x == s0 ? zero(x) : isinf(x) ? one(x) : 1 / (1 + oneunit(x) / (s0 - x)), s)),
                                     t -> s0 - oneunit(s1)*t/(1-t))
                 else # x = s0 + t/(1-t)
                     return workfunc(InplaceIntegrand((v, t) -> begin den = 1 / (1 - t);
                                             f.f!(ftmp, s0 + oneunit(s1)*t*den); v .= ftmp .* (den * den * oneunit(s1)); end, f.I, f.fx * oneunit(s1)),
-                                    map(x -> 1 / (1 + oneunit(x) / (x - s0)), s),
+                                    map(x -> x == s0 ? zero(x) : isinf(x) ? one(x) : 1 / (1 + oneunit(x) / (x - s0)), s),
                                     t -> s0 + oneunit(s1)*t/(1-t))
                 end
             end
