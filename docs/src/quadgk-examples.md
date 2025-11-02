@@ -25,11 +25,11 @@ which is the correct answer to nearly [machine precision](https://en.wikipedia.o
 
 Internally, `quadgk` handles infinite limits by the [changes of variables](https://en.wikipedia.org/wiki/Integration_by_substitution)
 ```math
-\int_a^\infty f(x)dx = \int_0^1 f\left(a + \frac{t}{1-t}\right) \frac{1}{(1-t)^2} dt
+\int_a^\infty f(x)dx = \int_0^1 f{\left(a + \frac{t}{1-t}\right)} \frac{1}{(1-t)^2} dt
 ```
 and
 ```math
-\int_{-\infty}^\infty f(x)dx = \int_{-1}^1 f\left(\frac{t}{1-t^2}\right) \frac{1+t^2}{(1-t^2)^2} dt
+\int_{-\infty}^\infty f(x)dx = \int_{-1}^1 f{\left(\frac{t}{1-t^2}\right)} \frac{1+t^2}{(1-t^2)^2} dt
 ```
 respectively.   Although the transformed integrands are singular at the endpoints
 $t = 1$ and $t = \pm 1$, respectively, because the singularities are integrable
