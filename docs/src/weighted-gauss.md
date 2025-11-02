@@ -340,7 +340,7 @@ The whole point of this is to accelerate convergence for smooth $f(x)$.  For
 example, let's consider $f(x) = \cos(2x)$ with $\alpha = 0.5, \beta = -0.1$ as above.
 In this case, according to Mathematica, the correct integral to 100 decimal places is
 $I[\cos(2x)] \approx 0.9016684424525614794498545355301765224191593237834490575027527594933568786176710824696779907143025232764922385146156$, or about `0.9016684424525615` to machine precision.  If we use
-the default `quadgk` function, which uses adaptive Gauss–Kronod quadrature that doesn't
+the default `quadgk` function, which uses adaptive Gauss–Kronrod quadrature that doesn't
 have the singularity built-in, it takes about 1000 function evaluations to reach 9 digits of accuracy:
 ```julia-repl
 julia> exact = 0.9016684424525615;
@@ -431,7 +431,7 @@ julia> Float64(abs(bigIk - bigIg))
 
 ## Arbitrary weight functions
 
-Although analytical formulas for 3-term recurrences and Jacobi matrices are known for many common types of singularities that appear in integrals, this is certainly not universally true.   As a fallback, you can simply supply an arbitrary weight function $W(x)$ and let QuadGK compute everything for you numerically (essentially by a form of [Gram–Schmidt process](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) in which a basis of polynomials is orthonormalized with respect to $w$, using a sequence of $O(n)$ numerical integrals).   This is much more time consuming, especially if you want high accuracy (i.e. you specify a low tolerance for the numerical integrals), but can be worth it if your $f(x)$ is expensive and/or you need many integrals of a similar form:  the numerical integrals are againt cheap polynomial functions, and are only done once for all $f(x)$ with the same weight function.
+Although analytical formulas for 3-term recurrences and Jacobi matrices are known for many common types of singularities that appear in integrals, this is certainly not universally true.   As a fallback, you can simply supply an arbitrary weight function $W(x)$ and let QuadGK compute everything for you numerically (essentially by a form of [Gram–Schmidt process](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) in which a basis of polynomials is orthonormalized with respect to $w$, using a sequence of $O(n)$ numerical integrals).   This is much more time consuming, especially if you want high accuracy (i.e. you specify a low tolerance for the numerical integrals), but can be worth it if your $f(x)$ is expensive and/or you need many integrals of a similar form:  the numerical integrals are against cheap polynomial functions, and are only done once for all $f(x)$ with the same weight function.
 
 For example:
 ```julia
