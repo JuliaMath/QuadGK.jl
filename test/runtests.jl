@@ -452,8 +452,8 @@ quadgk_segbuf_printnull(args...; kws...) = quadgk_segbuf_print(devnull, args...;
     end
 end
 
-# Extension package only supported in 1.9+
-@static if VERSION >= v"1.9"
+# Extension package only supported in 1.9+, but Enzyme doesn't yet support Julia 1.12
+@static if v"1.9" <= VERSION < v"1.12"
     using Enzyme
     f1(x) = quadgk(cos, 0., x)[1]
     f2(x) = quadgk(cos, x, 1)[1]
