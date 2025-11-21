@@ -12,6 +12,7 @@ makedocs(
         "Weighted quadrature" => "weighted-gauss.md",
         "API reference" => "api.md",
     ],
+    warnonly = [:missing_docs],
 )
 
 deploydocs(

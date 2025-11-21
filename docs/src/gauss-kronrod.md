@@ -91,10 +91,10 @@ fewer points $n' < n$, and use their *difference* as an error
 estimate.  (If the error is rapidly converging with $n$, this is usually
 a conservative upper bound on the error.)
 ```math
-\text{error estimate} = \Big|
+\text{error estimate} = \Bigg|
 \underbrace{\sum_{i=1}^n w_i f(x_i)}_{\text{first rule}} -
 \underbrace{\sum_{j=1}^{n'} w_j' f(x_j')}_{\text{second rule}}
-\Big|
+\Bigg|
 ```
 Naively, this requires us to evaluate our integrand $f(x)$ an extra
 $n'$ times to get the error estimate from the second rule.  However,
@@ -203,7 +203,7 @@ Of course, you still have to evaluate $f(x)$ at all $2n+1$ points,
 but summing the results requires a bit less arithmetic
 and storing the rule takes less memory.  Note also that the $(-1,1)$ rule can be applied to any desired interval $(a,b)$ by a change of variables
 ```math
-\int_a^b f(x) dx = \frac{b-a}{2} \int_{-1}^{+1} f\left( (u+1)\frac{b-a}{2} + a  \right) du \, ,
+\int_a^b f(x) dx = \frac{b-a}{2} \int_{-1}^{+1} f{\left( (u+1)\frac{b-a}{2} + a \right)} du \, ,
 ```
 so the $(-1,1)$ rule can be computed once (for a given order and precision) and re-used.  In consequence, `kronrod(n)` is `quadgk` uses internally.  The higher-level `kronrod(n, a, b)` function is more convenient for casual use, however.
 
