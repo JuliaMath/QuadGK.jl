@@ -79,7 +79,7 @@ somewhere that is not known in advance).
 For multidimensional integration, see also the [HCubature.jl](https://github.com/stevengj/HCubature.jl), [Cubature.jl](https://github.com/stevengj/Cubature.jl), and
 [Cuba.jl](https://github.com/giordano/Cuba.jl) packages, or alternatively [IteratedIntegration.jl](https://github.com/lxvm/IteratedIntegration.jl) for efficient nested 1d integrals (probably more efficient than nesting QuadGK directly).
 
-Note that all of the above quadrature routines assume that you supply you integrand
+Note that all of the above quadrature routines assume that you supply your integrand
 as a *function* $f(x)$ that can be evaluated at *arbitrary points* inside the
 integration domain.  This is ideal, because then the integration algorithm can
 choose points so that the accuracy improves rapidly (often exponentially rapidly)
