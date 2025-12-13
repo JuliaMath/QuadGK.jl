@@ -86,4 +86,4 @@ choose points so that the accuracy improves rapidly (often exponentially rapidly
 with the number of points.   However if you only have function values supplied
 at pre-determined points, such as on a regular grid, then you should use
 another (probably slower-converging) algorithm in a package such as
-[Trapz.jl](https://github.com/francescoalemanno/Trapz.jl), [Romberg.jl](https://github.com/fgasdia/Romberg.jl), or [NumericalIntegration.jl](https://github.com/dextorious/NumericalIntegration.jl).
+[Trapz.jl](https://github.com/francescoalemanno/Trapz.jl), [Romberg.jl](https://github.com/fgasdia/Romberg.jl), [NumericalIntegration.jl](https://github.com/dextorious/NumericalIntegration.jl), or [ConvolutionInterpolations.jl](https://github.com/NikoBiele/ConvolutionInterpolations.jl).
