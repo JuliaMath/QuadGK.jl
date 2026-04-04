@@ -76,6 +76,10 @@ integration domain, which can be better if fine resolution is required only in a
 part of your domain (e.g if your integrand has a sharp peak or singularity
 somewhere that is not known in advance).
 
+Another quadrature algorithm that can be especially effective for integrands over infinite
+domains or for integrands with unknown (but integrable) singularities at the domain boundaries
+is [tanh–sinh quadrature](https://en.wikipedia.org/wiki/Tanh-sinh_quadrature), which is implemented in Julia by the [DoubleExponentialFormulas.jl](https://github.com/machakann/ DoubleExponentialFormulas.jl) package.
+
 For multidimensional integration, see also the [HCubature.jl](https://github.com/stevengj/HCubature.jl), [Cubature.jl](https://github.com/stevengj/Cubature.jl), and
 [Cuba.jl](https://github.com/giordano/Cuba.jl) packages, or alternatively [IteratedIntegration.jl](https://github.com/lxvm/IteratedIntegration.jl) for efficient nested 1d integrals (probably more efficient than nesting QuadGK directly).
 
@@ -86,4 +90,4 @@ choose points so that the accuracy improves rapidly (often exponentially rapidly
 with the number of points.   However if you only have function values supplied
 at pre-determined points, such as on a regular grid, then you should use
 another (probably slower-converging) algorithm in a package such as
-[Trapz.jl](https://github.com/francescoalemanno/Trapz.jl), [Romberg.jl](https://github.com/fgasdia/Romberg.jl), [NumericalIntegration.jl](https://github.com/dextorious/NumericalIntegration.jl), or [ConvolutionInterpolations.jl](https://github.com/NikoBiele/ConvolutionInterpolations.jl).
+[Trapz.jl](https://github.com/francescoalemanno/Trapz.jl), [Romberg.jl](https://github.com/fgasdia/Romberg.jl), [NumericalIntegration.jl](https://github.com/dextorious/NumericalIntegration.jl), [ConvolutionInterpolations.jl](https://github.com/NikoBiele/ConvolutionInterpolations.jl), or [FastInterpolations.jl](https://github.com/ProjectTorreyPines/FastInterpolations.jl).

@@ -456,3 +456,55 @@ julia> int_fast(cos, 1e-6, -1, 1)
 which agree to about 13 digits, but the slow brute-force method requires 1230 function evaluations while the fast singularity-subtracted method requires only 31 function evaluations.
 
 As an added bonus, `int_fast` works even for `α = 0`, where it gives you $i\pi g(0)$ (for $0 \in (a,b)$) plus the Cauchy principal part as above.
+
+## Conditionally convergent integrals by Richardson extrapolation
+
+Special care must be taken in numerical computation of integrals that are only [conditionally convergent](https://en.wikipedia.org/wiki/Conditional_convergence) — that is, the absolute value of the integrand is not integrable.  Because even the *definition* of such an integral can be changed by summing integrals over portions of the domain in different orders, they are problematic for h-adaptive quadrature methods that subdivide the domain into pieces that are evaluated in arbitrary order.   One such example is the [Dirichlet integral](https://en.wikipedia.org/wiki/Dirichlet_integral)
+```math
+\int_0^\infty \frac{\sin x}{x} dx = \frac{\pi}{2} \approx 1.57079632679\ldots \, ,
+```
+which is conditionally convergent because the integral of $|\sin x|/|x|$ diverges.  Applied naively, QuadGK gives an entirely incorrect answer for this integral:
+```julia-repl
+julia> quadgk_count(x -> sin(x)/x, 0, Inf)
+(2.7708907564270895, 4.244645440962897, 1965)
+```
+Notice the enormouse error estimate: $2.77 \pm 4.24$!   The problem is that QuadGK is subdividing the domain into pieces that are summed in an arbitrary order, and from this perspective the integral is not defined—you *must* take the limit in a particular way.
+
+One way to handle such integrals is to take a limit of a [Laplace transform](https://en.wikipedia.org/wiki/Laplace_transform):
+```math
+\lim_{s \to 0^+} \underbrace{\int_0^\infty e^{-sx} \frac{\sin x}{x} dx}_{\pi/2 - \arctan s} = \frac{\pi}{2} \, .
+```
+Here, the integral for $s > 0$ *is* absolutely convergent, unambiguously defined (it evaluates analytically to $\pi/2 - \arctan x$), and can be computed numerically by QuadGK without great difficulty, e.g. for $s=1$:
+```julia-repl
+julia> quadgk_count(x -> exp(-1*x) * sin(x)/x, 0, Inf)
+(0.7853981633970302, 9.251635817418056e-10, 135)
+
+julia> pi/2 - atan(1) # analytical answer
+0.7853981633974483
+```
+which is correct to about 12 digits (for the default `rtol ≈ 1.5e-8`).   But how can one *numerically* take the limit $s \to 0^+$?
+
+Because the Laplace transform of such integrands is analytic (has a Taylor series), it is natural to use a polynomial-extrapolation technique such as [Richardson extrapolation](https://en.wikipedia.org/wiki/Richardson_extrapolation), which is implemented in Julia
+by the [Richardson.jl package](https://github.com/JuliaMath/Richardson.jl).  You give it a starting value of $s$, say $s=1$, and a tolerance, and it will extrapolate the $s \to 0^+$ for you (from evaluation at a sequence of $s$ values):
+```julia-repl
+julia> using Richardson
+
+julia> extrapolate(1, rtol=1e-8) do s
+           quadgk(x -> exp(-s*x) * sin(x)/x, 0, Inf, rtol=1e-10)[1]
+       end
+(1.5707963268036178, 4.397326947014335e-11)
+```
+which is the correct answer $\pi/2$ to about 11 significant digits.
+
+As another example, let us consider the [Fresnel integral](https://en.wikipedia.org/wiki/Fresnel_integral), which is even more oscillatory and hence harder to compute accurately:
+```math
+\int_0^{\infty} \sin(x^2) dx = \sqrt{\frac{\pi}{8}} \approx 0.62665706865775\ldots \, .
+```
+This is again conditionally convergent (integrating the absolute value diverges).  Extrapolating as above, we obtain:
+```julia-repl
+julia> extrapolate(1, rtol=1e-4) do s
+           quadgk(x -> exp(-s*x) * sin(x^2), 0, Inf, rtol=1e-10)[1]
+       end
+(0.6266287650288034, 0.017730230874649977)
+```
+which is accurate to about 4 significant digits.  It turns out to be difficult to do better than this in `Float64` precision due to the wildly oscillatory nature of this integrand.   For this sort of case one would be better off using a different quadrature method that is [analytically designed to compute oscillatory integrals](https://discourse.julialang.org/t/rfc-ann-oscillatoryintegralsode-jl-levin-method-ordinarydiffeq/55601).
