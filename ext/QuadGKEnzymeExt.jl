@@ -21,7 +21,7 @@ function Enzyme.EnzymeRules.augmented_primal(config, ofunc::Const{typeof(quadgk)
         end
     end
 
-    res = EnzymeRules.needs_primal(config)
+    res = if EnzymeRules.needs_primal(config)
         retres
     elseif Enzyme.EnzymeRules.needs_shadow(config)
         quadgk(f.val, prims...; kws...)
