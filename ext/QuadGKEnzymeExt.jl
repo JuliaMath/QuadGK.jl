@@ -21,14 +21,22 @@ function Enzyme.EnzymeRules.augmented_primal(config, ofunc::Const{typeof(quadgk)
         end
     end
 
+    res = if EnzymeRules.needs_primal(config)
+        retres
+    elseif Enzyme.EnzymeRules.needs_shadow(config)
+        quadgk(f.val, prims...; kws...)
+    else
+        nothing
+    end
+    
     dres = if !Enzyme.EnzymeRules.needs_shadow(config)
         nothing
     elseif EnzymeRules.width(config) == 1
-        zero.(res...)
+        Enzyme.make_zero(res)
     else
         ntuple(Val(EnzymeRules.width(config))) do i
             Base.@_inline_meta
-            zero.(res...)
+            Enzyme.make_zero(res)
         end
     end
 
@@ -63,7 +71,7 @@ struct ClosureVector{F}
 end
 
 @inline function guaranteed_nonactive(::Type{T}) where T
-    rt = Enzyme.Compiler.active_reg_inner(T, (), nothing)
+    rt = Enzyme.Compiler.active_reg_nothrow(T)
     return rt == Enzyme.Compiler.AnyState || rt == Enzyme.Compiler.DupState
 end
 
