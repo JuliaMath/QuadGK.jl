@@ -21,14 +21,22 @@ function Enzyme.EnzymeRules.augmented_primal(config, ofunc::Const{typeof(quadgk)
         end
     end
 
+    res = EnzymeRules.needs_primal(config)
+        retres
+    elseif Enzyme.EnzymeRules.needs_shadow(config)
+        quadgk(f.val, prims...; kws...)
+    else
+        nothing
+    end
+    
     dres = if !Enzyme.EnzymeRules.needs_shadow(config)
         nothing
     elseif EnzymeRules.width(config) == 1
-        zero(eltype(RT))
+        Enzyme.make_zero(res)
     else
         ntuple(Val(EnzymeRules.width(config))) do i
             Base.@_inline_meta
-            zero(eltype(RT))
+            Enzyme.make_zero(res)
         end
     end
 
