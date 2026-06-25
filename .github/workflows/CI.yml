@@ -22,20 +22,22 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.6'
-          - '1.9'
-          - '1'
-#          - 'nightly'
+          - 'min'
+          - '1'          
         os:
           - ubuntu-latest
-          - macOS-latest
           - windows-latest
         arch:
           - x64
+        include:
+          # macOS-latest runners are Apple Silicon (arm64). Julia >= 1.8 ships
+          # native aarch64 macOS binaries, so test those natively.
+          - { version: '1.9', os: macOS-latest, arch: aarch64 }
+          - { version: '1',   os: macOS-latest, arch: aarch64 }
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/cache@v3
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
