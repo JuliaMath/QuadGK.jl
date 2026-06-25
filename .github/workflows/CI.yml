@@ -28,10 +28,17 @@ jobs:
 #          - 'nightly'
         os:
           - ubuntu-latest
-          - macOS-latest
           - windows-latest
         arch:
           - x64
+        include:
+          # macOS-latest runners are Apple Silicon (arm64). Julia >= 1.8 ships
+          # native aarch64 macOS binaries, so test those natively.
+          - { version: '1.9', os: macOS-latest, arch: aarch64 }
+          - { version: '1',   os: macOS-latest, arch: aarch64 }
+          # Julia 1.6 has no native aarch64 macOS build, so run the x64 build
+          # under Rosetta 2 (setup-julia v3 requires force-arch to opt in).
+          - { version: '1.6', os: macOS-latest, arch: x64, force_arch: 'true' }
     steps:
       - uses: actions/checkout@v6
       - uses: julia-actions/cache@v3
@@ -39,6 +46,7 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+          force-arch: ${{ matrix.force_arch || false }}
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
