@@ -74,7 +74,8 @@ same domain), even for an integrand of a different result type; by also passing
 forces the same quadrature rule to be used (which is useful for evaluating e.g.
 derivatives of the approximate integral).
 """
-quadgk(f, segs...; kws...) =
+quadgk(f::F, segs::Vararg{Any,N}; kws...) where {F,N} =
+    # Specialize on the callable and endpoint count to keep inference tractable for nested integrals.
     quadgk(f, promote(segs...)...; kws...)
 
 function quadgk(f, segs::T...;
